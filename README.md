@@ -21,6 +21,7 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo` | Toggle the window (rescans your gear) |
 | `/ygo scan` | Rescan your bags |
 | `/ygo export` (or `xml`) | Export the LegacyAC XML for your main job |
+| `/ygo warp` | Warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring |
 | `/ygo lac` | Export the LuAshitacast profile for your main job |
 | `/ygo gs` (or `gearswap`) | Export the GearSwap Lua for your main job |
 | `/ygo equip [set]` | Equip the current (or named) set |
@@ -31,7 +32,7 @@ Commands (`/ygo` or `/yunagearopt`):
 
 ## Exports
 
-- **LegacyAC** (Ashita): saved to `legacyac/CharacterName_JOB_YunaGearOpt.xml`, with a copy in `Ashita\config\LegacyAC\`. Load with `/la load CharacterName_JOB_YunaGearOpt.xml`.
+- **LegacyAC** (Ashita): saved to `legacyac/CharacterName_JOB.xml`, with a copy in `Ashita\config\LegacyAC\`. Load with `/la load CharacterName_JOB.xml`.
 - **LuAshitacast** (Ashita): saved to `lac/CharacterName_JOB.lua` and straight into `Ashita\config\addons\luashitacast\CharacterName_ID\JOB.lua` (an existing profile is backed up first as `JOB_backup_<date>.lua`). Load with `/lac load`. Toggles: `/lac fwd pdt`, `mdt`, `hybrid`, `mb`, `th`.
 - **GearSwap** (Windower): saved to `gearswap/CharacterName_JOB.lua`. Copy it to `Windower\addons\GearSwap\data\`.
 
@@ -57,6 +58,8 @@ Every job has a **2-hour set** with its Summit family (Apogee / Pinnacle / Apex 
 *SP ability delay -5 min*), equipped when you use your 2-hour in all three exports. Apex Haidate (song duration)
 and Apex Sune-Ate (song recast) are preferred for BRD songs, Apex Haidate (Phantom Roll +1) for COR rolls,
 Pinnacle pieces for Berserk / Warcry / Meditate. Families and 2-hours are in `data.lua` (`summit`, `sp_abilities`).
+
+Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so keep YunaGearOpt loaded; the GearSwap file does it by itself), and puts your **Movement** set on while you run.
 
 Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory and Wardrobes) is usable; the addon warns about pieces stored elsewhere.
 

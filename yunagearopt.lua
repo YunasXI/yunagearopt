@@ -15,6 +15,19 @@ do
     imgui.Text = function(t, ...) return raw_text(esc(t), ...); end
     imgui.TextColored = function(c, t, ...) return raw_colored(c, esc(t), ...); end
     if raw_disabled then imgui.TextDisabled = function(t, ...) return raw_disabled(esc(t), ...); end end
+    -- Tooltips 15% smaller so long ones fit on screen (text arrives already %-escaped)
+    local raw_tooltip = imgui.SetTooltip;
+    if imgui.BeginTooltip and imgui.EndTooltip and imgui.SetWindowFontScale then
+        imgui.SetTooltip = function(t)
+            local opened = imgui.BeginTooltip();
+            if opened == false then return; end
+            imgui.SetWindowFontScale(0.85);
+            raw_text(tostring(t));
+            imgui.EndTooltip();
+        end
+    else
+        imgui.SetTooltip = raw_tooltip;
+    end
 end
 local chat     = require('chat');
 local settings = require('settings');
@@ -390,7 +403,10 @@ end
 local bis_allowed = nil;
 local function build_bis_allowed()
     local set = {};
-    local function add(n) if type(n) == 'string' and n ~= '' then set[name_key(n)] = true; end end
+    local function add(n)
+        if type(n) == 'table' then for _, x in ipairs(n) do add(x); end return; end
+        if type(n) == 'string' and n ~= '' then set[name_key(n)] = true; end
+    end
     for _, sets in pairs(BIS_REF or {}) do
         for _, slots in pairs(sets) do for _, n in pairs(slots) do add(n); end end
     end
@@ -514,7 +530,7 @@ local function build_sets(job_id)
                     id = id, name = def.name or id, label = def.label or id, kind = def.kind or 'other',
                     base_weights = def.weights, caps = def.caps or {},
                     weapons = def.weapons and wjob or false, range = range_for(def.kind or 'other', id, def.range),
-                    fixed = def.fixed, buff = def.buff, ws_only = def.ws_only,
+                    fixed = def.fixed, fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, ws_only = def.ws_only,
                 });
             end
         end
@@ -624,9 +640,17 @@ end
 
 
 local function same_piece(c, pin, loose)
+    if type(pin.name) == 'table' then
+        for _, n in ipairs(pin.name) do
+            if name_key(c.item.name) == name_key(n) then return true; end
+        end
+        return false;
+    end
     if loose then return name_key(c.item.name) == name_key(pin.name); end
     return c.item.name == pin.name and c.item.where == pin.where;
 end
+
+local curated_for;   -- defined with the BiS code further down
 
 -- Preferred items (data.lua) that apply to this job + set
 local function preferred_for(job_id, desc)
@@ -663,7 +687,7 @@ local function optimize(job_id, desc, pins, pool)
     pins = pure and {} or (pins or {});
     if desc.fixed and not pure then
         local merged = {};
-        for k, v in pairs(desc.fixed) do merged[k] = { name = v }; end
+        for k, v in pairs(desc.fixed) do merged[k] = { name = v, alt = desc.fallback and desc.fallback[k] }; end
         for k, v in pairs(pins) do merged[k] = v; end
         pins = merged;
     end
@@ -712,12 +736,31 @@ local function optimize(job_id, desc, pins, pool)
                 end
                 if locked[def.key] then break; end
             end
+            if not locked[def.key] and pin.alt then
+                for _, c in ipairs(full[def.key]) do
+                    if not used[c.idx] and same_piece(c, { name = pin.alt }, true) then
+                        assign[def.key], used[c.idx], locked[def.key] = c, true, true;
+                        break;
+                    end
+                end
+            end
         end
     end
 
     -- Preferred gear from data.lua (user picks always win)
     local forced, wanted = {}, {};
-    for order, pname in ipairs(pure and {} or preferred_for(job_id, desc)) do
+    local prefer_names = {};
+    if not pure then
+        prefer_names = preferred_for(job_id, desc);
+        local ref = curated_for and curated_for(job_id, desc);
+        if ref then
+            for _, n in pairs(ref) do
+                if type(n) == 'table' then for _, x in ipairs(n) do table.insert(prefer_names, x); end
+                else table.insert(prefer_names, n); end
+            end
+        end
+    end
+    for order, pname in ipairs(prefer_names) do
         local lname = name_key(pname);
         for _, def in ipairs(slots) do
             for _, c in ipairs(full[def.key]) do
@@ -822,7 +865,7 @@ local function optimize(job_id, desc, pins, pool)
 end
 
 -- Curated BiS (bis.lua) for this job + set: exact set / weaponskill first, then by WS stats, then the default WS.
-local function curated_for(job_id, desc)
+curated_for = function(job_id, desc)
     local ref = BIS_REF[JOBS[job_id]];
     if ref == nil or desc == nil then return nil; end
     if ref[desc.id] then return ref[desc.id]; end
@@ -882,7 +925,10 @@ local function bis_for(job_id, desc)
         for _, def in ipairs(active_slots(desc)) do active[def.key] = true; end
         for slot, iname in pairs(curated or {}) do
           if active[slot] then
-            local it = find_item_by_name(iname);
+            local it = nil;
+            local names = type(iname) == 'table' and iname or { iname };
+            for _, n in ipairs(names) do it = it or find_item_by_name(n); end
+            iname = names[1];
             if it == nil then
                 it = { name = iname, where = 'BiS', stats = {}, base = {}, aug = {}, unknown = {}, augmented = false, slots = 0 };
             end
@@ -1028,6 +1074,7 @@ local function build_full_xml(job_id)
     add(string.format('    <!-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own. -->',
         addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('    <!-- Commands: /pdt /mdt /hybrid toggle defensive modes, /mb toggles magic burst, /th toggles Treasure Hunter. -->');
+    add('    <!-- /warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring. -->');
     add('    <!-- Any set can also be forced with: /la set SetName 60 -->');
     add('');
     add('    <sets>');
@@ -1064,6 +1111,11 @@ local function build_full_xml(job_id)
     if have.TP_Hybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
+    -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
+    add('        <cmd input="/warp">');
+    add('            <gearlock length="25" />');
+    add('            <command>/ygo warp</command>');
+    add('        </cmd>');
     add('    </inputcommands>');
     add('');
 
@@ -1083,13 +1135,24 @@ local function build_full_xml(job_id)
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
     local top = {};
     if tp_body then
-        table.insert(top, { cond = attr('p_status', 'engaged'), body = function(o, i) emit_chain(o, i, engaged, tp_body); end });
+        table.insert(top, { cond = attr('p_status', 'engaged'), body = function(o, i)
+            emit_chain(o, i, engaged, tp_body);
+            for _, b in ipairs(built) do
+                if b.desc.engaged_buff then
+                    emit_chain(o, i, { { cond = attr('buffactive', b.desc.engaged_buff), body = equip_set(b.desc.name) } }, nil);
+                end
+            end
+        end });
     end
     if have.Resting then table.insert(top, { cond = attr('p_status', 'resting'), body = equip_set('Resting') }); end
     emit_chain(out, '        ', top, have.Idle and function(o, i)
         emit_chain(o, i, idle_branches, equip_set('Idle'));
         if have.Sublimation then
             emit_chain(o, i, { { cond = attr('buffactive', 'Sublimation: Activated'), body = equip_set('Sublimation') } }, nil);
+        end
+        if have.Movement then
+            table.insert(o, i .. '<!-- Running: movement speed gear -->');
+            emit_chain(o, i, { { cond = attr('p_ismoving', 'true'), body = equip_set('Movement') } }, nil);
         end
     end or nil);
     add('    </idlegear>');
@@ -1191,7 +1254,7 @@ local function build_full_xml(job_id)
     if have.Waltz then table.insert(ja, { cond = attr('ad_type', 'waltz'), body = equip_set('Waltz') }); end
     if have.QuickDraw then table.insert(ja, { cond = attr('ad_type', 'quickdraw'), body = equip_set('QuickDraw') }); end
     if have.BP_Delay then table.insert(ja, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BP_Delay') }); end
-    for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation' }) do
+    for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation', 'Chakra' }) do
         if have[ja_name] then table.insert(ja, { cond = attr('ad_name', ja_name), body = equip_set(ja_name) }); end
     end
     for _, b in ipairs(built) do
@@ -1248,6 +1311,24 @@ local function ensure_dir(dir)
     return true;
 end
 
+-- Overwrite an export. If the file there wasn't made by YunaGearOpt (your hand-made XML/Lua), it's backed up
+-- once first as NAME_backup_<date>.ext. Files YunaGearOpt made are simply overwritten every time.
+local function write_export(dir, fname, text)
+    local path = dir .. fname;
+    local backup = nil;
+    local f = io.open(path, 'r');
+    if f then
+        local old = f:read('*a');
+        f:close();
+        if not old:find('Generated by YunaGearOpt', 1, true) then
+            local base, ext = fname:match('^(.*)(%.[^%.]+)$');
+            backup = (base or fname) .. '_backup_' .. os.date('%Y%m%d_%H%M%S') .. (ext or '');
+            if not write_file(dir .. backup, old) then backup = nil; end
+        end
+    end
+    return write_file(path, text), backup;
+end
+
 -- Export folders inside the addon: legacyac\ for XML, gearswap\ for Lua
 local function export_dir(kind)
     local dir = base_path() .. kind .. '\\';
@@ -1258,21 +1339,24 @@ end
 local function export_full()
     local abbr = JOBS[ui.job];
     local xml, count, stored = build_full_xml(ui.job);
-    local fname = string.format('%s_%s_YunaGearOpt.xml', player_name(), abbr);
+    local fname = string.format('%s_%s.xml', player_name(), abbr);
     imgui.SetClipboardText(xml);
 
-    local saved = {};
-    local okA = write_file(export_dir('legacyac') .. fname, xml);
+    local saved, backups = {}, {};
+    local okA = write_export(export_dir('legacyac'), fname, xml);
     if okA then table.insert(saved, 'addons\\yunagearopt\\legacyac\\' .. fname); end
     local install = '';
     pcall(function() install = AshitaCore:GetInstallPath(); end);
     if install ~= '' then
         local dir = install:gsub('[\\/]+$', '') .. '\\config\\LegacyAC\\';
-        if write_file(dir .. fname, xml) then table.insert(saved, 'config\\LegacyAC\\' .. fname); end
+        local ok, bak = write_export(dir, fname, xml);
+        if ok then table.insert(saved, 'config\\LegacyAC\\' .. fname); end
+        if bak then table.insert(backups, 'config\\LegacyAC\\' .. bak); end
     end
 
     msg(string.format('%s XML exported: %d sets (also copied to clipboard).', abbr, count));
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
+    for _, b in ipairs(backups) do msg('  Your hand-made ' .. fname .. ' was kept as: ' .. b); end
     msg(string.format('  Load it in game with: /la load %s', fname));
     local list = {};
     for k in pairs(stored) do table.insert(list, k); end
@@ -1332,7 +1416,7 @@ local function build_gearswap(job_id)
 
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- Put this file in Windower/addons/GearSwap/data/ as ' .. player_name() .. '_' .. abbr .. '.lua');
-    add('-- Commands: //gs c pdt | //gs c mdt | //gs c hybrid | //gs c mb | //gs c th | //gs c idle');
+    add('-- Commands: //gs c pdt | //gs c mdt | //gs c hybrid | //gs c mb | //gs c th | /warp');
     add('');
     add('function get_sets()');
     add('    sets = {}');
@@ -1355,6 +1439,13 @@ local function build_gearswap(job_id)
         if b.desc.kind == 'ws' and b.desc.ws and b.desc.ws.id then
             add(string.format('        [%d] = %q, -- %s', b.desc.ws.id, b.desc.name, b.desc.ws.name));
         end
+    end
+    add('    }');
+    add('');
+    add('    -- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
+    add('    engaged_buffs = {');
+    for _, b in ipairs(built) do
+        if b.desc.engaged_buff then add(string.format('        { buff = %q, set = %q },', b.desc.engaged_buff, b.desc.name)); end
     end
     add('    }');
     add('');
@@ -1392,7 +1483,7 @@ local function build_gearswap(job_id)
     add('    -- Weaponskills that use the MightyStrikes set while Mighty Strikes is active');
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
-    add("    Mode, MB, TH = 'normal', false, false");
+    add("    Mode, MB, TH, Moving = 'normal', false, false, false");
     add('end');
     add('');
     add([[
@@ -1423,6 +1514,9 @@ function idle_gear()
         elseif not eq('TP') then eq('Idle')
         end
         if TH then eq('TH') end
+        for _, eb in ipairs(engaged_buffs) do
+            if buffactive[eb.buff] then eq(eb.set) end
+        end
     elseif player.status == 'Resting' and sets['Resting'] then
         eq('Resting')
     else
@@ -1432,8 +1526,33 @@ function idle_gear()
         else eq('Idle')
         end
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
+        if Moving then eq('Movement') end
     end
 end
+
+-- Typing /warp runs the warp command
+windower.raw_register_event('outgoing text', function(original)
+    if original:lower():match('^/warp%s*$') then
+        windower.send_command('gs c warp')
+        return true
+    end
+end)
+
+-- Running detection: GearSwap has no "moving" flag, so check your position a few times a second
+local last_pos, last_check = nil, 0
+windower.raw_register_event('prerender', function()
+    local now = os.clock()
+    if now - last_check < 0.25 then return end
+    last_check = now
+    local me = windower.ffxi.get_mob_by_target('me')
+    if not me then return end
+    local moving = last_pos ~= nil and (math.abs(me.x - last_pos.x) + math.abs(me.y - last_pos.y)) > 0.1
+    last_pos = { x = me.x, y = me.y }
+    if moving ~= Moving then
+        Moving = moving
+        windower.send_command('gs c _moving')
+    end
+end)
 
 function precast(spell)
     if spell.type == 'WeaponSkill' then
@@ -1456,7 +1575,7 @@ function precast(spell)
         eq('BP_Delay')
     elseif sp_map[spell.english] then
         eq(sp_map[spell.english])
-    elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' then
+    elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' or spell.english == 'Chakra' then
         eq(spell.english)
     end
 end
@@ -1508,10 +1627,36 @@ function status_change(new, old) idle_gear() end
 
 function buff_change(name, gain)
     if name == 'Sublimation: Activated' then idle_gear() end
+    for _, eb in ipairs(engaged_buffs) do
+        if name == eb.buff then idle_gear() end
+    end
 end
 
 function self_command(command)
     local c = command:lower()
+    if c == 'warp' then
+        if player.inventory['Instant Warp'] then
+            send_command('input /item "Instant Warp" <me>')
+            add_to_chat(158, 'Warping with a Scroll of Instant Warp.')
+            return
+        end
+        local bags = { 'inventory', 'wardrobe', 'wardrobe2', 'wardrobe3', 'wardrobe4', 'wardrobe5', 'wardrobe6', 'wardrobe7', 'wardrobe8' }
+        for _, bag in ipairs(bags) do
+            if player[bag] and player[bag]['Warp Ring'] then
+                equip({ left_ring = 'Warp Ring' })
+                disable('left_ring')
+                add_to_chat(158, 'Warp Ring equipped - using it in 11 seconds.')
+                send_command('wait 11; input /item "Warp Ring" <me>; wait 15; gs enable left_ring')
+                return
+            end
+        end
+        add_to_chat(167, 'No Scroll of Instant Warp in your inventory and no Warp Ring in Inventory/Wardrobes.')
+        return
+    end
+    if c == '_moving' then
+        if not midaction() and player.status ~= 'Engaged' then idle_gear() end
+        return
+    end
     if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
         Mode = (Mode == c) and 'normal' or c
         add_to_chat(158, 'Mode: ' .. Mode)
@@ -1532,7 +1677,7 @@ local function export_gearswap()
     local text, count = build_gearswap(ui.job);
     local fname = string.format('%s_%s.lua', player_name(), abbr);
     imgui.SetClipboardText(text);
-    local ok = write_file(export_dir('gearswap') .. fname, text);
+    local ok = write_export(export_dir('gearswap'), fname, text);
     msg(string.format('%s GearSwap file exported: %d sets (also copied to clipboard).', abbr, count));
     if ok then msg('  Saved: addons\\yunagearopt\\gearswap\\' .. fname); end
     msg('  Copy it to Windower\\addons\\GearSwap\\data\\' .. fname);
@@ -1565,7 +1710,7 @@ local function build_lac(job_id)
 
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- LuAshitacast profile. Location: Ashita/config/addons/luashitacast/' .. player_name() .. '_' .. player_server_id() .. '/' .. abbr .. '.lua');
-    add('-- Commands: /lac fwd pdt | /lac fwd mdt | /lac fwd hybrid | /lac fwd mb | /lac fwd th');
+    add('-- Commands: /lac fwd pdt | /lac fwd mdt | /lac fwd hybrid | /lac fwd mb | /lac fwd th | /warp');
     add('');
     add('local profile = {};');
     add('');
@@ -1617,6 +1762,13 @@ local function build_lac(job_id)
     for _, e in ipairs(els) do add(string.format('    [%q] = %q,', LAC_ELEMENT[e], obis[e].name)); end
     add('};');
     add('');
+    add('-- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
+    add('local engaged_buffs = {');
+    for _, b in ipairs(built) do
+        if b.desc.engaged_buff then add(string.format('    { buff = %q, set = %q },', b.desc.engaged_buff, b.desc.name)); end
+    end
+    add('};');
+    add('');
     add('-- 2-hour (SP ability) -> Summit set');
     add('local sp_map = {');
     for _, b in ipairs(built) do
@@ -1656,11 +1808,26 @@ end
 
 local function buff(name) return gData.GetBuffCount(name) > 0; end
 
+-- /warp: lock the ring slot and let YunaGearOpt pick Instant Warp or the Warp Ring
+local warp_until = nil;
+local function warp()
+    gFunc.Disable('Ring1');
+    warp_until = os.time() + 25;
+    AshitaCore:GetChatManager():QueueCommand(1, '/ygo warp');
+end
+
 profile.OnLoad = function()
     gSettings.AllowAddSet = false;
+    ashita.events.register('command', 'ygo_lac_warp', function(e)
+        if e.command:lower():match('^/warp%s*$') then
+            e.blocked = true;
+            warp();
+        end
+    end);
 end
 
 profile.OnUnload = function()
+    ashita.events.unregister('command', 'ygo_lac_warp');
 end
 
 profile.HandleCommand = function(args)
@@ -1674,10 +1841,16 @@ profile.HandleCommand = function(args)
     elseif c == 'th' then
         TH = not TH;
         gFunc.Message('Treasure Hunter: ' .. (TH and 'ON' or 'OFF'));
+    elseif c == 'warp' then
+        warp();
     end
 end
 
 profile.HandleDefault = function()
+    if warp_until and os.time() >= warp_until then
+        gFunc.Enable('Ring1');
+        warp_until = nil;
+    end
     local petAction = gData.GetPetAction();
     if petAction ~= nil and petAction.Type ~= nil and petAction.Type:find('Blood Pact') then
         eq('BloodPact');
@@ -1691,6 +1864,9 @@ profile.HandleDefault = function()
         elseif not eq('TP') then eq('Idle');
         end
         if TH then eq('TH'); end
+        for _, eb in ipairs(engaged_buffs) do
+            if buff(eb.buff) then eq(eb.set); end
+        end
     elseif player.Status == 'Resting' and sets['Resting'] then
         eq('Resting');
     else
@@ -1700,6 +1876,7 @@ profile.HandleDefault = function()
         else eq('Idle');
         end
         if buff('Sublimation: Activated') then eq('Sublimation'); end
+        if player.IsMoving and sets['Movement'] then eq('Movement'); end
     end
 end
 
@@ -1711,7 +1888,7 @@ profile.HandleAbility = function()
     elseif kind:find('Blood Pact') then eq('BP_Delay');
     elseif name:find('Waltz') then eq('Waltz');
     elseif sp_map[name] then eq(sp_map[name]);
-    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' then eq(name);
+    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' or name == 'Chakra' then eq(name);
     end
 end
 
@@ -1787,7 +1964,7 @@ local function export_lac()
     local fname = abbr .. '.lua';
     imgui.SetClipboardText(text);
     local saved = {};
-    if write_file(export_dir('lac') .. player_name() .. '_' .. fname, text) then
+    if write_export(export_dir('lac'), player_name() .. '_' .. fname, text) then
         table.insert(saved, 'addons\\yunagearopt\\lac\\' .. player_name() .. '_' .. fname);
     end
     local install, backup = '', nil;
@@ -1796,24 +1973,67 @@ local function export_lac()
         local folder = player_name() .. '_' .. player_server_id();
         local dir = install:gsub('[\\/]+$', '') .. '\\config\\addons\\luashitacast\\' .. folder .. '\\';
         ensure_dir(dir);
-        -- Never lose a hand-written profile: back up whatever is there first
-        local existing = io.open(dir .. fname, 'r');
-        if existing then
-            local old = existing:read('*a');
-            existing:close();
-            local bak = abbr .. '_backup_' .. os.date('%Y%m%d_%H%M%S') .. '.lua';
-            if write_file(dir .. bak, old) then backup = 'config\\addons\\luashitacast\\' .. folder .. '\\' .. bak; end
-        end
-        if write_file(dir .. fname, text) then
-            table.insert(saved, 'config\\addons\\luashitacast\\' .. folder .. '\\' .. fname);
-        end
+        local ok, bak = write_export(dir, fname, text);
+        if ok then table.insert(saved, 'config\\addons\\luashitacast\\' .. folder .. '\\' .. fname); end
+        if bak then backup = 'config\\addons\\luashitacast\\' .. folder .. '\\' .. bak; end
     end
     msg(string.format('%s LuAshitacast profile exported: %d sets (also copied to clipboard).', abbr, count));
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
-    if backup then msg('  Your previous ' .. fname .. ' was backed up as: ' .. backup); end
+    if backup then msg('  Your hand-made ' .. fname .. ' was kept as: ' .. backup); end
     msg('  Load it in game with: /lac load');
 end
 
+
+----------------------------------------------------------------------------------------------------
+-- Warp: Scroll of Instant Warp if it's in your inventory, otherwise equip the Warp Ring and use it
+----------------------------------------------------------------------------------------------------
+local timers = {};
+local function after(seconds, fn) table.insert(timers, { at = os.time() + seconds, fn = fn }); end
+local function run_timers()
+    local now = os.time();
+    for i = #timers, 1, -1 do
+        if now >= timers[i].at then
+            local t = table.remove(timers, i);
+            pcall(t.fn);
+        end
+    end
+end
+
+-- Is an item with this name in one of these bags?
+local function bag_has(name, bag_ids)
+    local found = false;
+    pcall(function()
+        local inv = AshitaCore:GetMemoryManager():GetInventory();
+        local res = AshitaCore:GetResourceManager();
+        local key = name_key(name);
+        for _, cid in ipairs(bag_ids) do
+            for i = 0, (inv:GetContainerCountMax(cid) or 0) do
+                local it = inv:GetContainerItem(cid, i);
+                if it ~= nil and it.Id ~= 0 and it.Id ~= 65535 then
+                    local r = res:GetItemById(it.Id);
+                    if r and r.Name and name_key(r.Name[1] or '') == key then found = true; return; end
+                end
+            end
+        end
+    end);
+    return found;
+end
+
+local function do_warp()
+    local cm = AshitaCore:GetChatManager();
+    if bag_has('Instant Warp', { 0 }) then
+        cm:QueueCommand(1, '/item "Instant Warp" <me>');
+        msg('Warping with a Scroll of Instant Warp.');
+        return;
+    end
+    if bag_has('Warp Ring', { 0, 8, 10, 11, 12, 13, 14, 15, 16 }) then
+        cm:QueueCommand(1, '/equip ring1 "Warp Ring"');
+        msg('Warp Ring equipped - using it in 11 seconds (the ring needs to settle first).');
+        after(11, function() cm:QueueCommand(1, '/item "Warp Ring" <me>'); end);
+        return;
+    end
+    msg('No Scroll of Instant Warp in your inventory and no Warp Ring in Inventory/Wardrobes.');
+end
 
 ----------------------------------------------------------------------------------------------------
 -- Equip the current set in game (/equip commands)
@@ -1854,6 +2074,7 @@ local CATEGORY_OF = {
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',
     Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
+    Counterstance = 'Abilities', Chakra = 'Abilities',
     MightyStrikes = 'Abilities',
 };
 local function category(desc)
@@ -2184,6 +2405,7 @@ end
 
 local function draw_picker(def)
     if not imgui.BeginPopup('pick_' .. def.key) then return; end
+    imgui.SetWindowFontScale(0.85);
     local pins = ui.pins[ui.ctx] or {};
     imgui.TextColored(C.gold, def.label:upper());
     imgui.SameLine();
@@ -2208,6 +2430,7 @@ local function draw_picker(def)
     else
         local h = math.min(#list * 26 + 8, 340);
         if imgui.BeginChild('pick_list_' .. def.key, { 470, h }, false) then
+            imgui.SetWindowFontScale(0.85);
             local current = ui.result and ui.result[def.key];
             for i, c in ipairs(list) do
                 local bis_piece = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
@@ -2238,9 +2461,8 @@ local function draw_bis_card(def)
     local b = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
     imgui.PushStyleColor(ImGuiCol_ChildBg, b and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
     imgui.BeginChild('bcard_' .. def.key, { 0, 82 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse));
-    imgui.SetWindowFontScale(0.9);
+    imgui.SetWindowFontScale(0.85);
     imgui.TextColored(C.gold_dim, def.label:upper());
-    imgui.SetWindowFontScale(1.0);
     imgui.SameLine();
     imgui.TextColored(TIER_ORANGE, 'BiS');
     if b then
@@ -2264,9 +2486,8 @@ local function draw_card(def, max_score)
     local pin = (ui.pins[ui.ctx] or {})[def.key];
     imgui.PushStyleColor(ImGuiCol_ChildBg, c and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
     imgui.BeginChild('card_' .. def.key, { 0, 82 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse));
-    imgui.SetWindowFontScale(0.9);
+    imgui.SetWindowFontScale(0.85);
     imgui.TextColored(C.gold_dim, def.label:upper());
-    imgui.SetWindowFontScale(1.0);
     if pin ~= nil then
         imgui.SameLine(); imgui.TextColored(C.gold, 'PINNED');
     elseif ui.forced and ui.forced[def.key] then
@@ -2375,7 +2596,7 @@ local function draw_footer()
     local w1, w2, w3 = btn_w(l1), btn_w(l2), btn_w(l3);
     imgui.SameLine(imgui.GetWindowWidth() - (w1 + w2 + w3 + 16 + 14));
     if accent_button(l1, { w1, 34 }, true) then export_full(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '_YunaGearOpt.xml'); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '.xml'); end
     imgui.SameLine(0, 8);
     if accent_button(l2, { w2, 34 }, true) then export_lac(); end
     if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
@@ -2458,7 +2679,8 @@ local function draw_lazy()
         imgui.TextColored(C.muted, ui.desc and ('  ' .. ui.desc.name) or '');
         imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
         local slots = ui.desc and active_slots(ui.desc) or {};
-        if imgui.BeginChild('ygo_lazy_set', { 0, #slots * 21 + 14 }, true, ImGuiWindowFlags_NoScrollbar) then
+        if imgui.BeginChild('ygo_lazy_set', { 0, #slots * 19 + 14 }, true, ImGuiWindowFlags_NoScrollbar) then
+            imgui.SetWindowFontScale(0.85);
             for _, def in ipairs(slots) do
                 local c = ui.result and ui.result[def.key];
                 imgui.TextColored(C.gold_dim, def.label);
@@ -2566,7 +2788,7 @@ end);
 
 ashita.events.register('load', 'ygo_load', function() load_data(); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
-ashita.events.register('d3d_present', 'ygo_present', function() draw_ui(); end);
+ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); draw_ui(); end);
 
 ashita.events.register('command', 'ygo_command', function(e)
     local args = e.command:args();
@@ -2594,6 +2816,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         if #owned == 0 then scan(); end
         ui.job = main_job();
         export_full();
+    elseif sub == 'warp' then
+        do_warp();
     elseif sub == 'lac' then
         if #owned == 0 then scan(); end
         ui.job = main_job();

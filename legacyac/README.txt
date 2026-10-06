@@ -1,3 +1,3 @@
-YunaGearOpt saves LegacyAC (Ashita) XML exports here: CharacterName_JOB_YunaGearOpt.xml
+YunaGearOpt saves LegacyAC (Ashita) XML exports here: CharacterName_JOB.xml
 A copy is also saved in Ashita\config\LegacyAC\ so you can load it right away with:
-    /la load CharacterName_JOB_YunaGearOpt.xml
+    /la load CharacterName_JOB.xml
