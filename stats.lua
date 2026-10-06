@@ -65,7 +65,8 @@ M.ALIAS = {
     ['archery skill'] = 'archery', ['marksmanship skill'] = 'marksmanship', ['throwing skill'] = 'throwing',
     ['berserk'] = 'berserk', ['berserk duration'] = 'berserk', ['berserk effect duration'] = 'berserk',
     ['warcry'] = 'warcry', ['warcry duration'] = 'warcry', ['warcry effect duration'] = 'warcry',
-    ['sublimation'] = 'sublimation', ['sublimation effect'] = 'sublimation', ['snapshot'] = 'snapshot', ['rapid shot'] = 'rapid', ['recycle'] = 'recycle',
+    ['sublimation'] = 'sublimation', ['sublimation effect'] = 'sublimation',
+    ['boost'] = 'boost', ['boost effect'] = 'boost', ['boost duration'] = 'boost', ['snapshot'] = 'snapshot', ['rapid shot'] = 'rapid', ['recycle'] = 'recycle',
     ['waltz potency'] = 'waltz', ['avatar perpetuation cost'] = 'perp', ['avatar perpetuation'] = 'perp',
     ['blood pact ability delay'] = 'bpdelay', ['blood pact ab. del. ii'] = 'bpdelay2', ['blood pact delay ii'] = 'bpdelay2',
     ['blood pact damage'] = 'bpdmg', ['blood boon'] = 'bloodboon',
@@ -93,7 +94,7 @@ M.MOD = {
     [562] = 'mcrit', [563] = 'mcritdmg', [831] = 'mdt', [833] = 'songrecast', [840] = 'wsd', [841] = 'wsd',
     [890] = 'enhdur', [902] = 'occult', [913] = 'bloodboon', [944] = 'ctp', [973] = 'sb', [1151] = 'enfdur',
     [881] = 'roll', [882] = 'rolldur', [1076] = 'rolldelay',
-    [94] = 'meditate', [483] = 'warcry', [948] = 'berserk', [954] = 'berserk', [401] = 'sublimation',
+    [94] = 'meditate', [483] = 'warcry', [948] = 'berserk', [954] = 'berserk', [401] = 'sublimation', [97] = 'boost',
 };
 -- Server stores these in 1/100 % units
 M.DIV = { haste = 100, dt = 100, pdt = 100, mdt = 100, bdt = 100 };
@@ -115,7 +116,7 @@ M.LABELS = {
     hmp = 'MP Heal', hhp = 'HP Heal', th = 'Treasure Hunter', snapshot = 'Snapshot', rapid = 'Rapid Shot',
     recycle = 'Recycle', waltz = 'Waltz%', perp = 'Perpetuation-', bpdelay = 'BP Delay-', bpdelay2 = 'BP Delay II-',
     bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
-    fencer = 'Fencer', combatskill = 'Combat Skill', archery = 'Archery', marksmanship = 'Marksmanship', throwing = 'Throwing', meditate = 'Meditate', berserk = 'Berserk', warcry = 'Warcry', sublimation = 'Sublimation',
+    fencer = 'Fencer', combatskill = 'Combat Skill', archery = 'Archery', marksmanship = 'Marksmanship', throwing = 'Throwing', meditate = 'Meditate', berserk = 'Berserk', warcry = 'Warcry', sublimation = 'Sublimation', boost = 'Boost',
 };
 
 function M.normalize(chunk)

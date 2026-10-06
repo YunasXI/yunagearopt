@@ -75,6 +75,7 @@ local SKILL_NAMES = { [1] = 'Hand-to-Hand', [2] = 'Dagger', [3] = 'Sword', [4] =
     [7] = 'Scythe', [8] = 'Polearm', [9] = 'Katana', [10] = 'Great Katana', [11] = 'Club', [12] = 'Staff',
     [25] = 'Archery', [26] = 'Marksmanship', [27] = 'Throwing' };
 local SKILL_ORDER = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 25, 26, 27 };
+local SKILL_IDS = { Archery = 25, Marksmanship = 26, Throwing = 27 };
 
 local STOP_WORDS = {
     'latent effect', 'set:', 'unity ranking', 'pet:', 'avatar:', 'automaton:', 'wyvern:', 'luopan:',
@@ -114,6 +115,20 @@ local s = settings.load(defaults);
 
 local S, data, AUG = nil, nil, {};
 local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
+
+-- Crafting / gathering gear (Weaver's / Tanner's cuffs, smocks, aprons, synergy gear...) never belongs in a combat set.
+-- Names need the possessive ("Miner's") so real gear such as Minerva's Ring is never caught by mistake.
+local CRAFT_NAMES = { "^weaver's", "^tanner's", "^boneworker's", "^smithy's", "^goldsmith's", "^alchemist's", "^carpenter's",
+                      "^culinarian's", "^chef's", "^fisherman's", "^angler's", "^digger's", "^miner's", "^craftsman's", "^artisan's" };
+local CRAFT_WORDS = { 'craft', 'woodworking', 'smithing', 'alchemy', 'cooking', 'fishing', 'synthesis', 'synergy', 'digging' };
+local function is_craft_gear(name, desc)
+    local n = (name or ''):lower();
+    for _, pat in ipairs(CRAFT_NAMES) do if n:find(pat) then return true; end end
+    if n:find('smock', 1, true) or n:find('apron', 1, true) or n:find('synergy', 1, true) then return true; end
+    local text = ((desc or '') .. ' ' .. n):lower();
+    for _, w in ipairs(CRAFT_WORDS) do if text:find(w, 1, true) then return true; end end
+    return false;
+end
 local owned, base_cache = {}, {};
 
 local ui = {
@@ -156,6 +171,16 @@ local function load_data()
     S, data, AUG = st, d, a;
     local okB, b = pcall(dofile, base_path() .. 'bis.lua');
     BIS_REF = (okB and type(b) == 'table') and b or {};
+    for _, sets in pairs(BIS_REF) do                       -- crafting gear is never a BiS piece
+        for _, slots in pairs(sets) do
+            for slot, v in pairs(slots) do
+                local names = type(v) == 'table' and v or { v };
+                for _, n in ipairs(names) do
+                    if is_craft_gear(n, '') then slots[slot] = nil; break; end
+                end
+            end
+        end
+    end
     ui.data_excl, ui.overrides = {}, {};
     for _, name in ipairs(d.exclude or {}) do ui.data_excl[name:lower()] = true; end
     for name, stats in pairs(d.overrides or {}) do ui.overrides[name:lower()] = stats; end
@@ -249,7 +274,7 @@ local function parse_stats(desc)
     end
     if stats.refresh == nil and text:find('adds "refresh" effect', 1, true) then add('refresh', 1); end
     if stats.regen == nil and text:find('adds "regen" effect', 1, true) then add('regen', 1); end
-    for _, k in ipairs({ 'sublimation', 'berserk', 'warcry', 'meditate' }) do
+    for _, k in ipairs({ 'sublimation', 'berserk', 'warcry', 'meditate', 'boost' }) do
         if stats[k] == nil and (text:find('enhances "' .. k .. '" effect', 1, true) or text:find('augments "' .. k .. '"', 1, true)) then
             add(k, 1);
         end
@@ -309,18 +334,6 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Scanning
 ----------------------------------------------------------------------------------------------------
--- Crafting / gathering gear (smocks, aprons, craft rings...) is never used in a combat set
-local CRAFT_WORDS = { 'woodworking', 'smithing', 'clothcraft', 'leathercraft', 'bonecraft', 'alchemy', 'cooking',
-                      'fishing', 'synthesis', 'digging', 'crafting', 'craftsmanship' };
-local function is_craft_gear(name, desc)
-    local text = ((desc or '') .. ' ' .. (name or '')):lower();
-    for _, w in ipairs(CRAFT_WORDS) do
-        if text:find(w, 1, true) then return true; end
-    end
-    local n = (name or ''):lower();
-    return n:find('smock', 1, true) ~= nil or n:find('apron', 1, true) ~= nil;
-end
-
 -- Base stats for an item: overrides > parsed description, then stat_fix / stat_remove from data.lua
 local function compute_base(id, name, desc)
     local lname = name:lower();
@@ -494,6 +507,22 @@ local function build_sets(job_id)
         if in_list(jr, kind) or in_list(jr, id) then return 'any'; end
         return nil;
     end
+    -- BiS ranged weapon for this job (Tonzoffun / Annihilator / Death Penalty). The set may wear the range slot
+    -- (and ammo), but only with YOUR weapon from the list - never a different one, so a shot is never cancelled.
+    local rw = (data.ranged_weapons or {})[abbr];
+    local function attach_ranged(entry, skill_name)
+        local weapon = rw and skill_name and rw[skill_name];
+        if weapon then
+            entry.range, entry.range_weapon, entry.range_skill = 'both', weapon, SKILL_IDS[skill_name];
+            entry.pref_slots = entry.pref_slots or {};
+            entry.pref_slots.range, entry.pref_slots.ammo = true, true;
+        end
+    end
+    local function job_ranged_skill()
+        if rw and rw.Archery then return 'Archery'; end
+        if rw and rw.Marksmanship then return 'Marksmanship'; end
+        return nil;
+    end
     for _, id in ipairs(data.jobs[abbr] or {}) do
         if id == 'SP' then
             local sp = (data.sp_abilities or {})[abbr];
@@ -519,19 +548,30 @@ local function build_sets(job_id)
             for _, ws in ipairs(data.weaponskills) do
                 local weapon_ok = weapons == nil or (ws.skill and in_list(weapons, SKILL_NAMES[ws.skill]));
                 if not in_list(ws.jobs, '*') and in_list(ws.jobs, abbr) and weapon_ok then
-                    table.insert(list, { id = 'ws:' .. ws.name, name = xml_set_name(ws.name), label = 'WS - ' .. ws.name,
-                                         kind = 'ws', ws = ws, range = range_for('ws', 'ws:' .. ws.name) });
+                    local entry = { id = 'ws:' .. ws.name, name = xml_set_name(ws.name), label = 'WS - ' .. ws.name,
+                                    kind = 'ws', ws = ws, range = range_for('ws', 'ws:' .. ws.name) };
+                    if ws.skill == 25 or ws.skill == 26 or ws.skill == 27 then attach_ranged(entry, SKILL_NAMES[ws.skill]); end
+                    table.insert(list, entry);
                 end
             end
         else
             local def = data.sets[id];
             if def then
-                table.insert(list, {
+                local in_wset = in_list((data.weapon_sets or {})[abbr], id);
+                local entry = {
                     id = id, name = def.name or id, label = def.label or id, kind = def.kind or 'other',
                     base_weights = def.weights, caps = def.caps or {},
-                    weapons = def.weapons and wjob or false, range = range_for(def.kind or 'other', id, def.range),
+                    weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed, fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, ws_only = def.ws_only,
-                });
+                    info = def.info,
+                };
+                local pref = {};
+                if in_wset then pref.main, pref.sub = true, true; end          -- melee weapons only from your list
+                for _, k in ipairs(def.pref_slots or {}) do pref[k] = true; end
+                if next(pref) then entry.pref_slots = pref; end
+                if def.ranged then attach_ranged(entry, def.ranged == 'job' and job_ranged_skill() or def.ranged); end
+                if def.ranged == 'job' and abbr == 'RNG' then entry.label = entry.label .. ' (bow)'; end
+                table.insert(list, entry);
             end
         end
     end
@@ -612,6 +652,7 @@ end
 
 local function active_slots(desc)
     local list = {};
+    if desc.info then return list; end                     -- an info panel (e.g. attachments) has no gear slots
     if desc.fixed then
         for _, def in ipairs(SLOTS) do
             if desc.fixed[def.key] then table.insert(list, def); end
@@ -621,8 +662,8 @@ local function active_slots(desc)
     for _, def in ipairs(SLOTS) do
         local use = true;
         if def.weapon then use = desc.weapons and s.weapons; end
-        if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any'); end
-        if def.key == 'ammo' and desc.range ~= nil then use = false; end
+        if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both'); end
+        if def.key == 'ammo' and desc.range ~= nil and desc.range ~= 'both' then use = false; end
         if use then table.insert(list, def); end
     end
     return list;
@@ -631,7 +672,8 @@ end
 local function slot_candidate_ok(def, item, desc)
     local sets = ui.set_restrict[item.name:lower()];
     if sets and not in_list(sets, desc.id) then return false; end
-    if def.key == 'ammo' and item.skill > 0 then return false; end            -- real ammunition follows the weapon
+    if def.key == 'ammo' and item.skill > 0 and not (desc.range == 'both' and desc.range_skill == item.skill) then return false; end  -- ammunition follows the weapon
+    if def.key == 'range' and desc.range == 'both' and desc.range_skill and item.skill ~= desc.range_skill then return false; end
     if def.key == 'main' and item.skill == 0 then return false; end
     if def.key == 'range' and desc.range == 'instrument' and not INSTRUMENTS[item.skill] then return false; end
     if def.key == 'range' and desc.range == 'any' and item.skill == 0 then return false; end
@@ -718,6 +760,7 @@ local function optimize(job_id, desc, pins, pool)
             while #list > 25 do table.remove(list); end
             all = list;
         end
+        if desc.pref_slots and desc.pref_slots[def.key] then list = {}; end   -- these slots only take your listed pieces
         full[def.key], cands[def.key] = all, list;
     end
 
@@ -749,9 +792,11 @@ local function optimize(job_id, desc, pins, pool)
 
     -- Preferred gear from data.lua (user picks always win)
     local forced, wanted = {}, {};
-    local prefer_names = {};
+    local prefer_names, n_rules = {}, 0;
     if not pure then
         prefer_names = preferred_for(job_id, desc);
+        if desc.range_weapon then table.insert(prefer_names, desc.range_weapon); end
+        n_rules = #prefer_names;                 -- your explicit rules (data.lua) come first and always win
         local ref = curated_for and curated_for(job_id, desc);
         if ref then
             for _, n in pairs(ref) do
@@ -760,18 +805,25 @@ local function optimize(job_id, desc, pins, pool)
             end
         end
     end
+    -- One entry per listed name, each claiming its own copy: a name listed twice (two Ghillie Earrings) uses two copies
+    local claimed = {};
     for order, pname in ipairs(prefer_names) do
         local lname = name_key(pname);
+        local found = nil;
         for _, def in ipairs(slots) do
-            for _, c in ipairs(full[def.key]) do
-                if name_key(c.item.name) == lname then
-                    table.insert(wanted, { c = c, order = order });
-                    break;
+            if not found then
+                for _, c in ipairs(full[def.key]) do
+                    if not claimed[c.idx] and name_key(c.item.name) == lname then found = c; break; end
                 end
             end
         end
+        if found then
+            claimed[found.idx] = true;
+            table.insert(wanted, { c = found, order = order, pri = (order <= n_rules) and 1 or 2 });
+        end
     end
     table.sort(wanted, function(a, b)
+        if a.pri ~= b.pri then return a.pri < b.pri; end         -- explicit rules beat the BiS reference
         if math.abs(a.c.score - b.c.score) > 1e-6 then return a.c.score > b.c.score; end
         return a.order < b.order;
     end);
@@ -908,6 +960,12 @@ end
 local function bis_for(job_id, desc)
     if desc == nil then return nil; end
     local curated = curated_for(job_id, desc) or desc.fixed;
+    if desc.range_weapon then
+        local merged = {};
+        for k, v in pairs(curated or {}) do merged[k] = v; end
+        merged.range = desc.range_weapon;
+        curated = merged;
+    end
     if not bis.done and curated == nil then return nil; end
     local key = JOBS[job_id] .. '|' .. desc.id .. '|' .. tostring(s.acc_bias) .. '|' .. tostring(dw_active(job_id)) .. '|' .. ui.last_scan;
     local hit = bis.cache[key];
@@ -934,6 +992,20 @@ local function bis_for(job_id, desc)
             end
             assign[slot] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };
           end
+        end
+        -- Your explicit rules (data.lua: Fotia on multi-hit, STR rings, Boost gloves...) apply to the BiS view too
+        local taken = {};
+        for _, pname in ipairs(preferred_for(job_id, desc)) do
+            local it = find_item_by_name(pname);
+            if it and it.slots and it.slots ~= 0 then
+                for _, def in ipairs(active_slots(desc)) do
+                    if active[def.key] and not taken[def.key] and bit.band(it.slots, def.mask) ~= 0 then
+                        assign[def.key] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };
+                        taken[def.key] = true;
+                        break;
+                    end
+                end
+            end
         end
         hit = { assign = assign, total = set_score(assign, w, caps), curated = curated ~= nil };
         if bis.done then bis.cache[key] = hit; end
@@ -1052,6 +1124,13 @@ local function ws_ids_for(names)
     return ids;
 end
 
+-- RNG shoots a bow or a gun: the gun's name tells the exports which Preshot / Midshot set to use
+local function gun_name_for(abbr)
+    local rw = (data.ranged_weapons or {})[abbr];
+    if rw and rw.Archery and rw.Marksmanship then return rw.Marksmanship; end
+    return nil;
+end
+
 local function build_full_xml(job_id)
     local abbr = JOBS[job_id];
     local descs = build_sets(job_id);
@@ -1090,6 +1169,7 @@ local function build_full_xml(job_id)
     add('        <var name="Mode">normal</var>');
     add('        <var name="MB">off</var>');
     add('        <var name="TH">off</var>');
+    if have.Refresh then add('        <var name="Refresh">off</var>'); end
     add('    </variables>');
     add('');
     add('    <inputcommands>');
@@ -1111,6 +1191,7 @@ local function build_full_xml(job_id)
     if have.TP_Hybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
+    if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
     add('        <cmd input="/warp">');
     add('            <gearlock length="25" />');
@@ -1132,16 +1213,21 @@ local function build_full_xml(job_id)
     local idle_branches = {};
     if have.PDT then table.insert(idle_branches, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(idle_branches, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
+    if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
+    -- A set tied to a buff (Counterstance) is worn on top of your engaged gear for as long as the buff is up
+    local function buff_overlays(o, i)
+        for _, b in ipairs(built) do
+            if b.desc.engaged_buff then
+                emit_chain(o, i, { { cond = attr('buffactive', b.desc.engaged_buff), body = equip_set(b.desc.name) } }, nil);
+            end
+        end
+    end
     local top = {};
     if tp_body then
         table.insert(top, { cond = attr('p_status', 'engaged'), body = function(o, i)
             emit_chain(o, i, engaged, tp_body);
-            for _, b in ipairs(built) do
-                if b.desc.engaged_buff then
-                    emit_chain(o, i, { { cond = attr('buffactive', b.desc.engaged_buff), body = equip_set(b.desc.name) } }, nil);
-                end
-            end
+            buff_overlays(o, i);
         end });
     end
     if have.Resting then table.insert(top, { cond = attr('p_status', 'resting'), body = equip_set('Resting') }); end
@@ -1246,15 +1332,27 @@ local function build_full_xml(job_id)
     end
 
     -- Ranged
-    if have.Preshot then add('    <preranged>'); equip_set('Preshot')(out, '        '); add('    </preranged>'); add(''); end
-    if have.Midshot then add('    <midranged>'); equip_set('Midshot')(out, '        '); add('    </midranged>'); add(''); end
+    local gun = gun_name_for(abbr);
+    local function ranged_block(tag, base)
+        if not have[base] then return; end
+        add('    <' .. tag .. '>');
+        if have[base .. '_Gun'] and gun then
+            emit_chain(out, '        ', { { cond = attr('eq_range', gun), body = equip_set(base .. '_Gun') } }, equip_set(base));
+        else
+            equip_set(base)(out, '        ');
+        end
+        add('    </' .. tag .. '>');
+        add('');
+    end
+    ranged_block('preranged', 'Preshot');
+    ranged_block('midranged', 'Midshot');
 
     -- Job abilities
     local ja = {};
     if have.Waltz then table.insert(ja, { cond = attr('ad_type', 'waltz'), body = equip_set('Waltz') }); end
     if have.QuickDraw then table.insert(ja, { cond = attr('ad_type', 'quickdraw'), body = equip_set('QuickDraw') }); end
     if have.BP_Delay then table.insert(ja, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BP_Delay') }); end
-    for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation', 'Chakra' }) do
+    for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation', 'Chakra', 'Boost' }) do
         if have[ja_name] then table.insert(ja, { cond = attr('ad_name', ja_name), body = equip_set(ja_name) }); end
     end
     for _, b in ipairs(built) do
@@ -1442,6 +1540,9 @@ local function build_gearswap(job_id)
     end
     add('    }');
     add('');
+    add('    -- RNG: the gun tells Preshot / Midshot apart from the bow versions');
+    add('    gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil'));
+    add('');
     add('    -- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
     add('    engaged_buffs = {');
     for _, b in ipairs(built) do
@@ -1483,7 +1584,7 @@ local function build_gearswap(job_id)
     add('    -- Weaponskills that use the MightyStrikes set while Mighty Strikes is active');
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
-    add("    Mode, MB, TH, Moving = 'normal', false, false, false");
+    add("    Mode, MB, TH, Moving, RefreshOn = 'normal', false, false, false, false");
     add('end');
     add('');
     add([[
@@ -1506,6 +1607,13 @@ local function obi(element)
     end
 end
 
+-- Gun or bow? (RNG) The Preshot / Midshot set follows the ranged weapon you have equipped
+local function ranged_set(base)
+    local r = player.equipment and player.equipment.range
+    if gun_range and r == gun_range and sets[base .. '_Gun'] then return base .. '_Gun' end
+    return base
+end
+
 function idle_gear()
     if player.status == 'Engaged' then
         if Mode == 'pdt' and eq('PDT') then
@@ -1522,6 +1630,7 @@ function idle_gear()
     else
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
+        elseif RefreshOn and eq('Refresh') then
         elseif pet.isvalid and eq('Idle_Avatar') then
         else eq('Idle')
         end
@@ -1564,7 +1673,7 @@ function precast(spell)
         else eq('Precast')
         end
     elseif spell.action_type == 'Ranged Attack' then
-        eq('Preshot')
+        eq(ranged_set('Preshot'))
     elseif spell.type == 'CorsairRoll' or spell.english == 'Double-Up' then
         eq('PhantomRoll')
     elseif spell.type == 'CorsairShot' then
@@ -1575,13 +1684,13 @@ function precast(spell)
         eq('BP_Delay')
     elseif sp_map[spell.english] then
         eq(sp_map[spell.english])
-    elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' or spell.english == 'Chakra' then
+    elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' or spell.english == 'Chakra' or spell.english == 'Boost' then
         eq(spell.english)
     end
 end
 
 function midcast(spell)
-    if spell.action_type == 'Ranged Attack' then eq('Midshot') return end
+    if spell.action_type == 'Ranged Attack' then eq(ranged_set('Midshot')) return end
     if spell.action_type ~= 'Magic' then return end
     local name, skill = spell.english, spell.skill
     if matches(name, rules.cure) and eq('Cure') then
@@ -1666,6 +1775,9 @@ function self_command(command)
     elseif c == 'th' then
         TH = not TH
         add_to_chat(158, 'Treasure Hunter: ' .. (TH and 'ON' or 'OFF'))
+    elseif c == 'refresh' then
+        RefreshOn = not RefreshOn
+        add_to_chat(158, 'Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'))
     end
     idle_gear()
 end]]);
@@ -1769,6 +1881,9 @@ local function build_lac(job_id)
     end
     add('};');
     add('');
+    add('-- RNG: the gun tells Preshot / Midshot apart from the bow versions');
+    add('local gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil') .. ';');
+    add('');
     add('-- 2-hour (SP ability) -> Summit set');
     add('local sp_map = {');
     for _, b in ipairs(built) do
@@ -1785,7 +1900,7 @@ local function build_lac(job_id)
     add('};');
     add('');
     add([[
-local Mode, MB, TH = 'normal', false, false;
+local Mode, MB, TH, RefreshOn = 'normal', false, false, false;
 
 local function matches(name, list)
     for _, p in ipairs(list or {}) do
@@ -1807,6 +1922,14 @@ local function obi(element)
 end
 
 local function buff(name) return gData.GetBuffCount(name) > 0; end
+
+-- Gun or bow? (RNG) The Preshot / Midshot set follows the ranged weapon you have equipped
+local function ranged_set(base)
+    local eqp = gData.GetEquipment();
+    local r = eqp and eqp.Range and eqp.Range.Name;
+    if gun_range and r == gun_range and sets[base .. '_Gun'] then return base .. '_Gun'; end
+    return base;
+end
 
 -- /warp: lock the ring slot and let YunaGearOpt pick Instant Warp or the Warp Ring
 local warp_until = nil;
@@ -1841,6 +1964,9 @@ profile.HandleCommand = function(args)
     elseif c == 'th' then
         TH = not TH;
         gFunc.Message('Treasure Hunter: ' .. (TH and 'ON' or 'OFF'));
+    elseif c == 'refresh' then
+        RefreshOn = not RefreshOn;
+        gFunc.Message('Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'));
     elseif c == 'warp' then
         warp();
     end
@@ -1872,6 +1998,7 @@ profile.HandleDefault = function()
     else
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
+        elseif RefreshOn and eq('Refresh') then
         elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
         else eq('Idle');
         end
@@ -1888,7 +2015,7 @@ profile.HandleAbility = function()
     elseif kind:find('Blood Pact') then eq('BP_Delay');
     elseif name:find('Waltz') then eq('Waltz');
     elseif sp_map[name] then eq(sp_map[name]);
-    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' or name == 'Chakra' then eq(name);
+    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' or name == 'Chakra' or name == 'Boost' then eq(name);
     end
 end
 
@@ -1939,11 +2066,11 @@ profile.HandleMidcast = function()
 end
 
 profile.HandlePreshot = function()
-    eq('Preshot');
+    eq(ranged_set('Preshot'));
 end
 
 profile.HandleMidshot = function()
-    eq('Midshot');
+    eq(ranged_set('Midshot'));
 end
 
 profile.HandleWeaponskill = function()
@@ -2074,7 +2201,9 @@ local CATEGORY_OF = {
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',
     Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
-    Counterstance = 'Abilities', Chakra = 'Abilities',
+    Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities',
+    PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
+    Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
     MightyStrikes = 'Abilities',
 };
 local function category(desc)
@@ -2555,16 +2684,32 @@ local function draw_content()
         else
             draw_set_header();
             imgui.Spacing();
-            local max_score = 0;
-            for _, c in pairs(ui.result or {}) do max_score = math.max(max_score, c.score); end
-            if imgui.BeginTable('ygo_cards', 2, ImGuiTableFlags_SizingStretchSame) then
-                for _, def in ipairs(active_slots(ui.desc)) do
-                    imgui.TableNextColumn();
-                    draw_card(def, max_score);
+            if ui.desc.info then
+                -- Not gear: a plain list (automaton attachments)
+                caption('ATTACHMENTS (BiS)');
+                imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
+                if imgui.BeginChild('ygo_info', { 0, #ui.desc.info * 24 + 18 }, true, ImGuiWindowFlags_NoScrollbar) then
+                    for i, name in ipairs(ui.desc.info) do
+                        imgui.TextColored(C.gold_dim, string.format('%2d', i));
+                        imgui.SameLine(0, 12);
+                        imgui.Text(name);
+                    end
                 end
-                imgui.EndTable();
+                imgui.EndChild();
+                imgui.PopStyleColor();
+                imgui.TextColored(C.muted, 'Attachments are chosen in the automaton menu. They are not gear, so they are not exported.');
+            else
+                local max_score = 0;
+                for _, c in pairs(ui.result or {}) do max_score = math.max(max_score, c.score); end
+                if imgui.BeginTable('ygo_cards', 2, ImGuiTableFlags_SizingStretchSame) then
+                    for _, def in ipairs(active_slots(ui.desc)) do
+                        imgui.TableNextColumn();
+                        draw_card(def, max_score);
+                    end
+                    imgui.EndTable();
+                end
+                draw_totals();
             end
-            draw_totals();
         end
     end
     imgui.EndChild();

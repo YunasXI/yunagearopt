@@ -61,6 +61,20 @@ Pinnacle pieces for Berserk / Warcry / Meditate. Families and 2-hours are in `da
 
 Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so keep YunaGearOpt loaded; the GearSwap file does it by itself), and puts your **Movement** set on while you run.
 
+### More sets and rules
+
+- **MNK**: Idle / PDT BiS, **Boost** (Temple Gloves +1, worn when you use Boost), **Chakra**, and **Counterstance**,
+  which is worn on top of your engaged gear (TP, Hybrid, PDT, MDT) while the buff is up and comes off when you disengage.
+- **BLU**: Physical / Magical / Debuff blue magic, Spectral Floe, Battery Charge and a **Refresh** idle set you switch on
+  with `/refresh` (`//gs c refresh` in GearSwap, `/lac fwd refresh` in LAC). Melee sets keep your sword and shield after casting.
+- **PUP**: automaton Tank and Ranged sets, Pummel (Stringing Pummel), TP, and the attachment list.
+- **RNG / COR**: the BiS ranged weapons (Tonzoffun, Annihilator, Death Penalty) are used in ranged weaponskills,
+  Preshot / Midshot and Quick Draw, and only if you own them. RNG has bow and gun versions of Preshot / Midshot, chosen by the
+  weapon you are holding (`eq_range` in LegacyAC).
+- **RDM**: BiS from your LuAshitacast profile, including the TP and dual-wield sets with their weapons.
+- Crafting and synergy gear (Weaver's / Tanner's cuffs, smocks, aprons...) is ignored everywhere.
+- Your explicit rules in `data.lua` (`preferred`) always beat the BiS reference, in your set and in the BiS view.
+
 Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory and Wardrobes) is usable; the addon warns about pieces stored elsewhere.
 
 ## Files

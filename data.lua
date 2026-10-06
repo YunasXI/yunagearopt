@@ -18,6 +18,10 @@
                 singing string wind blue geomancy handbell
     (curect, songct, sird, perp, bpdelay are stored as the amount reduced: higher = better)
     range = 'any' lets a set swap the range slot (e.g. Opprimo for Phantom Roll); ammo is then left alone.
+    ranged = 'job' / 'Archery' / 'Marksmanship' puts the job's BiS ranged weapon (ranged_weapons) on that set.
+    pref_slots = { 'range', 'ammo' } makes those slots take only the pieces you list (never an automatic pick).
+    info = { ... } makes a set a plain list instead of gear (used for the PUP automaton attachments).
+    weapon_sets lists melee sets where a job also swaps main/sub, using only your own listed weapons.
 ]]
 
 local DEF = { dt = -50, pdt = -50, mdt = -50 };
@@ -25,7 +29,22 @@ local DEF = { dt = -50, pdt = -50, mdt = -50 };
 return {
     dual_wield_jobs   = { 'NIN', 'DNC', 'THF' },
     dual_wield_weight = 5,
-    weapon_jobs       = { 'WHM', 'BLM', 'SMN', 'SCH', 'GEO', 'BRD' },
+    weapon_jobs       = { 'WHM', 'BLM', 'SMN', 'SCH', 'GEO', 'BRD', 'RDM', 'BLU' },
+
+    -- Melee sets where these jobs also swap main/sub. RDM and BLU swap to a staff for casting, so their
+    -- melee sets must put the sword back. Only weapons from your BiS reference / preferred list are used
+    -- here, never a random weapon.
+    weapon_sets = {
+        RDM = { 'TP', 'TP_Hybrid' },
+        BLU = { 'TP', 'TP_Hybrid', 'PDT', 'MDT' },
+    },
+
+    -- BiS ranged weapon by job and weapon type. Put on in ranged weaponskills, Preshot / Midshot and Quick Draw,
+    -- but only if you own it (it is never swapped for a different weapon, which would cancel the shot).
+    ranged_weapons = {
+        RNG = { Archery = 'Tonzoffun', Marksmanship = 'Annihilator' },
+        COR = { Marksmanship = 'Death Penalty' },
+    },
 
     -- Best in Slot reference: highest item level considered when building the BiS list.
     bis_level = 75,
@@ -41,6 +60,7 @@ return {
         { sets = { 'PhantomRoll' }, items = { "Luzaf's Ring" } },
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'SCH' }, items = { 'Coeus' } },
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'BLM', 'RDM', 'SCH', 'GEO', 'BLU' }, items = { 'Moepapa Pendant' } },
+        { sets = { 'Boost' }, jobs = { 'MNK' }, items = { 'Temple Gloves +1', 'Tpl. Gloves +1' } },
         { sets = { 'Meditate' },    items = { 'Pinnacle Dastanas' } },
         -- SAM: bow in the range slot (swapping range doesn't reset TP). "TP Bonus" has no number in
         -- the description, so it's forced for weaponskills instead of scored.
@@ -202,9 +222,11 @@ return {
         Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3 } },
         TH          = { label = 'Treasure Hunter', weights = { th = 50, acc = 0.5, stp = 1 } },
         Waltz       = { label = 'Waltz potency', weights = { waltz = 10, chr = 1, vit = 1 } },
-        Preshot     = { label = 'Ranged - Preshot', weights = { snapshot = 8, rapid = 6 } },
-        Midshot     = { label = 'Ranged - Midshot', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
-        QuickDraw   = { label = 'Quick Draw', weights = { mab = 8, macc = 3, agi = 2, racc = 0.5 } },
+        Preshot     = { label = 'Ranged - Preshot', ranged = 'job', weights = { snapshot = 8, rapid = 6 } },
+        Preshot_Gun = { label = 'Ranged - Preshot (gun)', ranged = 'Marksmanship', weights = { snapshot = 8, rapid = 6 } },
+        Midshot     = { label = 'Ranged - Midshot', ranged = 'job', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
+        Midshot_Gun = { label = 'Ranged - Midshot (gun)', ranged = 'Marksmanship', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
+        QuickDraw   = { label = 'Quick Draw', ranged = 'job', weights = { mab = 8, macc = 3, agi = 2, racc = 0.5 } },
         -- Fixed set: your exact pieces. Used ONLY for the weaponskills in ws_only, while the Mighty Strikes
         -- buff is active. Any piece you don't own is filled by the optimizer using the weights below.
         MightyStrikes = { label = 'Mighty Strikes (Upheaval / King\'s Justice)', buff = 'Mighty Strikes',
@@ -240,27 +262,56 @@ return {
         Warcry      = { label = 'Warcry', weights = { warcry = 10 } },
         Sublimation = { label = 'Sublimation', weights = { sublimation = 10 } },
         PhantomRoll = { label = 'Phantom Roll', range = 'any', weights = { roll = 10, rolldur = 2, rolldelay = 3, rollaoe = 6 } },
+
+        -- MNK: Temple Gloves +1 enhance Boost. Worn when you use Boost.
+        Boost       = { label = 'Boost', weights = { boost = 10 } },
+
+        -- BLU: blue magic categories (the gear comes from your BLU XML)
+        BluPhys      = { label = 'Blue magic - Physical', weights = { blue = 3, str = 1.5, dex = 1.2, vit = 0.5, att = 1, acc = 1, da = 2, crit = 1 } },
+        BluMag       = { label = 'Blue magic - Magical', weapons = true, weights = { blue = 2, int = 2, mab = 8, macc = 2, mbb = 3 } },
+        BluDebuff    = { label = 'Blue magic - Debuff', weapons = true, weights = { macc = 4, blue = 3, int = 1, mnd = 0.5 } },
+        SpectralFloe = { label = 'Spectral Floe', weapons = true, weights = { blue = 1, int = 2, mab = 8, macc = 1.5, mbb = 3 } },
+        BatteryCharge = { label = 'Battery Charge', weapons = true, weights = { enhdur = 3, blue = 1, refresh = 2, cmp = 0.5 } },
+        -- Idle gear you switch on yourself with /refresh (MP recovery)
+        Refresh      = { label = 'Idle - Refresh (toggle /refresh)', weapons = true, weights = { refresh = 30, hmp = 3, regen = 3, mp = 0.02 } },
+
+        -- PUP: automaton sets. Pet stats can't be read from item text, so these are your exact pieces
+        -- (a list = any of those names; anything you don't own is filled automatically).
+        PetTank   = { label = 'Automaton - Tank (pet DT)', weights = { dt = -4, pdt = -4, hp = 0.05, vit = 0.5 },
+                      fixed = { head = { 'Pantin Taj +1', 'Puppetry Taj +1' }, neck = "Shepherd's Chain",
+                                ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Apex Togi',
+                                hands = 'Pantin Dastanas +1', ring1 = 'Defending Ring +1', ring2 = { 'Titanium Band', 'Titanium Ring' },
+                                back = { 'Oneiros Cappa', 'Pantin Cape' }, waist = 'Beastly Girdle', legs = "Enticer's Pants",
+                                feet = 'Puppetry Babouches +1' } },
+        PetRanged = { label = 'Automaton - Ranged', weights = { agi = 0.5, racc = 0.5, ratt = 0.5 }, pref_slots = { 'range', 'ammo' },
+                      fixed = { range = 'Animator +1', ammo = 'Bolt Stone', head = 'Puppetry Taj +1', neck = "Tinker's Collar",
+                                ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Pantin Tobe +1',
+                                hands = 'Venom Vambraces', back = 'Pantin Cape', legs = "Prince's Slops", feet = 'Ryuga Sune-Ate' } },
+        -- Not gear: the attachments for the ranged automaton setup, shown as a list in the set window
+        Attachments = { label = 'Automaton attachments (ranged setup)',
+                        info = { 'Tension Spring III', 'Magniplug', 'Magniplug II', 'Drum Magazine', 'Scope III', 'Repeater',
+                                 'Dynamo', 'Heatsink', 'Stealth Screen II', 'Optic Fiber II', 'Optic Fiber', 'Target Marker' } },
     },
 
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
-        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra' },
+        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement' },
-        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'WS', 'PDT', 'MDT', 'SP', 'Movement' },
+        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Cure', 'Enhancing', 'Divine', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement' },
-        RNG = { 'Preshot', 'Midshot', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BlueMagic', 'Precast', 'Cure', 'Nuke', 'Nuke_MB', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement' },
         GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement' },
