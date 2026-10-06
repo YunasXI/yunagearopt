@@ -1,0 +1,21 @@
+# Generated exports (keep the README.txt in each folder)
+legacyac/*.xml
+gearswap/*.lua
+
+# Addon settings written by Ashita's settings library
+settings/
+*.settings.json
+
+# Release packaging output
+*.zip
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.bak
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
