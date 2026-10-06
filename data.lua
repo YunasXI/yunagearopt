@@ -27,6 +27,9 @@ return {
     dual_wield_weight = 5,
     weapon_jobs       = { 'WHM', 'BLM', 'SMN', 'SCH', 'GEO', 'BRD' },
 
+    -- Best in Slot reference: highest item level considered when building the BiS list.
+    bis_level = 75,
+
     exclude   = { 'Aesir Mantle' },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
@@ -53,6 +56,10 @@ return {
                     'Argute Gown +1', 'Argute Gown', "Scholar's Gown +1", "Scholar's Gown" } },
         -- STR rings in every weaponskill with a STR modifier (ws_stat = WS that uses that stat)
         { ws_stat = 'str', items = { 'Ifrit Ring +1', 'Strigoi Ring' } },
+        -- SCNM Apex: BRD song duration (legs) and song recast -10 (feet), COR Phantom Roll +1 (legs)
+        { sets = { 'Songs_Buff' },   jobs = { 'BRD' }, items = { 'Apex Haidate' } },
+        { sets = { 'Songs_Debuff' }, jobs = { 'BRD' }, items = { 'Apex Sune-Ate' } },
+        { sets = { 'PhantomRoll' },  jobs = { 'COR' }, items = { 'Apex Haidate' } },
         { ws = 'multi',  items = { 'Fotia Gorget' } },
         { ws = 'single', items = { 'Combatant Torque' } },
     },
@@ -79,6 +86,31 @@ return {
     -- Values: 'tp', 'ws' (set kinds) or set ids like 'Meditate'.
     job_range = {
         SAM = { 'tp', 'ws', 'Meditate' },
+    },
+
+    -- SCNM / Summit gear. The full 5-piece set grants "SP ability delay -5 min", so it is equipped
+    -- when you use your 2-hour. Each job uses its own Summit family.
+    summit = {
+        Apogee   = { head = 'Apogee Petasos',  body = 'Apogee Coat',     hands = 'Apogee Cuffs',
+                     legs = 'Apogee Tonban',   feet = 'Apogee Sabots' },
+        Pinnacle = { head = 'Pinnacle Celata', body = 'Pinnacle Cuirass', hands = 'Pinnacle Dastanas',
+                     legs = 'Pinnacle Cuisses', feet = 'Pinnacle Sabatons' },
+        Apex     = { head = 'Apex Hatsuburi',  body = 'Apex Togi',       hands = 'Apex Kote',
+                     legs = 'Apex Haidate',    feet = 'Apex Sune-Ate' },
+    },
+    -- Job -> { 2-hour ability, Summit family }
+    sp_abilities = {
+        WAR = { 'Mighty Strikes', 'Pinnacle' },   MNK = { 'Hundred Fists', 'Apex' },
+        WHM = { 'Benediction', 'Apogee' },        BLM = { 'Manafont', 'Apogee' },
+        RDM = { 'Chainspell', 'Apogee' },         THF = { 'Perfect Dodge', 'Apex' },
+        PLD = { 'Invincible', 'Pinnacle' },       DRK = { 'Blood Weapon', 'Pinnacle' },
+        BST = { 'Familiar', 'Pinnacle' },         BRD = { 'Soul Voice', 'Apex' },
+        RNG = { 'Eagle Eye Shot', 'Apex' },       SAM = { 'Meikyo Shisui', 'Pinnacle' },
+        NIN = { 'Mijin Gakure', 'Apex' },         DRG = { 'Call Wyvern', 'Pinnacle' },
+        SMN = { 'Astral Flow', 'Apogee' },        BLU = { 'Azure Lore', 'Apogee' },
+        COR = { 'Wild Card', 'Apex' },            PUP = { 'Overdrive', 'Apex' },
+        DNC = { 'Trance', 'Apex' },               SCH = { 'Tabula Rasa', 'Apogee' },
+        GEO = { 'Bolster', 'Apogee' },            RUN = { 'Elemental Sforzo', 'Pinnacle' },
     },
 
     -- Items only these jobs may use (overrides the job list in the item's game data)
@@ -196,28 +228,28 @@ return {
     },
 
     jobs = {
-        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes' },
-        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry' },
-        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation' },
-        BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT' },
-        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'WS', 'PDT', 'MDT' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry' },
-        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Cure', 'Enhancing', 'Divine', 'Berserk', 'Warcry', 'Meditate' },
-        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate' },
-        BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry' },
-        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS' },
-        RNG = { 'Preshot', 'Midshot', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry' },
-        SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry' },
-        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry' },
-        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'Meditate' },
-        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BlueMagic', 'Precast', 'Cure', 'Nuke', 'Nuke_MB', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry' },
-        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry' },
-        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry' },
-        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry' },
-        SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation' },
-        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT' },
-        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry' },
+        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
+        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP' },
+        BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP' },
+        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'WS', 'PDT', 'MDT', 'SP' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Cure', 'Enhancing', 'Divine', 'Berserk', 'Warcry', 'Meditate', 'SP' },
+        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP' },
+        BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP' },
+        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP' },
+        RNG = { 'Preshot', 'Midshot', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP' },
+        SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
+        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'Meditate', 'SP' },
+        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BlueMagic', 'Precast', 'Cure', 'Nuke', 'Nuke_MB', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP' },
+        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP' },
+        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP' },
+        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP' },
+        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP' },
+        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry', 'SP' },
     },
 
     -- Weapon types whose weaponskills get a set in each job's XML (skill names as in the list below).
@@ -310,7 +342,7 @@ return {
         { id = 41, name = 'Swift Blade', skill = 3, jobs = { 'PLD', 'RUN' }, kind = 'physical', hits = 3, mods = { mnd = 0.30, str = 0.30 } },
         { id = 42, name = 'Savage Blade', skill = 3, jobs = { 'WAR', 'RDM', 'PLD', 'DRK', 'BLU', 'COR', 'RUN' }, kind = 'physical', hits = 2, mods = { mnd = 0.50, str = 0.30 } },
         { id = 47, name = 'Sanguine Blade', skill = 3, jobs = { 'WAR', 'RDM', 'PLD', 'DRK', 'BLU', 'RUN' }, kind = 'magical', hits = 1, mods = { mnd = 0.50, str = 0.30 } },
-        { id = 226, name = 'Requiescat', skill = 3, jobs = { 'WAR', 'RDM', 'PLD', 'DRK', 'SAM', 'BLU', 'COR', 'RUN' }, kind = 'physical', hits = 5, mods = { mnd = 0.70 } },
+        { id = 226, name = 'Requiescat', skill = 3, jobs = { 'WAR', 'RDM', 'PLD', 'DRK', 'SAM', 'BLU', 'COR', 'RUN', 'BRD' }, kind = 'physical', hits = 5, mods = { mnd = 0.70 } },
 
         -- Great Sword
         { id = 61, name = 'Dimidiation', skill = 4, jobs = { 'RUN' }, kind = 'physical', hits = 2, mods = { dex = 0.80 } },

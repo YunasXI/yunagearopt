@@ -1,11 +1,21 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '4.0';
-addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports a LegacyAC XML.';
+addon.version = '4.1';
+addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
 require('common');
 local imgui    = require('imgui');
+
+-- ImGui reads plain text as a printf format, so a '%' (e.g. "Haste%", "45%") turns into garbage.
+-- Escape it once here for every Text call in this addon (tooltips are escaped where they're built).
+do
+    local raw_text, raw_colored, raw_disabled = imgui.Text, imgui.TextColored, imgui.TextDisabled;
+    local function esc(t) return (tostring(t):gsub('%%', '%%%%')); end
+    imgui.Text = function(t, ...) return raw_text(esc(t), ...); end
+    imgui.TextColored = function(c, t, ...) return raw_colored(c, esc(t), ...); end
+    if raw_disabled then imgui.TextDisabled = function(t, ...) return raw_disabled(esc(t), ...); end end
+end
 local chat     = require('chat');
 local settings = require('settings');
 
@@ -90,12 +100,13 @@ local defaults = T{ acc_bias = 1.0, ignore_level = false, dw_mode = 1, weapons =
 local s = settings.load(defaults);
 
 local S, data, AUG = nil, nil, {};
+local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
 local owned, base_cache = {}, {};
 
 local ui = {
     open = { false }, job = 1, set_idx = 1, sets = {}, desc = nil,
     result = nil, total = 0, full = {}, ctx = '',
-    pins = {}, dirty = true, last_scan = '--:--', augmented = 0,
+    pins = {}, show_bis = false, dirty = true, last_scan = '--:--', augmented = 0,
     data_excl = {}, overrides = {}, job_restrict = {}, set_restrict = {}, stat_remove = {}, stat_fix = {},
 };
 
@@ -130,6 +141,8 @@ local function load_data()
     local ok2, a = pcall(dofile, base_path() .. 'augments.lua');
     if not ok2 or type(a) ~= 'table' then msg('Could not load augments.lua: ' .. tostring(a)); return false; end
     S, data, AUG = st, d, a;
+    local okB, b = pcall(dofile, base_path() .. 'bis.lua');
+    BIS_REF = (okB and type(b) == 'table') and b or {};
     ui.data_excl, ui.overrides = {}, {};
     for _, name in ipairs(d.exclude or {}) do ui.data_excl[name:lower()] = true; end
     for name, stats in pairs(d.overrides or {}) do ui.overrides[name:lower()] = stats; end
@@ -283,6 +296,31 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Scanning
 ----------------------------------------------------------------------------------------------------
+-- Base stats for an item: overrides > parsed description, then stat_fix / stat_remove from data.lua
+local function compute_base(id, name, desc)
+    local lname = name:lower();
+    local base = ui.overrides[lname];
+    if base == nil then
+        base = base_cache[id];
+        if base == nil then base = parse_stats(desc); base_cache[id] = base; end
+    end
+    local fix = ui.stat_fix[lname];
+    if fix then
+        local fixed = {};
+        for k, v in pairs(base) do fixed[k] = v; end
+        for k, v in pairs(fix) do fixed[k] = v; end
+        base = fixed;
+    end
+    local remove = ui.stat_remove[lname];
+    if remove then
+        local trimmed = {};
+        for k, v in pairs(base) do trimmed[k] = v; end
+        for _, k in ipairs(remove) do trimmed[k] = nil; end
+        base = trimmed;
+    end
+    return base;
+end
+
 local function scan()
     owned, ui.augmented = {}, 0;
     local ok, err = pcall(function()
@@ -297,27 +335,9 @@ local function scan()
                     if r ~= nil and r.Slots ~= nil and r.Slots ~= 0 then
                         local name = r.Name[1] or '';
                         local desc = r.Description and r.Description[1] or '';
-                        local base = ui.overrides[name:lower()];
-                        if base == nil then
-                            base = base_cache[it.Id];
-                            if base == nil then base = parse_stats(desc); base_cache[it.Id] = base; end
-                        end
+                        local base = compute_base(it.Id, name, desc);
                         local rd = byte_reader(it);
                         local aug, unknown, augmented = decode_augments(rd);
-                        local fix = ui.stat_fix[name:lower()];
-                        if fix then
-                            local fixed = {};
-                            for k, v in pairs(base) do fixed[k] = v; end
-                            for k, v in pairs(fix) do fixed[k] = v; end
-                            base = fixed;
-                        end
-                        local remove = ui.stat_remove[name:lower()];
-                        if remove then
-                            local trimmed = {};
-                            for k, v in pairs(base) do trimmed[k] = v; end
-                            for _, k in ipairs(remove) do trimmed[k] = nil; end
-                            base = trimmed;
-                        end
                         local stats = {};
                         for k, v in pairs(base) do stats[k] = v; end
                         for k, v in pairs(aug) do stats[k] = (stats[k] or 0) + v; end
@@ -337,6 +357,44 @@ local function scan()
     ui.last_scan = os.date('%H:%M:%S');
     ui.dirty = true;
     return #owned;
+end
+
+----------------------------------------------------------------------------------------------------
+-- Best in Slot database: every piece of equipment in the game data (CatsEyeXI DATs), base stats only.
+-- Built a slice per frame so the game never stutters.
+----------------------------------------------------------------------------------------------------
+local bis = { pool = {}, next_id = 1, done = false, cache = {} };
+local BIS_LAST_ID, BIS_PER_FRAME = 65534, 2500;
+
+local function bis_step()
+    if bis.done or data == nil then return; end
+    local res = AshitaCore:GetResourceManager();
+    local max_level = data.bis_level or 75;
+    local last = math.min(bis.next_id + BIS_PER_FRAME - 1, BIS_LAST_ID);
+    for id = bis.next_id, last do
+        local ok, r = pcall(function() return res:GetItemById(id); end);
+        if ok and r ~= nil and r.Slots ~= nil and r.Slots ~= 0 and (r.Level or 0) <= max_level then
+            local name = r.Name and r.Name[1] or '';
+            if name ~= '' and name ~= '.' then
+                local desc = r.Description and r.Description[1] or '';
+                local base = compute_base(id, name, desc);
+                if next(base) ~= nil then
+                    table.insert(bis.pool, {
+                        id = id, name = name, where = 'BiS', desc = desc,
+                        slots = r.Slots, jobs = r.Jobs or 0, level = r.Level or 0,
+                        skill = r.Skill or 0, shield = r.ShieldSize or 0,
+                        base = base, aug = {}, unknown = {}, augmented = false, stats = base,
+                    });
+                end
+            end
+        end
+    end
+    bis.next_id = last + 1;
+    if bis.next_id > BIS_LAST_ID then bis.done = true; ui.dirty = true; end
+end
+
+local function bis_reset()
+    bis.pool, bis.next_id, bis.done, bis.cache = {}, 1, false, {};
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -384,7 +442,17 @@ local function build_sets(job_id)
         return nil;
     end
     for _, id in ipairs(data.jobs[abbr] or {}) do
-        if id == 'WS' then
+        if id == 'SP' then
+            local sp = (data.sp_abilities or {})[abbr];
+            local fam = sp and (data.summit or {})[sp[2]];
+            if sp and fam then
+                local fixed = {};
+                for k, v in pairs(fam) do fixed[k] = v; end
+                table.insert(list, { id = 'SP', name = 'SP_' .. xml_set_name(sp[1]), label = sp[1] .. ' (2-hour, ' .. sp[2] .. ' set)',
+                                     kind = 'other', base_weights = {}, caps = {}, weapons = false,
+                                     fixed = fixed, sp_ability = sp[1] });
+            end
+        elseif id == 'WS' then
             local generic = nil;
             for _, ws in ipairs(data.weaponskills) do
                 if in_list(ws.jobs, '*') and ws.kind == ((abbr == 'RNG') and 'ranged' or 'physical') and generic == nil then
@@ -433,7 +501,7 @@ end
 ----------------------------------------------------------------------------------------------------
 local function is_excluded(name)
     local n = (name or ''):lower();
-    return ui.data_excl[n] or (s.excluded and s.excluded[n] == true);
+    return ui.data_excl[n];
 end
 
 local function score_of(stats, w)
@@ -468,14 +536,14 @@ local function set_score(assign, w, caps)
     return sc;
 end
 
-local function can_wear(item, job_id, lvl)
+local function can_wear(item, job_id, lvl, strict)
     local only = ui.job_restrict[item.name:lower()];
     if only then
         if not in_list(only, JOBS[job_id]) then return false; end
     elseif bit.band(item.jobs, bit.lshift(1, job_id)) == 0 then
         return false;
     end
-    if not s.ignore_level and item.level > lvl then return false; end
+    if (strict or not s.ignore_level) and item.level > lvl then return false; end
     return true;
 end
 
@@ -553,12 +621,14 @@ local function preferred_for(job_id, desc)
 end
 
 -- pins: slot -> {name, where} (force a piece), false (force empty), nil (optimizer decides)
-local function optimize(job_id, desc, pins)
+local function optimize(job_id, desc, pins, pool)
     local w, caps = weights_for(job_id, desc), desc.caps or {};
-    local lvl, dw = job_level(job_id), dw_active(job_id);
+    local pure = pool ~= nil;                -- BiS mode: whole game, base stats, no picks/preferred/fixed
+    local lvl, dw = pure and (data.bis_level or 75) or job_level(job_id), dw_active(job_id);
     local slots = active_slots(desc);
-    pins = pins or {};
-    if desc.fixed then
+    pool = pool or owned;
+    pins = pure and {} or (pins or {});
+    if desc.fixed and not pure then
         local merged = {};
         for k, v in pairs(desc.fixed) do merged[k] = { name = v }; end
         for k, v in pairs(pins) do merged[k] = v; end
@@ -568,8 +638,8 @@ local function optimize(job_id, desc, pins)
     local full, cands = {}, {};
     for _, def in ipairs(slots) do
         local all, list = {}, {};
-        for idx, item in ipairs(owned) do
-            if bit.band(item.slots, def.mask) ~= 0 and can_wear(item, job_id, lvl) then
+        for idx, item in ipairs(pool) do
+            if bit.band(item.slots, def.mask) ~= 0 and can_wear(item, job_id, lvl, pure) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
                 table.insert(all, c);
                 if c.score > 0 and not is_excluded(item.name) and slot_candidate_ok(def, item, desc) then
@@ -579,6 +649,10 @@ local function optimize(job_id, desc, pins)
         end
         table.sort(all, function(x, y) return x.score > y.score; end);
         table.sort(list, function(x, y) return x.score > y.score; end);
+        if pure then
+            while #list > 25 do table.remove(list); end
+            all = list;
+        end
         full[def.key], cands[def.key] = all, list;
     end
 
@@ -602,7 +676,7 @@ local function optimize(job_id, desc, pins)
 
     -- Preferred gear from data.lua (user picks always win)
     local forced, wanted = {}, {};
-    for order, pname in ipairs(preferred_for(job_id, desc)) do
+    for order, pname in ipairs(pure and {} or preferred_for(job_id, desc)) do
         local lname = name_key(pname);
         for _, def in ipairs(slots) do
             for _, c in ipairs(full[def.key]) do
@@ -644,6 +718,26 @@ local function optimize(job_id, desc, pins)
         end
     end
 
+    -- BiS mode: your own copy and the game-data copy of an item are the same piece
+    if pure then
+        local seen = {};
+        for _, def in ipairs(slots) do
+            local c = assign[def.key];
+            if c then
+                local k = name_key(c.item.name);
+                if seen[k] and not locked[def.key] then
+                    used[c.idx] = nil; assign[def.key] = nil;
+                    for _, alt in ipairs(cands[def.key]) do
+                        local ak = name_key(alt.item.name);
+                        if not used[alt.idx] and not seen[ak] then assign[def.key], used[alt.idx] = alt, true; seen[ak] = true; break; end
+                    end
+                else
+                    seen[k] = true;
+                end
+            end
+        end
+    end
+
     local best = set_score(assign, w, caps);
     for _ = 1, 10 do
         local improved = false;
@@ -653,6 +747,12 @@ local function optimize(job_id, desc, pins)
                 for i = 0, #options do
                     local c = options[i];
                     local valid = c ~= cur and (c == nil or not used[c.idx]);
+                    if valid and pure and c then
+                        local ck = name_key(c.item.name);
+                        for k2, other in pairs(assign) do
+                            if k2 ~= def.key and other and name_key(other.item.name) == ck then valid = false; end
+                        end
+                    end
                     if valid and def.key == 'sub' and c then valid = sub_ok(assign.main, c, dw); end
                     if valid then
                         assign[def.key] = c;
@@ -680,6 +780,79 @@ local function optimize(job_id, desc, pins)
     return assign, best, full, w, forced;
 end
 
+-- Curated BiS (bis.lua) for this job + set: exact set / weaponskill first, then by WS stats, then the default WS.
+local function curated_for(job_id, desc)
+    local ref = BIS_REF[JOBS[job_id]];
+    if ref == nil or desc == nil then return nil; end
+    if ref[desc.id] then return ref[desc.id]; end
+    if desc.kind == 'ws' and desc.ws then
+        local mods = desc.ws.mods or {};
+        local keys = {};
+        for k, v in pairs(mods) do if v > 0 then table.insert(keys, k); end end
+        if #keys >= 2 then
+            for rk, rv in pairs(ref) do
+                local combo = rk:match('^ws_both:(.+)$');
+                if combo then
+                    local need, all = {}, true;
+                    for st in combo:gmatch('[^+]+') do need[#need + 1] = st; end
+                    for _, st in ipairs(need) do if (mods[st] or 0) <= 0 then all = false; end end
+                    if all and #need == #keys then return rv; end
+                end
+            end
+        end
+        table.sort(keys, function(a, b) return mods[a] > mods[b]; end);
+        for _, k in ipairs(keys) do
+            if ref['ws_stat:' .. k] then return ref['ws_stat:' .. k]; end
+        end
+        return ref['WS'];
+    end
+    return nil;
+end
+
+local bis_index = nil;
+local function find_item_by_name(name)
+    local key = name_key(name);
+    for _, it in ipairs(owned) do if name_key(it.name) == key then return it; end end
+    if bis_index == nil and bis.done then
+        bis_index = {};
+        for _, it in ipairs(bis.pool) do bis_index[name_key(it.name)] = bis_index[name_key(it.name)] or it; end
+    end
+    return bis_index and bis_index[key] or nil;
+end
+
+local function bis_for(job_id, desc)
+    if desc == nil then return nil; end
+    local curated = curated_for(job_id, desc) or desc.fixed;
+    if not bis.done and curated == nil then return nil; end
+    local key = JOBS[job_id] .. '|' .. desc.id .. '|' .. tostring(s.acc_bias) .. '|' .. tostring(dw_active(job_id)) .. '|' .. ui.last_scan;
+    local hit = bis.cache[key];
+    if hit == nil then
+        -- Every item in the game (base stats) + your own pieces (with their augments):
+        -- an augmented piece you own can beat the plain version, so BiS is never below your set.
+        local pool = {};
+        for _, it in ipairs(owned) do table.insert(pool, it); end
+        for _, it in ipairs(bis.pool) do table.insert(pool, it); end
+        local assign = {};
+        if bis.done then assign = optimize(job_id, desc, nil, pool); end
+        -- Your reference sets (bis.lua) win for every slot they list
+        local w, caps = weights_for(job_id, desc), desc.caps or {};
+        local active = {};
+        for _, def in ipairs(active_slots(desc)) do active[def.key] = true; end
+        for slot, iname in pairs(curated or {}) do
+          if active[slot] then
+            local it = find_item_by_name(iname);
+            if it == nil then
+                it = { name = iname, where = 'BiS', stats = {}, base = {}, aug = {}, unknown = {}, augmented = false, slots = 0 };
+            end
+            assign[slot] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };
+          end
+        end
+        hit = { assign = assign, total = set_score(assign, w, caps), curated = curated ~= nil };
+        if bis.done then bis.cache[key] = hit; end
+    end
+    return hit;
+end
+
 local function recompute()
     if data == nil then return; end
     ui.sets = build_sets(ui.job);
@@ -689,6 +862,7 @@ local function recompute()
     ui.ctx = JOBS[ui.job] .. '|' .. ui.desc.id;
     ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
     ui.result, ui.total, ui.full, ui.weights, ui.forced = optimize(ui.job, ui.desc, ui.pins[ui.ctx]);
+    ui.bis = bis_for(ui.job, ui.desc);
     ui.dirty = false;
 end
 
@@ -978,6 +1152,11 @@ local function build_full_xml(job_id)
     for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation' }) do
         if have[ja_name] then table.insert(ja, { cond = attr('ad_name', ja_name), body = equip_set(ja_name) }); end
     end
+    for _, b in ipairs(built) do
+        if b.desc.sp_ability then
+            table.insert(ja, { cond = attr('ad_name', b.desc.sp_ability), body = equip_set(b.desc.name) });
+        end
+    end
     if have.PhantomRoll then
         table.insert(ja, { cond = attr('ad_type', 'corsairroll'), body = equip_set('PhantomRoll') });
         table.insert(ja, { cond = attr('ad_name', 'Double-Up'), body = equip_set('PhantomRoll') });
@@ -1137,6 +1316,13 @@ local function build_gearswap(job_id)
     end
     add('    }');
     add('');
+    add('    -- 2-hour (SP ability) -> Summit set');
+    add('    sp_map = {');
+    for _, b in ipairs(built) do
+        if b.desc.sp_ability then add(string.format('        [%q] = %q,', b.desc.sp_ability, b.desc.name)); end
+    end
+    add('    }');
+    add('');
     add('    -- Elemental obis you own (worn when weather, day or a storm buff matches the spell element)');
     add('    obis = {');
     local els = {};
@@ -1226,6 +1412,8 @@ function precast(spell)
         eq('Waltz')
     elseif spell.type == 'BloodPactRage' or spell.type == 'BloodPactWard' then
         eq('BP_Delay')
+    elseif sp_map[spell.english] then
+        eq(sp_map[spell.english])
     elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' then
         eq(spell.english)
     end
@@ -1309,6 +1497,283 @@ local function export_gearswap()
 end
 
 ----------------------------------------------------------------------------------------------------
+-- LuAshitacast export (Ashita: config/addons/luashitacast/CharName_CharId/JOB.lua)
+----------------------------------------------------------------------------------------------------
+local LAC_SLOT = { main = 'Main', sub = 'Sub', range = 'Range', ammo = 'Ammo', head = 'Head', neck = 'Neck',
+    ear1 = 'Ear1', ear2 = 'Ear2', body = 'Body', hands = 'Hands', ring1 = 'Ring1', ring2 = 'Ring2',
+    back = 'Back', waist = 'Waist', legs = 'Legs', feet = 'Feet' };
+local LAC_ELEMENT = { fire = 'Fire', ice = 'Ice', wind = 'Wind', earth = 'Earth', thunder = 'Thunder',
+    water = 'Water', light = 'Light', dark = 'Dark' };
+
+local function player_server_id()
+    local ok, id = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0); end);
+    return (ok and id) or 0;
+end
+
+local function build_lac(job_id)
+    local abbr = JOBS[job_id];
+    local built = {};
+    for _, desc in ipairs(build_sets(job_id)) do
+        local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
+        if next(assign) ~= nil then table.insert(built, { desc = desc, assign = assign }); end
+    end
+    local R, obis = data.rules or {}, owned_obis();
+    local o = {};
+    local function add(line) table.insert(o, line); end
+
+    add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
+    add('-- LuAshitacast profile. Location: Ashita/config/addons/luashitacast/' .. player_name() .. '_' .. player_server_id() .. '/' .. abbr .. '.lua');
+    add('-- Commands: /lac fwd pdt | /lac fwd mdt | /lac fwd hybrid | /lac fwd mb | /lac fwd th');
+    add('');
+    add('local profile = {};');
+    add('');
+    add('local sets = {');
+    for _, b in ipairs(built) do
+        add(string.format('    -- %s', b.desc.label));
+        add(string.format('    [%q] = {', b.desc.name));
+        for _, def in ipairs(SLOTS) do
+            local c = b.assign[def.key];
+            if c then add(string.format('        %s = %q,', LAC_SLOT[def.key], c.item.name)); end
+        end
+        add('    },');
+    end
+    add('};');
+    add('profile.Sets = sets;');
+    add('profile.Packer = {};');
+    add('');
+    add('-- Weaponskill id -> set name');
+    add('local ws_map = {');
+    for _, b in ipairs(built) do
+        if b.desc.kind == 'ws' and b.desc.ws and b.desc.ws.id then
+            add(string.format('    [%d] = %q, -- %s', b.desc.ws.id, b.desc.name, b.desc.ws.name));
+        end
+    end
+    add('};');
+    add('');
+    add('-- Buff-only weaponskill sets (e.g. Mighty Strikes)');
+    add('local buff_ws = {');
+    for _, b in ipairs(built) do
+        local d = b.desc;
+        local list = d.ws_only or d.buff_ws;
+        if d.buff and list then
+            local ids = {};
+            for _, wname in ipairs(list) do
+                for _, ws in ipairs(data.weaponskills) do
+                    if ws.id and ws.name:lower() == wname:lower() then table.insert(ids, string.format('[%d] = true', ws.id)); end
+                end
+            end
+            add(string.format('    { set = %q, buff = %q, ids = { %s } },', d.name, d.buff, table.concat(ids, ', ')));
+        end
+    end
+    add('};');
+    add('');
+    add('-- Elemental obis you own (WeatherElement already includes storm spells)');
+    add('local obis = {');
+    local els = {};
+    for e in pairs(obis) do table.insert(els, e); end
+    table.sort(els);
+    for _, e in ipairs(els) do add(string.format('    [%q] = %q,', LAC_ELEMENT[e], obis[e].name)); end
+    add('};');
+    add('');
+    add('-- 2-hour (SP ability) -> Summit set');
+    add('local sp_map = {');
+    for _, b in ipairs(built) do
+        if b.desc.sp_ability then add(string.format('    [%q] = %q,', b.desc.sp_ability, b.desc.name)); end
+    end
+    add('};');
+    add('');
+    add('local rules = {');
+    add('    cure        = ' .. lua_list(wild_to_patterns(R.cure)) .. ',');
+    add('    enf_mnd     = ' .. lua_list(wild_to_patterns(R.enfeebling_mnd)) .. ',');
+    add('    ele_dot     = ' .. lua_list(wild_to_patterns(R.elemental_dot)) .. ',');
+    add('    drain_aspir = ' .. lua_list(wild_to_patterns(R.drain_aspir)) .. ',');
+    add('    song_debuff = ' .. lua_list(wild_to_patterns(R.song_debuff)) .. ',');
+    add('};');
+    add('');
+    add([[
+local Mode, MB, TH = 'normal', false, false;
+
+local function matches(name, list)
+    for _, p in ipairs(list or {}) do
+        if name:match(p) then return true; end
+    end
+    return false;
+end
+
+local function eq(name)
+    if sets[name] then gFunc.EquipSet(sets[name]); return true; end
+    return false;
+end
+
+local function obi(element)
+    local o = obis[element];
+    if o == nil then return; end
+    local env = gData.GetEnvironment();
+    if env.WeatherElement == element or env.DayElement == element then gFunc.Equip('Waist', o); end
+end
+
+local function buff(name) return gData.GetBuffCount(name) > 0; end
+
+profile.OnLoad = function()
+    gSettings.AllowAddSet = false;
+end
+
+profile.OnUnload = function()
+end
+
+profile.HandleCommand = function(args)
+    local c = (args[1] or ''):lower();
+    if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
+        Mode = (Mode == c) and 'normal' or c;
+        gFunc.Message('Mode: ' .. Mode);
+    elseif c == 'mb' then
+        MB = not MB;
+        gFunc.Message('Magic Burst: ' .. (MB and 'ON' or 'OFF'));
+    elseif c == 'th' then
+        TH = not TH;
+        gFunc.Message('Treasure Hunter: ' .. (TH and 'ON' or 'OFF'));
+    end
+end
+
+profile.HandleDefault = function()
+    local petAction = gData.GetPetAction();
+    if petAction ~= nil and petAction.Type ~= nil and petAction.Type:find('Blood Pact') then
+        eq('BloodPact');
+        return;
+    end
+    local player = gData.GetPlayer();
+    if player.Status == 'Engaged' then
+        if Mode == 'pdt' and eq('PDT') then
+        elseif Mode == 'mdt' and eq('MDT') then
+        elseif Mode == 'hybrid' and eq('TP_Hybrid') then
+        elseif not eq('TP') then eq('Idle');
+        end
+        if TH then eq('TH'); end
+    elseif player.Status == 'Resting' and sets['Resting'] then
+        eq('Resting');
+    else
+        if Mode == 'pdt' and eq('PDT') then
+        elseif Mode == 'mdt' and eq('MDT') then
+        elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
+        else eq('Idle');
+        end
+        if buff('Sublimation: Activated') then eq('Sublimation'); end
+    end
+end
+
+profile.HandleAbility = function()
+    local action = gData.GetAction();
+    local name, kind = action.Name or '', action.Type or '';
+    if kind == 'Corsair Roll' or name == 'Double-Up' then eq('PhantomRoll');
+    elseif kind == 'Quick Draw' then eq('QuickDraw');
+    elseif kind:find('Blood Pact') then eq('BP_Delay');
+    elseif name:find('Waltz') then eq('Waltz');
+    elseif sp_map[name] then eq(sp_map[name]);
+    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' then eq(name);
+    end
+end
+
+profile.HandleItem = function()
+end
+
+profile.HandlePrecast = function()
+    local spell = gData.GetAction();
+    if matches(spell.Name, rules.cure) and eq('Precast_Cure') then
+    elseif spell.Type == 'Bard Song' and eq('Precast_Song') then
+    else eq('Precast');
+    end
+end
+
+profile.HandleMidcast = function()
+    local spell = gData.GetAction();
+    local name, skill = spell.Name or '', spell.Skill or '';
+    if matches(name, rules.cure) and eq('Cure') then
+        obi('Light');
+    elseif name == 'Stoneskin' and eq('Stoneskin') then
+    elseif skill == 'Healing Magic' then eq('Healing');
+    elseif skill == 'Enhancing Magic' then eq('Enhancing');
+    elseif skill == 'Enfeebling Magic' then
+        if matches(name, rules.enf_mnd) then
+            if not eq('Enfeebling_MND') then eq('Enfeebling_INT'); end
+        elseif not eq('Enfeebling_INT') then eq('Enfeebling_MND'); end
+    elseif skill == 'Divine Magic' then
+        eq('Divine'); obi('Light');
+    elseif skill == 'Elemental Magic' then
+        if matches(name, rules.ele_dot) and eq('MagicAcc') then
+        elseif MB and eq('Nuke_MB') then obi(spell.Element);
+        else
+            if not eq('Nuke') then eq('Nuke_MB'); end
+            obi(spell.Element);
+        end
+    elseif skill == 'Dark Magic' then
+        if matches(name, rules.drain_aspir) and eq('DrainAspir') then obi('Dark');
+        else eq('Dark'); end
+    elseif skill == 'Ninjutsu' then
+        eq('Ninjutsu'); obi(spell.Element);
+    elseif skill == 'Singing' then
+        if matches(name, rules.song_debuff) then
+            if not eq('Songs_Debuff') then eq('Songs_Buff'); end
+        elseif not eq('Songs_Buff') then eq('Songs_Debuff'); end
+    elseif skill == 'Blue Magic' then eq('BlueMagic');
+    elseif skill == 'Geomancy' then eq('Geomancy');
+    end
+end
+
+profile.HandlePreshot = function()
+    eq('Preshot');
+end
+
+profile.HandleMidshot = function()
+    eq('Midshot');
+end
+
+profile.HandleWeaponskill = function()
+    local ws = gData.GetAction();
+    if not eq(ws_map[ws.Id] or 'WS') then eq('WS'); end
+    for _, bw in ipairs(buff_ws) do
+        if buff(bw.buff) and bw.ids[ws.Id] then eq(bw.set); end
+    end
+end
+
+return profile;]]);
+    return table.concat(o, '\n') .. '\n', #built;
+end
+
+local function export_lac()
+    local abbr = JOBS[ui.job];
+    local text, count = build_lac(ui.job);
+    local fname = abbr .. '.lua';
+    imgui.SetClipboardText(text);
+    local saved = {};
+    if write_file(export_dir('lac') .. player_name() .. '_' .. fname, text) then
+        table.insert(saved, 'addons\\yunagearopt\\lac\\' .. player_name() .. '_' .. fname);
+    end
+    local install, backup = '', nil;
+    pcall(function() install = AshitaCore:GetInstallPath(); end);
+    if install ~= '' then
+        local folder = player_name() .. '_' .. player_server_id();
+        local dir = install:gsub('[\\/]+$', '') .. '\\config\\addons\\luashitacast\\' .. folder .. '\\';
+        ensure_dir(dir);
+        -- Never lose a hand-written profile: back up whatever is there first
+        local existing = io.open(dir .. fname, 'r');
+        if existing then
+            local old = existing:read('*a');
+            existing:close();
+            local bak = abbr .. '_backup_' .. os.date('%Y%m%d_%H%M%S') .. '.lua';
+            if write_file(dir .. bak, old) then backup = 'config\\addons\\luashitacast\\' .. folder .. '\\' .. bak; end
+        end
+        if write_file(dir .. fname, text) then
+            table.insert(saved, 'config\\addons\\luashitacast\\' .. folder .. '\\' .. fname);
+        end
+    end
+    msg(string.format('%s LuAshitacast profile exported: %d sets (also copied to clipboard).', abbr, count));
+    for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
+    if backup then msg('  Your previous ' .. fname .. ' was backed up as: ' .. backup); end
+    msg('  Load it in game with: /lac load');
+end
+
+
+----------------------------------------------------------------------------------------------------
 -- Equip the current set in game (/equip commands)
 ----------------------------------------------------------------------------------------------------
 local EQUIP_SLOT = { main = 'main', sub = 'sub', range = 'range', ammo = 'ammo', head = 'head', neck = 'neck',
@@ -1346,7 +1811,7 @@ local CATEGORY_OF = {
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',
-    Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities',
+    Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
     MightyStrikes = 'Abilities',
 };
 local function category(desc)
@@ -1444,8 +1909,6 @@ local function item_tooltip(item)
         for _, id in ipairs(item.unknown) do table.insert(ids, tostring(id)); end
         table.insert(lines, 'Unrecognized augment IDs: ' .. table.concat(ids, ', '));
     end
-    table.insert(lines, '');
-    table.insert(lines, 'Right-click: never use this item');
     imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
 end
 
@@ -1462,6 +1925,74 @@ end
 ----------------------------------------------------------------------------------------------------
 -- UI: full window
 ----------------------------------------------------------------------------------------------------
+-- Score quality vs the Best-in-Slot reference: orange = BiS / very good, yellow = good, blue = medium
+local TIER_ORANGE = { 1.00, 0.60, 0.20, 1 };
+local TIER_YELLOW = { 0.98, 0.86, 0.35, 1 };
+local TIER_BLUE   = { 0.45, 0.70, 1.00, 1 };
+
+-- Score color from how close you are to Best in Slot:
+-- white -> light blue -> blue -> light yellow -> yellow -> orange
+local SCORE_STOPS = {
+    { 0.00, { 0.92, 0.93, 0.95, 1 } },   -- white
+    { 0.35, { 0.62, 0.80, 1.00, 1 } },   -- light blue
+    { 0.55, { 0.35, 0.60, 1.00, 1 } },   -- blue
+    { 0.70, { 1.00, 0.93, 0.55, 1 } },   -- light yellow
+    { 0.85, { 0.98, 0.82, 0.25, 1 } },   -- yellow
+    { 0.95, { 1.00, 0.58, 0.18, 1 } },   -- orange
+};
+
+local function tier(ratio)
+    if ratio == nil then return C.muted; end
+    if ratio <= SCORE_STOPS[1][1] then return SCORE_STOPS[1][2]; end
+    for i = 2, #SCORE_STOPS do
+        local a, b = SCORE_STOPS[i - 1], SCORE_STOPS[i];
+        if ratio <= b[1] then
+            local t = (ratio - a[1]) / (b[1] - a[1]);
+            return {
+                a[2][1] + (b[2][1] - a[2][1]) * t,
+                a[2][2] + (b[2][2] - a[2][2]) * t,
+                a[2][3] + (b[2][3] - a[2][3]) * t,
+                1,
+            };
+        end
+    end
+    return SCORE_STOPS[#SCORE_STOPS][2];
+end
+
+local function set_ratio()
+    if ui.bis == nil or (ui.bis.total or 0) <= 0 then return nil; end
+    return math.max(0, (ui.total or 0) / ui.bis.total);
+end
+
+local function slot_ratio(key, score)
+    local b = ui.bis and ui.bis.assign and ui.bis.assign[key];
+    if b == nil or b.score <= 0 then return nil; end
+    return math.max(0, score / b.score);
+end
+
+local function score_legend(lines)
+    table.insert(lines, '');
+    table.insert(lines, 'Color: white -> blue -> yellow -> orange as you get closer to Best in Slot.');
+    table.insert(lines, 'Orange = Best in Slot or very close to it.');
+end
+
+local function owns(name)
+    local k = name_key(name);
+    for _, it in ipairs(owned) do if name_key(it.name) == k then return true; end end
+    return false;
+end
+
+-- Width of a button that fits its label
+local function text_w(text)
+    local ok, a = pcall(imgui.CalcTextSize, text);
+    if ok then
+        if type(a) == 'number' then return a; end
+        if type(a) == 'table' then return a.x or a[1] or (#text * 7); end
+    end
+    return #text * 7;
+end
+local function btn_w(text) return math.floor(text_w(text) + 26); end
+
 local function draw_header()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.header);
     if imgui.BeginChild('ygo_header', { 0, 66 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
@@ -1471,10 +2002,14 @@ local function draw_header()
         title_text('GEAROPT', 1.55, C.gold);
         imgui.SameLine(0, 12);
         imgui.SetCursorPosY(19);
-        imgui.TextColored(C.muted, 'set builder  |  LegacyAC exporter');
+        imgui.TextColored(C.muted, 'set builder  |  LegacyAC  /  LuAshitacast  /  GearSwap exporter');
         imgui.SetCursorPos({ 18, 41 });
         imgui.TextColored(C.muted, string.format('%d pieces   %d augmented   scanned %s   |   %s', #owned, ui.augmented,
             ui.last_scan, player_name()));
+        if not bis.done then
+            imgui.SameLine();
+            imgui.TextColored(C.gold_dim, string.format('   |   building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
+        end
 
         local wwidth = imgui.GetWindowWidth();
         imgui.SetCursorPos({ wwidth - 92, 18 });
@@ -1536,7 +2071,38 @@ local function draw_set_header()
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold, d.name);
     imgui.SameLine();
-    imgui.TextColored(C.muted, string.format('   score %.0f', ui.total or 0));
+    local ratio = set_ratio();
+    local col = tier(ratio);
+    imgui.TextColored(C.muted, ui.show_bis and '   BiS score' or '   score');
+    imgui.SameLine(0, 6);
+    if ui.show_bis then
+        imgui.TextColored(TIER_ORANGE, string.format('%.0f', (ui.bis and ui.bis.total) or 0));
+    else
+        imgui.TextColored(col, string.format('%.0f', ui.total or 0));
+    end
+    if imgui.IsItemHovered() then
+        local lines = {
+            'How good is this set?',
+            '',
+            string.format('Your set score:      %.0f', ui.total or 0),
+            ui.bis and string.format('Best in Slot score:  %.0f', ui.bis.total or 0) or 'Best in Slot score:  still being calculated',
+        };
+        if ratio then table.insert(lines, string.format('You are at %d%% of the best possible set.', math.floor(ratio * 100 + 0.5))); end
+        table.insert(lines, '');
+        table.insert(lines, 'The score adds up every useful stat on your gear for this set.');
+        table.insert(lines, 'BiS = the best gear for this job and set: every item in the game (Lv.' .. (data.bis_level or 75) .. ')');
+        table.insert(lines, 'plus your own augmented pieces when they are better.');
+        score_legend(lines);
+        imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
+    end
+
+    imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
+    if accent_button((ui.show_bis and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 24 }, ui.show_bis) then
+        ui.show_bis = not ui.show_bis;
+    end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip(ui.show_bis and 'Back to your own set.' or 'Show the Best in Slot set for this job and set,\nincluding pieces you do not own yet.');
+    end
 
     if d.kind == 'ws' and d.ws then
         local mods = {};
@@ -1584,6 +2150,16 @@ local function draw_picker(def)
     if imgui.Selectable('Auto  (let the optimizer choose)', pins[def.key] == nil) then set_pin(def.key, nil); imgui.CloseCurrentPopup(); end
     if imgui.Selectable('Leave empty  (no swap)', pins[def.key] == false) then set_pin(def.key, false); imgui.CloseCurrentPopup(); end
     imgui.Separator();
+    local bp = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
+    if bp then
+        local have = owns(bp.item.name);
+        imgui.TextColored(C.muted, 'Best in Slot:');
+        imgui.SameLine(0, 6);
+        imgui.TextColored(TIER_ORANGE, bp.item.name);
+        imgui.SameLine(0, 8);
+        imgui.TextColored(have and C.green or C.muted, have and '(owned)' or '(not owned)');
+        imgui.Separator();
+    end
     local list = ui.full[def.key] or {};
     if #list == 0 then
         imgui.TextColored(C.muted, 'No wearable piece for this slot.');
@@ -1592,9 +2168,19 @@ local function draw_picker(def)
         if imgui.BeginChild('pick_list_' .. def.key, { 470, h }, false) then
             local current = ui.result and ui.result[def.key];
             for i, c in ipairs(list) do
+                local bis_piece = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
+                local is_bis = bis_piece ~= nil and c.score > 0 and name_key(bis_piece.item.name) == name_key(c.item.name);
                 local label = string.format('%-26s %6.0f   %s%s##p%d', c.item.name, c.score, c.item.where,
                     c.item.augmented and '   AUG' or '', i);
-                if imgui.Selectable(label, current ~= nil and current.idx == c.idx) then
+                local rc = c.score > 0 and tier(slot_ratio(def.key, c.score)) or C.muted;
+                imgui.PushStyleColor(ImGuiCol_Text, rc);
+                local picked = imgui.Selectable(label, current ~= nil and current.idx == c.idx);
+                imgui.PopStyleColor();
+                if is_bis then
+                    imgui.SameLine(imgui.GetWindowWidth() - 46);
+                    imgui.TextColored(TIER_ORANGE, 'BiS');
+                end
+                if picked then
                     set_pin(def.key, { name = c.item.name, where = c.item.where });
                     imgui.CloseCurrentPopup();
                 end
@@ -1606,7 +2192,32 @@ local function draw_picker(def)
     imgui.EndPopup();
 end
 
+local function draw_bis_card(def)
+    local b = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
+    imgui.PushStyleColor(ImGuiCol_ChildBg, b and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
+    imgui.BeginChild('bcard_' .. def.key, { 0, 82 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse));
+    imgui.SetWindowFontScale(0.9);
+    imgui.TextColored(C.gold_dim, def.label:upper());
+    imgui.SetWindowFontScale(1.0);
+    imgui.SameLine();
+    imgui.TextColored(TIER_ORANGE, 'BiS');
+    if b then
+        local have = owns(b.item.name);
+        imgui.TextColored(have and TIER_ORANGE or C.text, b.item.name);
+        imgui.SameLine();
+        imgui.TextColored(have and C.green or C.muted, have and '  owned' or '  not owned');
+        local chips = stat_chips(b.item, ui.weights or {}, 3);
+        imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips ~= '' and chips or ' ');
+    else
+        imgui.TextColored(C.muted, ui.bis and 'Nothing better for this slot' or 'BiS loading...');
+    end
+    imgui.EndChild();
+    if b and imgui.IsItemHovered() and next(b.item.stats or {}) ~= nil then item_tooltip(b.item); end
+    imgui.PopStyleColor();
+end
+
 local function draw_card(def, max_score)
+    if ui.show_bis then draw_bis_card(def); return; end
     local c = ui.result and ui.result[def.key];
     local pin = (ui.pins[ui.ctx] or {})[def.key];
     imgui.PushStyleColor(ImGuiCol_ChildBg, c and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
@@ -1630,18 +2241,15 @@ local function draw_card(def, max_score)
         imgui.SameLine();
         imgui.TextColored(EQUIP_BAGS[c.item.where] and C.muted or C.red, '  ' .. c.item.where);
         imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, stat_chips(c.item, ui.weights or {}, 3));
-        imgui.ProgressBar(max_score > 0 and math.max(0, c.score / max_score) or 0, { -1, 3 }, '');
+        local r = slot_ratio(def.key, c.score);
+        imgui.PushStyleColor(ImGuiCol_PlotHistogram, (tier(r)));
+        imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 3 }, '');
+        imgui.PopStyleColor();
     else
         imgui.TextColored(C.muted, pin == false and 'Left empty (no swap)' or 'No useful item found');
     end
     imgui.EndChild();
     if c and imgui.IsItemHovered() and not imgui.IsPopupOpen('pick_' .. def.key) then item_tooltip(c.item); end
-    if c and imgui.IsItemClicked(1) then
-        s.excluded[c.item.name:lower()] = true;
-        set_pin(def.key, nil);
-        settings.save();
-        msg(c.item.name .. ' excluded. Restore it from the Excluded list.');
-    end
     imgui.PopStyleColor();
 end
 
@@ -1677,24 +2285,6 @@ local function draw_totals()
     imgui.PopStyleColor();
 end
 
-local function draw_excluded()
-    local names = {};
-    for n, v in pairs(s.excluded or {}) do if v == true then table.insert(names, n); end end
-    for n in pairs(ui.data_excl or {}) do table.insert(names, n .. ' (data.lua)'); end
-    if #names == 0 then return; end
-    table.sort(names);
-    caption('EXCLUDED ITEMS');
-    for _, n in ipairs(names) do
-        if n:find('(data.lua)', 1, true) then
-            imgui.TextColored(C.muted, '   ' .. n);
-        else
-            if imgui.SmallButton('restore##' .. n) then s.excluded[n] = nil; ui.dirty = true; settings.save(); end
-            imgui.SameLine();
-            imgui.TextColored(C.muted, n);
-        end
-    end
-end
-
 local function draw_content()
     if imgui.BeginChild('ygo_content', { 0, -54 }, false) then
         if ui.desc == nil then
@@ -1712,7 +2302,6 @@ local function draw_content()
                 imgui.EndTable();
             end
             draw_totals();
-            draw_excluded();
         end
     end
     imgui.EndChild();
@@ -1740,12 +2329,17 @@ local function draw_footer()
         imgui.SameLine();
         if imgui.Button('Reset picks', { 100, 34 }) then ui.pins[ui.ctx] = {}; ui.dirty = true; end
     end
-    imgui.SameLine(imgui.GetWindowWidth() - 368);
-    if accent_button(string.format('EXPORT %s XML', JOBS[ui.job]), { 170, 34 }, true) then export_full(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Ashita / LegacyAC: every set for this job + rules\n-> config\\LegacyAC\\Name_JOB_YunaGearOpt.xml'); end
-    imgui.SameLine();
-    if accent_button(string.format('EXPORT %s GEARSWAP', JOBS[ui.job]), { 180, 34 }, true) then export_gearswap(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Windower / GearSwap: same sets + rules as a GearSwap Lua\n-> copy to Windower\\addons\\GearSwap\\data\\Name_JOB.lua'); end
+    local l1, l2, l3 = 'EXPORT XML', 'EXPORT LAC', 'EXPORT GEARSWAP';
+    local w1, w2, w3 = btn_w(l1), btn_w(l2), btn_w(l3);
+    imgui.SameLine(imgui.GetWindowWidth() - (w1 + w2 + w3 + 16 + 14));
+    if accent_button(l1, { w1, 34 }, true) then export_full(); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '_YunaGearOpt.xml'); end
+    imgui.SameLine(0, 8);
+    if accent_button(l2, { w2, 34 }, true) then export_lac(); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
+    imgui.SameLine(0, 8);
+    if accent_button(l3, { w3, 34 }, true) then export_gearswap(); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower): every ' .. JOBS[ui.job] .. ' set + rules\n-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
 end
 
 local function draw_full()
@@ -1839,16 +2433,34 @@ local function draw_lazy()
         imgui.EndChild();
         imgui.PopStyleColor();
 
+        do
+            local ratio = set_ratio();
+            local col = tier(ratio);
+            imgui.TextColored(C.muted, 'score');
+            imgui.SameLine(0, 6);
+            imgui.TextColored(col, string.format('%.0f', ui.total or 0));
+            if imgui.IsItemHovered() then
+                local lines = { 'Your set compared with the best gear in the game for this set.' };
+                score_legend(lines);
+                imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
+            end
+        end
+
         -- Step 3: actions
         imgui.Spacing();
         imgui.TextColored(C.gold_dim, '3  GO');
         if accent_button('EQUIP IN GAME', { -1, 32 }, true) then equip_current_set(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Put this set on right now so you can see it.'); end
-        if imgui.Button('EXPORT XML', { 166, 30 }) then export_full(); end
-        if imgui.IsItemHovered() then imgui.SetTooltip('Ashita / LegacyAC - every set for this job'); end
-        imgui.SameLine();
-        if imgui.Button('EXPORT GEARSWAP', { -1, 30 }) then export_gearswap(); end
-        if imgui.IsItemHovered() then imgui.SetTooltip('Windower / GearSwap - every set for this job'); end
+        imgui.TextColored(C.muted, 'Export every set for this job:');
+        local bw = math.floor((imgui.GetWindowWidth() - 28 - 12) / 3);
+        if imgui.Button('XML##lx', { bw, 30 }) then export_full(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita)'); end
+        imgui.SameLine(0, 6);
+        if imgui.Button('LAC##ll', { bw, 30 }) then export_lac(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita)'); end
+        imgui.SameLine(0, 6);
+        if imgui.Button('GEARSWAP##lg', { bw, 30 }) then export_gearswap(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower)'); end
     end
     imgui.End();
 end
@@ -1894,6 +2506,7 @@ end
 
 local function draw_ui()
     if not ui.open[1] or data == nil then return; end
+    if not bis.done then bis_step(); end
     if ui.dirty then recompute(); end
     local nc, nv = push_theme();
     if s.compact then draw_lazy(); else draw_full(); end
@@ -1939,6 +2552,10 @@ ashita.events.register('command', 'ygo_command', function(e)
         if #owned == 0 then scan(); end
         ui.job = main_job();
         export_full();
+    elseif sub == 'lac' then
+        if #owned == 0 then scan(); end
+        ui.job = main_job();
+        export_lac();
     elseif sub == 'gs' or sub == 'gearswap' then
         if #owned == 0 then scan(); end
         ui.job = main_job();
@@ -1957,6 +2574,7 @@ ashita.events.register('command', 'ygo_command', function(e)
         equip_current_set();
     elseif sub == 'reload' then
         base_cache = {};
+        bis_reset();
         if load_data() then scan(); msg('Data reloaded.'); end
     elseif sub == 'debug' and args[3] then
         local name = table.concat(args, ' ', 3):lower();
@@ -1989,7 +2607,7 @@ ashita.events.register('command', 'ygo_command', function(e)
         end
         if not found then msg('Item not found in your bags: ' .. name); end
     else
-        msg('Commands: /ygo or //ygo | /ygo lazy | /ygo xml | /ygo gs | /ygo equip [SetName] | /ygo scan | /ygo export | /ygo reload | /ygo debug <item name>');
+        msg('Commands: /ygo or //ygo | /ygo lazy | /ygo xml | /ygo lac | /ygo gs | /ygo equip [SetName] | /ygo scan | /ygo export | /ygo reload | /ygo debug <item name>');
     end
     settings.save();
 end);

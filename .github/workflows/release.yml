@@ -39,9 +39,10 @@ jobs:
         run: |
           mkdir -p dist/yunagearopt
           cp *.lua dist/yunagearopt/
-          mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac
+          mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac dist/yunagearopt/lac
           cp gearswap/README.txt dist/yunagearopt/gearswap/
           cp legacyac/README.txt dist/yunagearopt/legacyac/
+          cp lac/README.txt dist/yunagearopt/lac/
           cp README.md dist/yunagearopt/
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
 

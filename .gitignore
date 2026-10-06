@@ -1,6 +1,7 @@
 # Generated exports (keep the README.txt in each folder)
 legacyac/*.xml
 gearswap/*.lua
+lac/*.lua
 
 # Addon settings written by Ashita's settings library
 settings/
