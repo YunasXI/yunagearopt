@@ -296,6 +296,18 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Scanning
 ----------------------------------------------------------------------------------------------------
+-- Crafting / gathering gear (smocks, aprons, craft rings...) is never used in a combat set
+local CRAFT_WORDS = { 'woodworking', 'smithing', 'clothcraft', 'leathercraft', 'bonecraft', 'alchemy', 'cooking',
+                      'fishing', 'synthesis', 'digging', 'crafting', 'craftsmanship' };
+local function is_craft_gear(name, desc)
+    local text = ((desc or '') .. ' ' .. (name or '')):lower();
+    for _, w in ipairs(CRAFT_WORDS) do
+        if text:find(w, 1, true) then return true; end
+    end
+    local n = (name or ''):lower();
+    return n:find('smock', 1, true) ~= nil or n:find('apron', 1, true) ~= nil;
+end
+
 -- Base stats for an item: overrides > parsed description, then stat_fix / stat_remove from data.lua
 local function compute_base(id, name, desc)
     local lname = name:lower();
@@ -335,6 +347,7 @@ local function scan()
                     if r ~= nil and r.Slots ~= nil and r.Slots ~= 0 then
                         local name = r.Name[1] or '';
                         local desc = r.Description and r.Description[1] or '';
+                      if not is_craft_gear(name, desc) then
                         local base = compute_base(it.Id, name, desc);
                         local rd = byte_reader(it);
                         local aug, unknown, augmented = decode_augments(rd);
@@ -348,6 +361,7 @@ local function scan()
                             skill = r.Skill or 0, shield = r.ShieldSize or 0,
                             base = base, aug = aug, unknown = unknown, augmented = augmented, stats = stats,
                         });
+                      end
                     end
                 end
             end
@@ -397,8 +411,8 @@ local function bis_step()
         local ok, r = pcall(function() return res:GetItemById(id); end);
         if ok and r ~= nil and r.Slots ~= nil and r.Slots ~= 0 and (r.Level or 0) <= max_level then
             local name = r.Name and r.Name[1] or '';
-            if name ~= '' and name ~= '.' and bis_allowed[name_key(name)] then
-                local desc = r.Description and r.Description[1] or '';
+            local desc = r.Description and r.Description[1] or '';
+            if name ~= '' and name ~= '.' and bis_allowed[name_key(name)] and not is_craft_gear(name, desc) then
                 local base = compute_base(id, name, desc);
                 if next(base) ~= nil then
                     table.insert(bis.pool, {

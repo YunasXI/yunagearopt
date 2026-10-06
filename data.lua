@@ -30,7 +30,7 @@ return {
     -- Best in Slot reference: highest item level considered when building the BiS list.
     bis_level = 75,
 
-    exclude   = { 'Aesir Mantle' },
+    exclude   = { 'Aesir Mantle', "Boneworker's Smock" },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
     -- Preferred gear: always used in these sets when you own it (and the job can wear it).
