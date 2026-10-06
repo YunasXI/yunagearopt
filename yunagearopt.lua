@@ -366,8 +366,30 @@ end
 local bis = { pool = {}, next_id = 1, done = false, cache = {} };
 local BIS_LAST_ID, BIS_PER_FRAME = 65534, 2500;
 
+-- "Combatant's Torque" == "Combatant Torque", "Cerb. Mantle +1" == "cerb mantle +1"
+local function name_key(n)
+    return (n or ''):lower():gsub("'s%f[%W]", ''):gsub('[^%w%+]', '');
+end
+
+-- Only items you've provided can be BiS: your XML reference sets (bis.lua), the preferred / fixed /
+-- Summit items in data.lua, and whatever you own. Retail items in the game files are never used.
+local bis_allowed = nil;
+local function build_bis_allowed()
+    local set = {};
+    local function add(n) if type(n) == 'string' and n ~= '' then set[name_key(n)] = true; end end
+    for _, sets in pairs(BIS_REF or {}) do
+        for _, slots in pairs(sets) do for _, n in pairs(slots) do add(n); end end
+    end
+    for _, rule in ipairs(data.preferred or {}) do for _, n in ipairs(rule.items or {}) do add(n); end end
+    for _, fam in pairs(data.summit or {}) do for _, n in pairs(fam) do add(n); end end
+    for _, def in pairs(data.sets or {}) do for _, n in pairs(def.fixed or {}) do add(n); end end
+    for _, n in ipairs(data.bis_extra or {}) do add(n); end
+    return set;
+end
+
 local function bis_step()
     if bis.done or data == nil then return; end
+    bis_allowed = bis_allowed or build_bis_allowed();
     local res = AshitaCore:GetResourceManager();
     local max_level = data.bis_level or 75;
     local last = math.min(bis.next_id + BIS_PER_FRAME - 1, BIS_LAST_ID);
@@ -375,7 +397,7 @@ local function bis_step()
         local ok, r = pcall(function() return res:GetItemById(id); end);
         if ok and r ~= nil and r.Slots ~= nil and r.Slots ~= 0 and (r.Level or 0) <= max_level then
             local name = r.Name and r.Name[1] or '';
-            if name ~= '' and name ~= '.' then
+            if name ~= '' and name ~= '.' and bis_allowed[name_key(name)] then
                 local desc = r.Description and r.Description[1] or '';
                 local base = compute_base(id, name, desc);
                 if next(base) ~= nil then
@@ -395,6 +417,7 @@ end
 
 local function bis_reset()
     bis.pool, bis.next_id, bis.done, bis.cache = {}, 1, false, {};
+    bis_allowed = nil;
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -585,10 +608,6 @@ local function slot_candidate_ok(def, item, desc)
     return true;
 end
 
--- "Combatant's Torque" == "Combatant Torque", "Cerb. Mantle +1" == "cerb mantle +1"
-local function name_key(n)
-    return (n or ''):lower():gsub("'s%f[%W]", ''):gsub('[^%w%+]', '');
-end
 
 local function same_piece(c, pin, loose)
     if loose then return name_key(c.item.name) == name_key(pin.name); end
@@ -650,6 +669,14 @@ local function optimize(job_id, desc, pins, pool)
         table.sort(all, function(x, y) return x.score > y.score; end);
         table.sort(list, function(x, y) return x.score > y.score; end);
         if pure then
+            -- BiS: an item's +1 version replaces it (Defending Ring +1, not Defending Ring)
+            local plus = {};
+            for _, c in ipairs(list) do plus[name_key(c.item.name)] = true; end
+            local kept = {};
+            for _, c in ipairs(list) do
+                if not plus[name_key(c.item.name .. ' +1')] then table.insert(kept, c); end
+            end
+            list = kept;
             while #list > 25 do table.remove(list); end
             all = list;
         end
@@ -809,10 +836,11 @@ local function curated_for(job_id, desc)
     return nil;
 end
 
-local bis_index = nil;
+local bis_index, bis_index_pool = nil, nil;
 local function find_item_by_name(name)
     local key = name_key(name);
     for _, it in ipairs(owned) do if name_key(it.name) == key then return it; end end
+    if bis_index_pool ~= bis.pool then bis_index, bis_index_pool = nil, bis.pool; end
     if bis_index == nil and bis.done then
         bis_index = {};
         for _, it in ipairs(bis.pool) do bis_index[name_key(it.name)] = bis_index[name_key(it.name)] or it; end
