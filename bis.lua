@@ -1331,6 +1331,7 @@ return {
         },
     },
     WAR = {
+        ['DW'] = { main = 'Brilliance', sub = 'Blurred Rod +1' }, -- /dw toggle (your weapons)
         ['Berserk'] = { -- from JA-Berserk
             head  = 'Pinnacle Celata',
         },
@@ -1783,6 +1784,7 @@ return {
         },
     },
     BLU = {
+        ['DW'] = { main = 'Undulant Black', sub = 'Blurred Rod +1' }, -- /dw toggle (your BLU XML)
         ['Idle'] = { -- from your BLU XML: Idle
             main  = 'Unbreakable',
             sub   = 'Genmei Shield',

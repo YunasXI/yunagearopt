@@ -425,7 +425,10 @@ local function build_bis_allowed()
     end
     for _, rule in ipairs(data.preferred or {}) do for _, n in ipairs(rule.items or {}) do add(n); end end
     for _, fam in pairs(data.summit or {}) do for _, n in pairs(fam) do add(n); end end
-    for _, def in pairs(data.sets or {}) do for _, n in pairs(def.fixed or {}) do add(n); end end
+    for _, def in pairs(data.sets or {}) do
+        for _, n in pairs(def.fixed or {}) do add(n); end
+        for _, fx in pairs(def.fixed_by_job or {}) do for _, n in pairs(fx) do add(n); end end
+    end
     for _, n in ipairs(data.bis_extra or {}) do add(n); end
     return set;
 end
@@ -562,7 +565,7 @@ local function build_sets(job_id)
                     id = id, name = def.name or id, label = def.label or id, kind = def.kind or 'other',
                     base_weights = def.weights, caps = def.caps or {},
                     weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
-                    fixed = def.fixed, fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, ws_only = def.ws_only,
+                    fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, ws_only = def.ws_only,
                     info = def.info,
                 };
                 local pref = {};
@@ -1170,6 +1173,7 @@ local function build_full_xml(job_id)
     add('        <var name="MB">off</var>');
     add('        <var name="TH">off</var>');
     if have.Refresh then add('        <var name="Refresh">off</var>'); end
+    if have.DW then add('        <var name="DW">off</var>'); end
     add('    </variables>');
     add('');
     add('    <inputcommands>');
@@ -1192,6 +1196,7 @@ local function build_full_xml(job_id)
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
+    if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
     -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
     add('        <cmd input="/warp">');
     add('            <gearlock length="25" />');
@@ -1241,6 +1246,10 @@ local function build_full_xml(job_id)
             emit_chain(o, i, { { cond = attr('p_ismoving', 'true'), body = equip_set('Movement') } }, nil);
         end
     end or nil);
+    if have.DW then
+        add('        <!-- /dw ON: your dual-wield weapons on top of whatever set is active -->');
+        emit_chain(out, '        ', { { cond = 'advanced="$DW=on"', body = equip_set('DW') } }, nil);
+    end
     add('    </idlegear>');
     add('');
 
@@ -1584,7 +1593,7 @@ local function build_gearswap(job_id)
     add('    -- Weaponskills that use the MightyStrikes set while Mighty Strikes is active');
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
-    add("    Mode, MB, TH, Moving, RefreshOn = 'normal', false, false, false, false");
+    add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
     add('end');
     add('');
     add([[
@@ -1637,12 +1646,17 @@ function idle_gear()
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
         if Moving then eq('Movement') end
     end
+    if DWOn then eq('DW') end
 end
 
 -- Typing /warp runs the warp command
 windower.raw_register_event('outgoing text', function(original)
     if original:lower():match('^/warp%s*$') then
         windower.send_command('gs c warp')
+        return true
+    end
+    if original:lower():match('^/dw%s*$') then
+        windower.send_command('gs c dw')
         return true
     end
 end)
@@ -1778,6 +1792,9 @@ function self_command(command)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn
         add_to_chat(158, 'Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'))
+    elseif c == 'dw' then
+        DWOn = not DWOn
+        add_to_chat(158, 'Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'))
     end
     idle_gear()
 end]]);
@@ -1900,7 +1917,7 @@ local function build_lac(job_id)
     add('};');
     add('');
     add([[
-local Mode, MB, TH, RefreshOn = 'normal', false, false, false;
+local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 
 local function matches(name, list)
     for _, p in ipairs(list or {}) do
@@ -1945,6 +1962,9 @@ profile.OnLoad = function()
         if e.command:lower():match('^/warp%s*$') then
             e.blocked = true;
             warp();
+        elseif e.command:lower():match('^/dw%s*$') then
+            e.blocked = true;
+            AshitaCore:GetChatManager():QueueCommand(1, '/lac fwd dw');
         end
     end);
 end
@@ -1967,6 +1987,9 @@ profile.HandleCommand = function(args)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn;
         gFunc.Message('Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'));
+    elseif c == 'dw' then
+        DWOn = not DWOn;
+        gFunc.Message('Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'));
     elseif c == 'warp' then
         warp();
     end
@@ -2005,6 +2028,7 @@ profile.HandleDefault = function()
         if buff('Sublimation: Activated') then eq('Sublimation'); end
         if player.IsMoving and sets['Movement'] then eq('Movement'); end
     end
+    if DWOn then eq('DW'); end
 end
 
 profile.HandleAbility = function()
@@ -2204,7 +2228,7 @@ local CATEGORY_OF = {
     Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities',
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
-    MightyStrikes = 'Abilities',
+    MightyStrikes = 'Abilities', DW = 'Defense & Idle',
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end

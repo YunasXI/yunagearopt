@@ -287,6 +287,13 @@ return {
                       fixed = { range = 'Animator +1', ammo = 'Bolt Stone', head = 'Puppetry Taj +1', neck = "Tinker's Collar",
                                 ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Pantin Tobe +1',
                                 hands = 'Venom Vambraces', back = 'Pantin Cape', legs = "Prince's Slops", feet = 'Ryuga Sune-Ate' } },
+        -- /dw toggle: your dual-wield weapons, worn on top of whatever set is active while the toggle is ON.
+        -- Only the exact weapons listed here are ever used (never an auto-picked weapon).
+        DW = { label = 'Dual wield weapons (/dw toggle)', weights = { dw = 1 },
+               fixed_by_job = {
+                   BLU = { main = 'Undulant Black', sub = 'Blurred Rod +1' },
+                   WAR = { main = 'Brilliance',     sub = 'Blurred Rod +1' },
+               } },
         -- Not gear: the attachments for the ranged automaton setup, shown as a list in the set window
         Attachments = { label = 'Automaton attachments (ranged setup)',
                         info = { 'Tension Spring III', 'Magniplug', 'Magniplug II', 'Drum Magazine', 'Scope III', 'Repeater',
@@ -294,7 +301,7 @@ return {
     },
 
     jobs = {
-        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
+        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement' },
@@ -309,7 +316,7 @@ return {
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },

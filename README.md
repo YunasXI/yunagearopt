@@ -67,6 +67,9 @@ Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so ke
   which is worn on top of your engaged gear (TP, Hybrid, PDT, MDT) while the buff is up and comes off when you disengage.
 - **BLU**: Physical / Magical / Debuff blue magic, Spectral Floe, Battery Charge and a **Refresh** idle set you switch on
   with `/refresh` (`//gs c refresh` in GearSwap, `/lac fwd refresh` in LAC). Melee sets keep your sword and shield after casting.
+- **BLU / WAR dual-wield weapons**: type **`/dw`** to toggle your dual-wield weapons on top of whatever set is active
+  (BLU: Undulant Black + Blurred Rod +1, WAR: Brilliance + Blurred Rod +1). Type it again to switch back.
+  GearSwap also accepts `//gs c dw`, LAC `/lac fwd dw`.
 - **PUP**: automaton Tank and Ranged sets, Pummel (Stringing Pummel), TP, and the attachment list.
 - **RNG / COR**: the BiS ranged weapons (Tonzoffun, Annihilator, Death Penalty) are used in ranged weaponskills,
   Preshot / Midshot and Quick Draw, and only if you own them. RNG has bow and gun versions of Preshot / Midshot, chosen by the
