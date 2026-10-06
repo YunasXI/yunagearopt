@@ -1740,11 +1740,11 @@ local function draw_footer()
         imgui.SameLine();
         if imgui.Button('Reset picks', { 100, 34 }) then ui.pins[ui.ctx] = {}; ui.dirty = true; end
     end
-    imgui.SameLine(imgui.GetWindowWidth() - 368);
+    imgui.SameLine(imgui.GetWindowWidth() - 398);
     if accent_button(string.format('EXPORT %s XML', JOBS[ui.job]), { 170, 34 }, true) then export_full(); end
     if imgui.IsItemHovered() then imgui.SetTooltip('Ashita / LegacyAC: every set for this job + rules\n-> config\\LegacyAC\\Name_JOB_YunaGearOpt.xml'); end
     imgui.SameLine();
-    if accent_button(string.format('EXPORT %s GEARSWAP', JOBS[ui.job]), { 180, 34 }, true) then export_gearswap(); end
+    if accent_button(string.format('EXPORT %s GEARSWAP', JOBS[ui.job]), { 210, 34 }, true) then export_gearswap(); end
     if imgui.IsItemHovered() then imgui.SetTooltip('Windower / GearSwap: same sets + rules as a GearSwap Lua\n-> copy to Windower\\addons\\GearSwap\\data\\Name_JOB.lua'); end
 end
 
@@ -1854,7 +1854,7 @@ local function draw_lazy()
 end
 
 local NOTICE_TEXT = 'YunaGearOpt builds your sets by reading item descriptions and augment data, '
-    .. 'so some items or stats may not always be 100% accurate.';
+    .. 'so some items or stats may not always be 100%% accurate.';
 local NOTICE_TEXT_2 = 'Always double-check the results, and use the pieces you know are most valuable for your sets.';
 
 local function draw_notice()
