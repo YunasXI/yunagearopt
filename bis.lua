@@ -1693,10 +1693,35 @@ return {
         },
     },
     THF = {
-        ['TP'] = { -- Haste reaches the 25% gear cap with these
+        ['TP'] = { -- THF TP BiS
             ammo  = 'Oneiros Cluster',
+            head  = 'Homam Zucchetto',
             neck  = 'Portus Collar',
+            ear1  = 'Brutal Earring +1',
+            ear2  = 'Suppanomimi',
+            body  = 'Homam Corazza',
+            hands = 'Swift Gages',
+            ring1 = 'Rajas Ring',
+            ring2 = 'Ares\'s Ring',
+            back  = 'Aife\'s Mantle',
+            waist = 'Enlil\'s Sash',
             legs  = 'Asn. Culottes +1',
+            feet  = 'Rog. Poulaines +1',
+        },
+        ['TP_Hybrid'] = { -- THF TP Hybrid (DT) BiS
+            ammo  = 'White Tathlum',
+            head  = 'Homam Zucchetto',
+            neck  = 'Bloodbead Gorget',
+            ear1  = 'Brutal Earring +1',
+            ear2  = 'Suppanomimi',
+            body  = 'Skadi\'s Cuirie',
+            hands = 'Swift Gages',
+            ring1 = 'Defending Ring +1',
+            ring2 = 'Dark Ring',
+            back  = 'Aife\'s Mantle',
+            waist = 'Enlil\'s Sash',
+            legs  = 'Skadi\'s Chausses',
+            feet  = 'Rog. Poulaines +1',
         },
         ['ws:Mandalic Stab'] = {
             ammo  = 'Yetshila +1',
@@ -2225,6 +2250,14 @@ return {
         },
     },
     NIN = {
+        ['TP'] = { -- Relic +1 legs / feet (full Dynamis augments)
+            legs  = 'Kog. Hakama +1',
+            feet  = 'Kog. Kyahan +1',
+        },
+        ['TP_Hybrid'] = { -- Relic +1 legs / feet (full Dynamis augments)
+            legs  = 'Kog. Hakama +1',
+            feet  = 'Kog. Kyahan +1',
+        },
         ['ws:Blade: Shun'] = { -- Blade: Shun picks
             head  = 'Shr.Znr.Kabuto +1',
             hands = 'Nin. Tekko +1',

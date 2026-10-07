@@ -78,6 +78,249 @@ return {
     -- Phalanx II (107) aimed at you, or Phalanx (106) cast by a party member
     phalanx_received = { set = 'PhalanxRcv', single = { 107 }, party = { 106 }, single_time = 5, party_time = 8 },
 
+    -- Artifact +1 (Tier 3) and Relic +1 (Rank 10) max augments on CatsEyeXI (bg-wiki: CatsEyeXI_Systems/
+    -- Artifact_+1_Augments, CatsEyeXI_Content/Dynamis_Augments). Added to those pieces in the Best in Slot list.
+    max_augments = {
+        -- Artifact +1
+        ["Wzd. Petasos +1"] = { stats = { hmp = 3, refresh = 1 } },   -- BLM
+        ["Wzd. Coat +1"] = { stats = { mp = 18, macc = 5 } },   -- BLM
+        ["Wzd. Gloves +1"] = { stats = { cmp = 5, mab = 5 } },   -- BLM
+        ["Wzd. Tonban +1"] = { stats = { drain = 5, macc = 5 } },   -- BLM
+        ["Wzd. Sabots +1"] = { stats = { mp = 39, hmp = 3 } },   -- BLM
+        ["Magus Keffiyeh +1"] = { stats = { crit = 3, haste = 5 } },   -- BLU
+        ["Magus Jubbah +1"] = { stats = { acc = 10, dw = 3 } },   -- BLU
+        ["Mag. Bazubands +1"] = { stats = { da = 3, haste = 3 } },   -- BLU
+        ["Magus Shalwar +1"] = { stats = { refresh = 1, regen = 3 } },   -- BLU
+        ["Magus Charuqs +1"] = { stats = { blue = 5, mab = 10 } },   -- BLU
+        ["Chl. Roundlet +1"] = { stats = { refresh = 1, regen = 3 } },   -- BRD
+        ["Chl. Jstcorps +1"] = { stats = { singing = 5, wind = 6 } },   -- BRD
+        ["Chl. Cuffs +1"] = { stats = { chr = 3, macc = 3 } },   -- BRD
+        ["Chl. Slippers +1"] = { stats = { hhp = 3, hmp = 5 } },   -- BRD
+        ["Bst. Helm +1"] = { stats = { haste = 5 } },   -- BST
+        ["Bst. Jackcoat +1"] = { stats = { haste = 3 } },   -- BST
+        ["Bst. Gloves +1"] = { stats = { da = 3, haste = 5 } },   -- BST
+        ["Bst. Trousers +1"] = { stats = { haste = 5 } },   -- BST
+        ["Bst. Gaiters +1"] = { stats = { haste = 5 } },   -- BST
+        ["Cor. Tricorne +1"] = { stats = { racc = 6, regen = 2 } },   -- COR
+        ["Corsair's Frac +1"] = { stats = { agi = 11, marksmanship = 3 } },   -- COR
+        ["Corsair's Gants +1"] = { stats = { da = 3, haste = 3 } },   -- COR
+        ["Cor. Culottes +1"] = { stats = { acc = 6, dw = 3 } },   -- COR
+        ["Cor. Bottes +1"] = { stats = { rapid = 5, snapshot = 3 } },   -- COR
+        ["Dancer's Tiara +1"] = { stats = { crit = 3, haste = 5 } },   -- DNC
+        ["Dnc. Casaque +1"] = { stats = { waltz = 5 } },   -- DNC
+        ["Dnc. Bangles +1"] = { stats = { dw = 3, haste = 3 } },   -- DNC
+        ["Dancer's Tights +1"] = { stats = { str = 11, dex = 11 } },   -- DNC
+        ["Dancer's Shoes +1"] = { stats = { da = 3, haste = 3 } },   -- DNC
+        ["Drn. Armet +1"] = { stats = { crit = 3, haste = 5 } },   -- DRG
+        ["Drn. Mail +1"] = { stats = { acc = 10, stp = 8 } },   -- DRG
+        ["Drn. Fng. Gnt. +1"] = { stats = { da = 3, haste = 3 } },   -- DRG
+        ["Drn. Brais +1"] = { stats = { haste = 3 } },   -- DRG
+        ["Drn. Greaves +1"] = { stats = { haste = 3 } },   -- DRG
+        ["Chs. Burgeonet +1"] = { stats = { crit = 3, haste = 5 } },   -- DRK
+        ["Chs. Cuirass +1"] = { stats = { refresh = 1, regen = 3 } },   -- DRK
+        ["Chs. Gauntlets +1"] = { stats = { haste = 5, stp = 5 } },   -- DRK
+        ["Chs. Flanchard +1"] = { stats = { int = 5, drain = 5 } },   -- DRK
+        ["Chs. Sollerets +1"] = { stats = { da = 3, haste = 3 } },   -- DRK
+        ["Geomancy Galero"] = { stats = { cmp = 5, refresh = 1 } },   -- GEO
+        ["Geomancy Tunic"] = { stats = { dt = -5, macc = 5 } },   -- GEO
+        ["Geomancy Mitaines"] = { stats = { cmp = 3 } },   -- GEO
+        ["Geomancy Pants"] = { stats = { int = 11, mnd = 11 } },   -- GEO
+        ["Geomancy Sandals"] = { stats = { mp = 39, hmp = 5 } },   -- GEO
+        ["Tpl. Crown +1"] = { stats = { crit = 3, haste = 5 } },   -- MNK
+        ["Tpl. Cyclas +1"] = { stats = { ma = 2, stp = 5 } },   -- MNK
+        ["Tpl. Gloves +1"] = { stats = { da = 3, haste = 3 } },   -- MNK
+        ["Tpl. Hose +1"] = { stats = { str = 11, vit = 11 } },   -- MNK
+        ["Tpl. Gaiters +1"] = { stats = { haste = 3, kick = 5 } },   -- MNK
+        ["Nin. Hatsuburi +1"] = { stats = { crit = 3, haste = 5 } },   -- NIN
+        ["Nin. Chainmail +1"] = { stats = { acc = 8, dw = 3 } },   -- NIN
+        ["Nin. Tekko +1"] = { stats = { da = 3, haste = 3 } },   -- NIN
+        ["Nin. Hakama +1"] = { stats = { eva = 5 } },   -- NIN
+        ["Nin. Kyahan +1"] = { stats = { mab = 10, ninjutsu = 5 } },   -- NIN
+        ["Glt. Coronet +1"] = { stats = { curercv = 5, dt = -3 } },   -- PLD
+        ["Glt. Surcoat +1"] = { stats = { refresh = 1 } },   -- PLD
+        ["Glt. Gauntlets +1"] = { stats = { mdt = -5 } },   -- PLD
+        ["Glt. Leggings +1"] = { stats = { bdt = -5, mdb = 3 } },   -- PLD
+        ["Puppetry Taj +1"] = { stats = { haste = 5 } },   -- PUP
+        ["Pup. Tobe +1"] = { stats = { ma = 2, stp = 5 } },   -- PUP
+        ["Pup. Dastanas +1"] = { stats = { da = 3, haste = 3 } },   -- PUP
+        ["Pup. Churidars +1"] = { stats = { crit = 4, haste = 3 } },   -- PUP
+        ["Wlk. Chapeau +1"] = { stats = { cmp = 5, mab = 6 } },   -- RDM
+        ["Wlk. Tabard +1"] = { stats = { mp = 21, macc = 5 } },   -- RDM
+        ["Wlk. Gloves +1"] = { stats = { da = 3, haste = 3 } },   -- RDM
+        ["Wlk. Tights +1"] = { stats = { mp = 36, cure = 6 } },   -- RDM
+        ["Wlk. Boots +1"] = { stats = { mp = 39, hmp = 3 } },   -- RDM
+        ["Htr. Beret +1"] = { stats = { racc = 5, rapid = 3 } },   -- RNG
+        ["Htr. Jerkin +1"] = { stats = { acc = 8, stp = 8 } },   -- RNG
+        ["Htr. Bracers +1"] = { stats = { racc = 6 } },   -- RNG
+        ["Htr. Braccae +1"] = { stats = { dex = 11, agi = 11 } },   -- RNG
+        ["Htr. Socks +1"] = { stats = { da = 3, haste = 5 } },   -- RNG
+        ["Runeist Bandeau"] = { stats = { enmity = 5, regen = 2 } },   -- RUN
+        ["Runeist Coat"] = { stats = { mdt = -3 } },   -- RUN
+        ["Runeist Mitons"] = { stats = { enmity = 3, sk_gsword = 5 } },   -- RUN
+        ["Runeist Trousers"] = { stats = { vit = 11, mnd = 11 } },   -- RUN
+        ["Runeist Bottes"] = { stats = { bdt = -3, enmity = 3 } },   -- RUN
+        ["Myn. Kabuto +1"] = { stats = { crit = 3, haste = 5 } },   -- SAM
+        ["Myn. Domaru +1"] = { stats = { regen = 3 } },   -- SAM
+        ["Myn. Kote +1"] = { stats = { haste = 3, zanshin = 3 } },   -- SAM
+        ["Myn. Haidate +1"] = { stats = { haste = 5, stp = 5 } },   -- SAM
+        ["Myn. Sune-ate +1"] = { stats = { da = 3, haste = 3 } },   -- SAM
+        ["Sch. M.Board +1"] = { stats = { mab = 5, mbb = 3 } },   -- SCH
+        ["Scholar's Gown +1"] = { stats = { mab = 5, macc = 5 } },   -- SCH
+        ["Sch. Bracers +1"] = { stats = { hmp = 3, refresh = 1 } },   -- SCH
+        ["Scholar's Pants +1"] = { stats = { cmp = 5, cure = 6 } },   -- SCH
+        ["Sch. Loafers +1"] = { stats = { drain = 5, macc = 5 } },   -- SCH
+        ["Evk. Horn +1"] = { stats = { hmp = 4, refresh = 1 } },   -- SMN
+        ["Evk. Doublet +1"] = { stats = { hmp = 3 } },   -- SMN
+        ["Rog. Bonnet +1"] = { stats = { crit = 3, haste = 5 } },   -- THF
+        ["Rog. Vest +1"] = { stats = { dw = 3, regen = 2 } },   -- THF
+        ["Rog. Armlets +1"] = { stats = { haste = 3, th = 1 } },   -- THF
+        ["Rog. Culottes +1"] = { stats = { racc = 8, ratt = 8 } },   -- THF
+        ["Rog. Poulaines +1"] = { stats = { da = 3, haste = 3 } },   -- THF
+        ["Ftr. Mask +1"] = { stats = { crit = 3, haste = 5 } },   -- WAR
+        ["Ftr. Lorica +1"] = { stats = { enmity = 6, pdt = -3 } },   -- WAR
+        ["Ftr. Mufflers +1"] = { stats = { enmity = 6, pdt = -3 } },   -- WAR
+        ["Ftr. Cuisses +1"] = { stats = { enmity = 6, pdt = -3 } },   -- WAR
+        ["Ftr. Calligae +1"] = { stats = { da = 3, stp = 6 } },   -- WAR
+        ["Hlr. Cap +1"] = { stats = { hmp = 3, refresh = 1 } },   -- WHM
+        ["Hlr. Bliaut +1"] = { stats = { mp = 18, dt = -5 } },   -- WHM
+        ["Hlr. Mitts +1"] = { stats = { cmp = 5, cure = 3 } },   -- WHM
+        ["Hlr. Pantaln. +1"] = { stats = { curect = 3, macc = 5 } },   -- WHM
+        ["Hlr. Duckbills +1"] = { stats = { mp = 39, hmp = 3 } },   -- WHM
+        -- Relic +1
+        ["Src. Petasos +1"] = { stats = { int = 8, enmity = -5, mab = 6 } },   -- BLM
+        ["Src. Coat +1"] = { stats = { int = 5, fc = 4, mab = 8 } },   -- BLM
+        ["Src. Gloves +1"] = { stats = { int = 8, drain = 6, mbb = 6 } },   -- BLM
+        ["Src. Tonban +1"] = { stats = { elemental = 8, mcrit = 8, mcritdmg = 8 } },   -- BLM
+        ["Src. Sabots +1"] = { stats = { mab = 3, mbb = 3, mcrit = 8 } },   -- BLM
+        ["Sorcerer's Belt"] = { stats = { mp = 10, elemental = 6, mab = 3 } },   -- BLM
+        ["Mirage Keffiyeh +1"] = { stats = { att = 10, haste = 5, sk_sword = 6 } },   -- BLU
+        ["Mirage Jubbah +1"] = { stats = { fc = 5, mab = 8, macc = 5 } },   -- BLU
+        ["Mrg. Bazubands +1"] = { stats = { str = 6, vit = 6, acc = 8, att = 8, haste = 5 } },   -- BLU
+        ["Mirage Shalwar +1"] = { stats = { str = 6, mnd = 6, haste = 3, meva = 6 } },   -- BLU
+        ["Mirage Charuqs +1"] = { stats = { dt = -3, haste = 3 } },   -- BLU
+        ["Mirage Mantle"] = { stats = { hp = 10, mp = 10, blue = 7, stp = 5 } },   -- BLU
+        ["Brd. Roundlet +1"] = { stats = { refresh = 1, songct = 5, wind = 7 } },   -- BRD
+        ["Brd. Jstcorps +1"] = { stats = { pdt = -4, singing = 7, songdur = 5 } },   -- BRD
+        ["Brd. Cuffs +1"] = { stats = { fc = 3, mdt = -4, regen = 2 } },   -- BRD
+        ["Brd. Cannions +1"] = { stats = { cure = 5, dt = -4, macc = 6 } },   -- BRD
+        ["Brd. Slippers +1"] = { stats = { chr = 8, string = 8 } },   -- BRD
+        ["Bard's Cape"] = { stats = { hp = 10, mp = 10, macc = 3, stp = 5 } },   -- BRD
+        ["Mst. Helm +1"] = { stats = { att = 10, sk_axe = 8 } },   -- BST
+        ["Mst. Jackcoat +1"] = { stats = { regen = 2 } },   -- BST
+        ["Mst. Gloves +1"] = { stats = { haste = 3, stp = 5 } },   -- BST
+        ["Mst. Trousers +1"] = { stats = { da = 3, haste = 5 } },   -- BST
+        ["Mst. Gaiters +1"] = { stats = { mnd = 8, chr = 8, tpb = 200 } },   -- BST
+        ["Monster Belt"] = { stats = { hp = 10, mp = 10 } },   -- BST
+        ["Comm. Tricorne +1"] = { stats = { racc = 10, rolldelay = 5, sb = 6 } },   -- COR
+        ["Comm. Frac +1"] = { stats = { mab = 10, macc = 10, mcrit = 3, rolldur = 5 } },   -- COR
+        ["Comm. Gants +1"] = { stats = { agi = 6, mab = 5, macc = 5 } },   -- COR
+        ["Comm. Trews +1"] = { stats = { att = 8, eva = 6, haste = 3, racc = 8 } },   -- COR
+        ["Comm. Bottes +1"] = { stats = { haste = 3, rolldelay = 3 } },   -- COR
+        ["Commodore Belt"] = { stats = { hp = 10, mp = 10, agi = 4, mab = 3 } },   -- COR
+        ["Etoile Tiara +1"] = { stats = { haste = 5, sb = 10, sk_dagger = 8 } },   -- DNC
+        ["Etoile Casaque +1"] = { stats = { haste = 4, sb = 8, stp = 6 } },   -- DNC
+        ["Etoile Bangles +1"] = { stats = { counter = 4, dt = -4, eva = 8 } },   -- DNC
+        ["Etoile Tights +1"] = { stats = { acc = 8, att = 8, sb = 5, stp = 5 } },   -- DNC
+        ["Etoile Shoes +1"] = { stats = { str = 7, chr = 7, att = 12, ctp = 10 } },   -- DNC
+        ["Etoile Cape"] = { stats = { hp = 10, att = 9, scb = 3 } },   -- DNC
+        ["Wym. Armet +1"] = { stats = { att = 10, haste = 5 } },   -- DRG
+        ["Wym. Mail +1"] = { stats = { str = 8, dex = 8, da = 3 } },   -- DRG
+        ["Wym. Fng. Gnt. +1"] = { stats = { dt = -3, haste = 3 } },   -- DRG
+        ["Wym. Brais +1"] = { stats = { dt = -3, haste = 3, stp = 5 } },   -- DRG
+        ["Wym. Greaves +1"] = { stats = { acc = 8, att = 8, haste = 3 } },   -- DRG
+        ["Wyrm Belt"] = { stats = { hp = 10, mp = 10 } },   -- DRG
+        ["Abs. Burgeonet +1"] = { stats = { int = 8, fc = 5, refresh = 1 } },   -- DRK
+        ["Abs. Cuirass +1"] = { stats = { att = 12, haste = 4, stp = 6 } },   -- DRK
+        ["Abs. Gauntlets +1"] = { stats = { drain = 8, mab = 8, occult = 30 } },   -- DRK
+        ["Abs. Flanchard +1"] = { stats = { acc = 10, att = 10, mdt = -5, stp = 4 } },   -- DRK
+        ["Abs. Sollerets +1"] = { stats = { fc = 3, macc = 6, mbb = 10 } },   -- DRK
+        ["Abyss Cape"] = { stats = { hp = 10, int = 5, att = 7 } },   -- DRK
+        ["Bagua Galero +1"] = { stats = { mp = 30, mab = 10, refresh = 1 } },   -- GEO
+        ["Bagua Tunic +1"] = { stats = { mp = 30, cure = 5, geomancy = 7 } },   -- GEO
+        ["Bagua Mitaines +1"] = { stats = { dt = -4, fc = 3, mdb = 3 } },   -- GEO
+        ["Bagua Pants +1"] = { stats = { mp = 8, int = 8, mnd = 8, handbell = 8 } },   -- GEO
+        ["Bagua Sandals +1"] = { stats = { int = 6, mnd = 6, enmity = -5, pdt = -5 } },   -- GEO
+        ["Bagua Sash"] = { stats = { mp = 10, cmp = 8 } },   -- GEO
+        ["Mel. Crown +1"] = { stats = { acc = 8, crit = 4, eva = 10 } },   -- MNK
+        ["Mel. Cyclas +1"] = { stats = { att = 12, pdt = -3, sb = 8 } },   -- MNK
+        ["Mel. Gloves +1"] = { stats = { str = 6, vit = 6, acc = 6, att = 6, ctp = 6 } },   -- MNK
+        ["Mel. Hose +1"] = { stats = { kick = 5, ma = 6, pdt = -4 } },   -- MNK
+        ["Mel. Gaiters +1"] = { stats = { acc = 8, counter = 4, haste = 4 } },   -- MNK
+        ["Melee Cape"] = { stats = { hp = 10, acc = 8, att = 8, counter = 3 } },   -- MNK
+        ["Kog. Hatsuburi +1"] = { stats = { enmity = 8, haste = 5, sb = 10 } },   -- NIN
+        ["Kog. Chainmail +1"] = { stats = { crit = 4, stp = 6 } },   -- NIN
+        ["Kog. Tekko +1"] = { stats = { acc = 8, att = 8, dt = -4, eva = 6 } },   -- NIN
+        ["Kog. Hakama +1"] = { stats = { dex = 6, agi = 6, counter = 6, dt = -5 } },   -- NIN
+        ["Kog. Kyahan +1"] = { stats = { haste = 4, meva = 6 } },   -- NIN
+        ["Koga Sarashi"] = { stats = { hp = 10, acc = 9, racc = 9 } },   -- NIN
+        ["Vlr. Coronet +1"] = { stats = { vit = 10, fc = 5 } },   -- PLD
+        ["Vlr. Surcoat +1"] = { stats = { str = 8, vit = 8, curercv = 5, dt = -4 } },   -- PLD
+        ["Vlr. Gauntlets +1"] = { stats = { curercv = 5, haste = 3, stp = 5 } },   -- PLD
+        ["Vlr. Breeches +1"] = { stats = { haste = 3, sk_gsword = 12 } },   -- PLD
+        ["Vlr. Leggings +1"] = { stats = { vit = 12, enmity = 3 } },   -- PLD
+        ["Valor Cape"] = { stats = { hp = 10 } },   -- PLD
+        ["Pantin Taj +1"] = { stats = { att = 12, sk_h2h = 8 } },   -- PUP
+        ["Pantin Tobe +1"] = { stats = { regen = 2 } },   -- PUP
+        ["Pantin Dastanas +1"] = { stats = { str = 8, dex = 8, eva = 8 } },   -- PUP
+        ["Ptn. Churidars +1"] = { stats = { haste = 4 } },   -- PUP
+        ["Ptn. Babouches +1"] = { stats = { dt = -3, haste = 3 } },   -- PUP
+        ["Pantin Cape"] = { stats = { hp = 10, mp = 10, eva = 7 } },   -- PUP
+        ["Dls. Chapeau +1"] = { stats = { haste = 5, hmp = 5, mab = 7 } },   -- RDM
+        ["Dls. Tabard +1"] = { stats = { elemental = 8, macc = 5, refresh = 1 } },   -- RDM
+        ["Dls. Gloves +1"] = { stats = { enhdur = 8, fc = 3, mdt = -3 } },   -- RDM
+        ["Dls. Tights +1"] = { stats = { str = 8, int = 8, haste = 5, mbb = 6 } },   -- RDM
+        ["Dls. Boots +1"] = { stats = { drain = 6, fc = 4, macc = 4 } },   -- RDM
+        ["Duelist's Belt"] = { stats = { mp = 10, enfdur = 5, enfeebling = 6 } },   -- RDM
+        ["Sct. Beret +1"] = { stats = { acc = 12, archery = 8, racc = 7 } },   -- RNG
+        ["Sct. Jerkin +1"] = { stats = { att = 10, marksmanship = 8, ratt = 10, stp = 6 } },   -- RNG
+        ["Sct. Bracers +1"] = { stats = { agi = 4, ctp = 10, mab = 6, macc = 6 } },   -- RNG
+        ["Sct. Braccae +1"] = { stats = { str = 8, mnd = 8, att = 9, rapid = 3 } },   -- RNG
+        ["Sct. Socks +1"] = { stats = { str = 6, mnd = 6, ctp = 6, snapshot = 3 } },   -- RNG
+        ["Scout's Belt"] = { stats = { hp = 10, enmity = -3, stp = 3 } },   -- RNG
+        ["Fu. Bandeau +1"] = { stats = { curercv = 2, haste = 2, sk_gsword = 3 } },   -- RUN
+        ["Futhark Coat +1"] = { stats = { dt = -5 } },   -- RUN
+        ["Futhark Mitons +1"] = { stats = { str = 8, vit = 8, haste = 4, mdb = 4 } },   -- RUN
+        ["Futhark Trousers +1"] = { stats = { acc = 8, haste = 4, stp = 5 } },   -- RUN
+        ["Futhark Boots +1"] = { stats = { vit = 10, meva = 8 } },   -- RUN
+        ["Futhark Cape"] = { stats = { hp = 10, mp = 10, mdb = 3 } },   -- RUN
+        ["Sao. Kabuto +1"] = { stats = { haste = 5, sb = 10, sk_gkatana = 8 } },   -- SAM
+        ["Sao. Domaru +1"] = { stats = { acc = 16, att = 10, crit = 4 } },   -- SAM
+        ["Sao. Kote +1"] = { stats = { haste = 3, pdt = -3, stp = 4 } },   -- SAM
+        ["Sao. Haidate +1"] = { stats = { haste = 4, pdt = -5, zanshin = 5 } },   -- SAM
+        ["Sao. Sune-ate +1"] = { stats = { haste = 3, zanshin = 3 } },   -- SAM
+        ["Sao. Koshi-ate"] = { stats = { hp = 10, ratt = 5, stp = 5 } },   -- SAM
+        ["Argute M.Board +1"] = { stats = { mab = 6, refresh = 1 } },   -- SCH
+        ["Argute Gown +1"] = { stats = { int = 8, mnd = 8, fc = 5 } },   -- SCH
+        ["Argute Bracers +1"] = { stats = { enfdur = 10, fc = 3 } },   -- SCH
+        ["Argute Pants +1"] = { stats = { drain = 7, mab = 5, macc = 10 } },   -- SCH
+        ["Argute Loafers +1"] = { stats = { cmp = 6, cure = 4, fc = 4 } },   -- SCH
+        ["Argute Belt"] = { stats = { mp = 10, enhdur = 5, macc = 4, mdmg = 4 } },   -- SCH
+        ["Smn. Horn +1"] = { stats = { int = 8, mnd = 8, refresh = 1 } },   -- SMN
+        ["Smn. Doublet +1"] = { stats = { mp = 30, fc = 3 } },   -- SMN
+        ["Smn. Bracers +1"] = { stats = { dt = -3 } },   -- SMN
+        ["Smn. Spats +1"] = { stats = { bloodboon = 8, summoning = 10 } },   -- SMN
+        ["Smn. Pigaches +1"] = { stats = { cure = 6, fc = 5 } },   -- SMN
+        ["Summoner's Cape"] = { stats = { mp = 10, bpdelay = 2 } },   -- SMN
+        ["Asn. Bonnet +1"] = { stats = { agi = 8, haste = 5, sb = 10 } },   -- THF
+        ["Asn. Vest +1"] = { stats = { acc = 12, att = 12, stp = 6, ta = 1 } },   -- THF
+        ["Asn. Armlets +1"] = { stats = { acc = 8, att = 8, dt = -4, eva = 8 } },   -- THF
+        ["Asn. Culottes +1"] = { stats = { eva = 6, haste = 4, sb = 4, stp = 4 } },   -- THF
+        ["Asn. Poulaines +1"] = { stats = { eva = 6, haste = 3 } },   -- THF
+        ["Assassin's Cape"] = { stats = { hp = 10, critdmg = 2, eva = 9 } },   -- THF
+        ["War. Mask +1"] = { stats = { acc = 8, att = 8, da = 4, meva = 10 } },   -- WAR
+        ["War. Lorica +1"] = { stats = { counter = 5, eva = 10, pdt = -4 } },   -- WAR
+        ["War. Mufflers +1"] = { stats = { haste = 4 } },   -- WAR
+        ["War. Cuisses +1"] = { stats = { acc = 10, att = 10, haste = 4, pdt = -4 } },   -- WAR
+        ["War. Calligae +1"] = { stats = { acc = 8, att = 8, haste = 3 } },   -- WAR
+        ["Warrior's Stone"] = { stats = { hp = 10, haste = 5 } },   -- WAR
+        ["Clr. Cap +1"] = { stats = { curect = 5, healing = 5, hmp = 5 } },   -- WHM
+        ["Clr. Bliaut +1"] = { stats = { mdb = 5, pdt = -5, refresh = 1 } },   -- WHM
+        ["Clr. Mitts +1"] = { stats = { divine = 10, mdt = -4, meva = 6 } },   -- WHM
+        ["Clr. Pantaln. +1"] = { stats = { cure = 6, dt = -4, enhancing = 10 } },   -- WHM
+        ["Clr. Duckbills +1"] = { stats = { str = 5, mnd = 5, enhdur = 8, sk_club = 8 } },   -- WHM
+        ["Cleric's Belt"] = { stats = { mp = 10, cure = 5, mdb = 3 } },   -- WHM
+    },
+
     -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
     -- (Tier 3, HQ only). Added to that piece's stats in the Best in Slot list, and only for its own job.
     adept_augments = {
@@ -167,6 +410,11 @@ return {
     },
 
     exclude   = { 'Aesir Mantle', "Boneworker's Smock", 'Latria Sash', 'Ishvara Earring' },   -- Latria Sash / Ishvara Earring don't exist on this server
+    -- Items never used in one job's set (your own set and Best in Slot): job = { set id = { items } }
+    set_exclude = {
+        NIN = { TP = { 'Shukuyu Ring' } },
+        THF = { TP = { 'Shukuyu Ring' } },
+    },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
     -- Preferred gear: always used in these sets when you own it (and the job can wear it).
@@ -179,15 +427,23 @@ return {
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'SCH' }, items = { 'Coeus' } },
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'BLM', 'RDM', 'SCH', 'GEO', 'BLU' }, items = { 'Moepapa Pendant' } },
         { sets = { 'Boost' }, jobs = { 'MNK' }, items = { 'Tpl. Gloves +1' } },
-        { sets = { 'Meditate' },    items = { 'Pinnacle Dastanas' } },
+        { sets = { 'Meditate' },    jobs = { 'WAR', 'PLD', 'DRK', 'BST', 'DRG', 'SAM', 'RUN' }, items = { 'Pinnacle Dastanas' } },
         -- PLD: King's Cuisses raise Phalanx received (no stat for it in the server data, so it's forced)
         { sets = { 'PhalanxRcv', 'Phalanx' }, jobs = { 'PLD' }, items = { "King's Cuisses" } },
         -- SAM: bow in the range slot (swapping range doesn't reset TP). "TP Bonus" has no number in
         -- the description, so it's forced for weaponskills instead of scored.
         { ws = 'any', jobs = { 'SAM' }, items = { "Kennan's Longbow" } },
         { sets = { 'Meditate' }, jobs = { 'SAM' }, items = { "Kennan's Longbow" } },
-        { sets = { 'Berserk' },     items = { 'Pinnacle Celata' } },
-        { sets = { 'Warcry' },      items = { 'Pinnacle Sabatons' } },
+        { sets = { 'Berserk' },     jobs = { 'WAR', 'PLD', 'DRK', 'BST', 'DRG', 'SAM', 'RUN' }, items = { 'Pinnacle Celata' } },
+        { sets = { 'Warcry' },      jobs = { 'WAR', 'PLD', 'DRK', 'BST', 'DRG', 'SAM', 'RUN' }, items = { 'Pinnacle Sabatons' } },
+        -- Apex jobs: Apex Hatsuburi (Berserk), Apex Kote (Meditate), Apex Sune-ate (Warcry)
+        { sets = { 'Berserk' },  jobs = { 'MNK', 'THF', 'BRD', 'RNG', 'NIN', 'COR', 'PUP', 'DNC' }, items = { 'Apex Hatsuburi' } },
+        { sets = { 'Meditate' }, jobs = { 'MNK', 'THF', 'BRD', 'RNG', 'NIN', 'COR', 'PUP', 'DNC' }, items = { 'Apex Kote' } },
+        { sets = { 'Warcry' },   jobs = { 'MNK', 'THF', 'BRD', 'RNG', 'NIN', 'COR', 'PUP', 'DNC' }, items = { 'Apex Sune-ate' } },
+        -- Apogee jobs: Apogee Petasos (Berserk), Apogee Cuffs (Meditate), Apogee Sabots (Warcry)
+        { sets = { 'Berserk' },  jobs = { 'WHM', 'BLM', 'RDM', 'SMN', 'BLU', 'SCH', 'GEO' }, items = { 'Apogee Petasos' } },
+        { sets = { 'Meditate' }, jobs = { 'WHM', 'BLM', 'RDM', 'SMN', 'BLU', 'SCH', 'GEO' }, items = { 'Apogee Cuffs' } },
+        { sets = { 'Warcry' },   jobs = { 'WHM', 'BLM', 'RDM', 'SMN', 'BLU', 'SCH', 'GEO' }, items = { 'Apogee Sabots' } },
         { sets = { 'Sublimation' }, items = { 'Apogee Sabots' } },
         -- SCH Artifact + Relic head/body while Sublimation charges (+1 first; the piece whose
         -- description shows a Sublimation bonus wins if you own both for the same slot)
@@ -204,6 +460,11 @@ return {
         -- (bg-wiki: CatsEyeXI_Systems/Weaponskills). Elsewhere it is scored by its stats like any neck.
         { ws_names = { 'Resolution', 'Stardiver', 'Blade: Shun', 'Last Stand' }, items = { 'Fotia Gorget' } },
         { ws = 'single', items = { 'Combatant Torque' } },
+        -- NIN / THF TP: Ares's Ring (Shukuyu Ring is excluded there, see set_exclude)
+        { sets = { 'TP' }, jobs = { 'NIN', 'THF' }, items = { "Ares's Ring" } },
+        -- NIN weaponskill ammo (every other NIN set keeps Yoru Shuriken): DEX weaponskills / STR weaponskills
+        { ws_stat = 'dex', jobs = { 'NIN' }, items = { 'Yetshila +1' } },
+        { ws_stat = 'str', jobs = { 'NIN' }, items = { 'Cinderstone' } },
     },
 
     -- Stats to SET on specific items (corrects values the description doesn't show or words oddly).
@@ -252,6 +513,11 @@ return {
     -- is used; if you own none, your best instrument for songs. The first name is shown as Best in Slot.
     keep_range = {
         BRD = { 'Gjallarhorn' },
+    },
+    -- Jobs that keep ONE ammo in every set except weaponskills (NIN: the shuriken). Weaponskills choose their own
+    -- ammo (see the NIN rules in preferred). The first name is shown as Best in Slot.
+    keep_ammo = {
+        NIN = { 'Yoru Shuriken' },
     },
 
     job_range = {
@@ -475,28 +741,28 @@ return {
 
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
-        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus' },
-        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement' },
-        BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement' },
-        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
+        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement' },
-        RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
-        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
+        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
-        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments' },
-        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
-        SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement' },
-        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement' },
+        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
+        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
     },
 

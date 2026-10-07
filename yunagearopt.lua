@@ -533,15 +533,19 @@ local function build_bis_allowed()
     end
     for _, n in ipairs(data.bis_extra or {}) do add(n); end
     for n in pairs(data.adept_augments or {}) do add(n); end
+    for n in pairs(data.max_augments or {}) do add(n); end            -- Artifact +1 / Relic +1
     for _, list in pairs(data.keep_range or {}) do add(list); end      -- Gjallarhorn
+    for _, list in pairs(data.keep_ammo or {}) do add(list); end       -- Yoru Shuriken
     return set;
 end
 
--- Full Adept augment for a piece (data.adept_augments), looked up by name like everything else
+-- Full augment for a piece, looked up by name: Adept (data.adept_augments) and Artifact +1 / Relic +1
+-- (data.max_augments). Used for the Best in Slot list only.
 local adept_by_key = nil;
 local function adept_augment(name)
     if adept_by_key == nil then
         adept_by_key = {};
+        for n, a in pairs(data.max_augments or {}) do adept_by_key[name_key(n)] = a.stats; end
         for n, a in pairs(data.adept_augments or {}) do adept_by_key[name_key(n)] = a.stats; end
     end
     return adept_by_key[name_key(name)];
@@ -734,6 +738,28 @@ local function build_sets(job_id)
             end
         end
     end
+    -- Jobs that keep one ammo in every set except weaponskills (NIN: Yoru Shuriken). Weaponskills pick their own.
+    local ka = (data.keep_ammo or {})[abbr];
+    if ka then
+        local keep = nil;
+        for _, n in ipairs(ka) do
+            for _, it in ipairs(owned) do
+                if keep == nil and name_key(it.name) == name_key(n) then keep = it.name; end
+            end
+        end
+        for _, entry in ipairs(list) do
+            if entry.kind ~= 'ws' then
+                entry.bis_ammo = ka[1];
+                if keep then
+                    entry.ammo_item = keep;
+                    entry.pref_slots = entry.pref_slots or {};
+                    entry.pref_slots.ammo = true;                 -- only that piece, nothing else in ammo
+                else
+                    entry.no_ammo = true;                         -- not owned: leave the ammo slot alone
+                end
+            end
+        end
+    end
     return list;
 end
 
@@ -761,6 +787,16 @@ end
 local function is_excluded(name)
     local n = (name or ''):lower();
     return ui.data_excl[n];
+end
+
+-- data.set_exclude: an item never used in one job's set (e.g. no Shukuyu Ring in NIN TP)
+local function set_excluded(job_id, desc, name)
+    local list = (((data.set_exclude or {})[JOBS[job_id]] or {})[desc.id]);
+    if list == nil then return false; end
+    for _, n in ipairs(list) do
+        if name_key(n) == name_key(name) then return true; end
+    end
+    return false;
 end
 
 local function score_of(stats, w)
@@ -917,7 +953,8 @@ local function optimize(job_id, desc, pins, pool)
             if bit.band(item.slots, def.mask) ~= 0 and can_wear(item, job_id, lvl, pure) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
                 table.insert(all, c);
-                if c.score > 0 and not is_excluded(item.name) and slot_candidate_ok(def, item, desc) then
+                if c.score > 0 and not is_excluded(item.name) and not set_excluded(job_id, desc, item.name)
+                        and slot_candidate_ok(def, item, desc) then
                     table.insert(list, c);
                 end
             end
@@ -972,6 +1009,7 @@ local function optimize(job_id, desc, pins, pool)
     if not pure then
         prefer_names = preferred_for(job_id, desc);
         if desc.range_weapon then table.insert(prefer_names, desc.range_weapon); end
+        if desc.ammo_item then table.insert(prefer_names, desc.ammo_item); end
         n_rules = #prefer_names;                 -- your explicit rules (data.lua) come first and always win
         local ref = curated_for and curated_for(job_id, desc);
         if ref then
@@ -1137,10 +1175,12 @@ local function bis_for(job_id, desc)
     if desc == nil then return nil; end
     local curated = curated_for(job_id, desc) or desc.fixed;
     local bis_range = desc.bis_range or desc.range_weapon;          -- BRD: Gjallarhorn is the BiS instrument
-    if bis_range then
+    local bis_ammo = desc.bis_ammo or desc.ammo_item;               -- NIN: Yoru Shuriken outside weaponskills
+    if bis_range or bis_ammo then
         local merged = {};
         for k, v in pairs(curated or {}) do merged[k] = v; end
-        merged.range = bis_range;
+        if bis_range then merged.range = bis_range; end
+        if bis_ammo then merged.ammo = bis_ammo; end
         curated = merged;
     end
     if not bis.done and curated == nil then return nil; end
@@ -1182,7 +1222,8 @@ local function bis_for(job_id, desc)
         local taken = {};
         for _, pname in ipairs(preferred_for(job_id, desc)) do
             local it = find_item_by_name(pname);
-            if it and it.slots and it.slots ~= 0 then
+            -- only pieces this job can wear (Pinnacle only for its jobs, never for THF...)
+            if it and it.slots and it.slots ~= 0 and (it.jobs == nil or can_wear(it, job_id, 99, false)) then
                 for _, def in ipairs(active_slots(desc, true)) do
                     if active[def.key] and not taken[def.key] and bit.band(it.slots, def.mask) ~= 0 then
                         assign[def.key] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };

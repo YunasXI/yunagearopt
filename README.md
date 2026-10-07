@@ -70,6 +70,10 @@ Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so ke
   which is worn on top of your engaged gear (TP, Hybrid, PDT, MDT) while the buff is up and comes off when you disengage.
 - **BLU**: Physical / Magical / Debuff blue magic, Spectral Floe, Battery Charge and a **Refresh** idle set you switch on
   with `/refresh` (`//gs c refresh` in GearSwap, `/lac fwd refresh` in LAC). Melee sets keep your sword and shield after casting.
+- **Artifact +1 / Relic +1**: 236 pieces are in the Best in Slot list with their max CatsEyeXI augment
+  (Artifact Tier 3, Relic Rank 10 - `max_augments` in `data.lua`).
+- **NIN**: Yoru Shuriken stays in the ammo slot in every set except weaponskills, which use Yetshila +1 (DEX) or
+  Cinderstone (STR). **BRD**: one instrument (Gjallarhorn) in every set, so TP is never lost.
 - **Adept Reforging**: all 69 Adept pieces (BLM, BRD, BST, DRG, DRK, GEO, NIN, PLD, RDM, RUN, SAM, THF, WAR, WHM) are in the
   Best in Slot list with their **full augment** (Tier 3, HQ), each only for its own job (`adept_augments` in `data.lua`).
 - **PLD**: every spell puts on a **SIR** (spell interruption) set first, then **Flash**, **Reprisal** or **Phalanx** sets on top;
