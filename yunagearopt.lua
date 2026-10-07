@@ -669,6 +669,13 @@ local function build_sets(job_id)
             end
         end
     end
+    -- Jobs that keep a weapon in the range slot (SAM's bow): a set that doesn't handle the range slot must not
+    -- swap ammo either. Non-matching ammo (a Tathlum) makes the game take the bow off.
+    if #jr > 0 then
+        for _, entry in ipairs(list) do
+            if entry.range == nil then entry.no_ammo = true; end
+        end
+    end
     return list;
 end
 
@@ -765,6 +772,7 @@ local function active_slots(desc)
         if def.weapon then use = desc.weapons and s.weapons; end
         if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both'); end
         if def.key == 'ammo' and desc.range ~= nil and desc.range ~= 'both' then use = false; end
+        if def.key == 'ammo' and desc.no_ammo then use = false; end
         if use then table.insert(list, def); end
     end
     return list;
@@ -814,7 +822,11 @@ local function preferred_for(job_id, desc)
         if ok and rule.ws_stat then
             ok = desc.kind == 'ws' and desc.ws ~= nil and ((desc.ws.mods or {})[rule.ws_stat] or 0) > 0;
         end
-        if ok and not rule.sets and not rule.ws and not rule.ws_stat then ok = false; end
+        -- ws_names = only these weaponskills (e.g. Fotia on the fTP-replicating ones)
+        if ok and rule.ws_names then
+            ok = desc.kind == 'ws' and desc.ws ~= nil and in_list(rule.ws_names, desc.ws.name);
+        end
+        if ok and not rule.sets and not rule.ws and not rule.ws_stat and not rule.ws_names then ok = false; end
         if ok then for _, n in ipairs(rule.items or {}) do table.insert(names, n); end end
     end
     return names;
@@ -1103,7 +1115,7 @@ local function bis_for(job_id, desc)
                 if not c.curated and at and at ~= slot then assign[slot] = nil; end
             end
         end
-        -- Your explicit rules (data.lua: Fotia on multi-hit, STR rings, Boost gloves...) apply to the BiS view too
+        -- Your explicit rules (data.lua: Fotia on fTP-replicating WS, STR rings, Boost gloves...) apply to the BiS view too
         local taken = {};
         for _, pname in ipairs(preferred_for(job_id, desc)) do
             local it = find_item_by_name(pname);
