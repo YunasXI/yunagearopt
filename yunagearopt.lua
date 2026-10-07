@@ -259,6 +259,22 @@ local function in_list(list, value)
     return false;
 end
 
+-- Body pieces that also take up other slots (data.lua: covers). Matched without punctuation, so
+-- "Rambler's Cloak" and "Ramblers Cloak" are the same piece.
+local function cover_key(n)
+    return ((n or ''):lower():gsub('[^%w%+]', ''));
+end
+
+-- Slots a set leaves covered (Kupo Suit -> legs). The exports write them as 'displaced' / empty so the
+-- profile never equips something there, which would knock the suit off and start a swap loop.
+local function covered_slots(assign)
+    local out = {};
+    for _, c in pairs(assign or {}) do
+        for _, slot in ipairs((ui.covers or {})[cover_key(c.item.name)] or {}) do out[slot] = true; end
+    end
+    return out;
+end
+
 local function load_data()
     local okS, st = pcall(dofile, base_path() .. 'stats.lua');
     if not okS or type(st) ~= 'table' then msg('Could not load stats.lua: ' .. tostring(st)); return false; end
@@ -295,6 +311,8 @@ local function load_data()
     for name, fix in pairs(d.stat_fix or {}) do ui.stat_fix[name:lower()] = fix; end
     ui.stat_remove = {};
     for name, keys in pairs(d.stat_remove or {}) do ui.stat_remove[name:lower()] = keys; end
+    ui.covers = {};
+    for name, slots in pairs(d.covers or {}) do ui.covers[cover_key(name)] = slots; end
     ui.dirty = true;
     return true;
 end
@@ -1286,9 +1304,14 @@ end
 
 local function set_xml_lines(out, ind, name, assign)
     table.insert(out, string.format('%s<set name="%s">', ind, xml_escape(name)));
+    local covered = covered_slots(assign);
     for _, def in ipairs(SLOTS) do
         local c = assign[def.key];
-        if c then table.insert(out, string.format('%s    <%s>%s</%s>', ind, def.tag, xml_escape(c.item.name), def.tag)); end
+        if covered[def.key] then
+            table.insert(out, string.format('%s    <%s>displaced</%s>', ind, def.tag, def.tag));
+        elseif c then
+            table.insert(out, string.format('%s    <%s>%s</%s>', ind, def.tag, xml_escape(c.item.name), def.tag));
+        end
     end
     table.insert(out, ind .. '</set>');
 end
@@ -1849,10 +1872,14 @@ local function build_gearswap(job_id)
     add('');
     for _, b in ipairs(built) do
         add(string.format('    -- %s', b.desc.label));
-        local parts = {};
+        local parts, covered = {}, covered_slots(b.assign);
         for _, def in ipairs(SLOTS) do
             local c = b.assign[def.key];
-            if c then table.insert(parts, string.format('        %s = %q,', GS_SLOT[def.key], gs_name(c.item.name))); end
+            if covered[def.key] then
+                table.insert(parts, string.format('        %s = empty,', GS_SLOT[def.key]));
+            elseif c then
+                table.insert(parts, string.format('        %s = %q,', GS_SLOT[def.key], gs_name(c.item.name)));
+            end
         end
         add(string.format('    sets[%q] = {', b.desc.name));
         for _, p in ipairs(parts) do add(p); end
@@ -2242,9 +2269,14 @@ local function build_lac(job_id)
     for _, b in ipairs(built) do
         add(string.format('    -- %s', b.desc.label));
         add(string.format('    [%q] = {', b.desc.name));
+        local covered = covered_slots(b.assign);
         for _, def in ipairs(SLOTS) do
             local c = b.assign[def.key];
-            if c then add(string.format('        %s = %q,', LAC_SLOT[def.key], c.item.name)); end
+            if covered[def.key] then
+                add(string.format('        %s = \'displaced\',', LAC_SLOT[def.key]));
+            elseif c then
+                add(string.format('        %s = %q,', LAC_SLOT[def.key], c.item.name));
+            end
         end
         add('    },');
     end

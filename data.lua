@@ -596,6 +596,75 @@ return {
         ['Kupo Suit'] = { 'Movement' },
     },
 
+    -- Body pieces that also take up other slots (CatsEyeXI 'rslot'). The exports write those slots as
+    -- 'displaced' / empty, so a profile never equips something there and knocks the piece back off
+    -- (Kupo Suit in Movement over the Idle legs kept swapping on and off while running).
+    covers = {
+        -- covers head
+        ['Black Cloak'] = { 'head' },
+        ['C.C. Cloak +1'] = { 'head' },
+        ['C.C. Cloak +2'] = { 'head' },
+        ['Cloak'] = { 'head' },
+        ['Cloak +1'] = { 'head' },
+        ['Cmb.Cst. Cloak'] = { 'head' },
+        ['Cohort Cloak'] = { 'head' },
+        ['Cohort Cloak +1'] = { 'head' },
+        ['Demons Cloak'] = { 'head' },
+        ['Eerie Cloak'] = { 'head' },
+        ['Eerie Cloak +1'] = { 'head' },
+        ['High Mana Cloak'] = { 'head' },
+        ['Ixion Cloak'] = { 'head' },
+        ['Jurfu Cloak'] = { 'head' },
+        ['Lugra Cloak'] = { 'head' },
+        ['Lugra Cloak +1'] = { 'head' },
+        ['Mana Cloak'] = { 'head' },
+        ['R.K. Cloak +1'] = { 'head' },
+        ['R.K. Cloak +2'] = { 'head' },
+        ['Ramblers Cloak'] = { 'head' },
+        ['Respite Cloak'] = { 'head' },
+        ['Restorer Cloak'] = { 'head' },
+        ['Royal Cloak'] = { 'head' },
+        ['Ryl.Kgt. Cloak'] = { 'head' },
+        ['Shamans Cloak'] = { 'head' },
+        ['Silk Cloak'] = { 'head' },
+        ['Silk Cloak +1'] = { 'head' },
+        ['Twilight Cloak'] = { 'head' },
+        ['Vampire Cloak'] = { 'head' },
+        ['Vermillion Cloak'] = { 'head' },
+        ['White Cloak'] = { 'head' },
+        ['White Cloak +1'] = { 'head' },
+        ['Wikyo Cloak'] = { 'head' },
+        -- covers legs
+        ['Behemoth Suit'] = { 'legs' },
+        ['Behemoth Suit +1'] = { 'legs' },
+        ['Korrigan Suit'] = { 'legs' },
+        ['Kupo Suit'] = { 'legs' },
+        ['Mandra. Suit'] = { 'legs' },
+        ['Mandra. Suit +1'] = { 'legs' },
+        ['Onca Suit'] = { 'legs' },
+        ['Overalls'] = { 'legs' },
+        ['Wyrmking Suit'] = { 'legs' },
+        ['Wyrmking Suit +1'] = { 'legs' },
+        -- covers hands
+        ['Argent Coat'] = { 'hands' },
+        ['Benedight Coat'] = { 'hands' },
+        ['Decennial Coat'] = { 'hands' },
+        ['Decennial Coat +1'] = { 'hands' },
+        ['Esthetes Coat'] = { 'hands' },
+        -- covers hands, feet
+        ['Chocobo Suit'] = { 'hands', 'feet' },
+        ['Chocobo Suit +1'] = { 'hands', 'feet' },
+        ['G. Moogle Suit'] = { 'hands', 'feet' },
+        ['Goblin Suit'] = { 'hands', 'feet' },
+        -- covers head, hands
+        ['Botulus Suit'] = { 'head', 'hands' },
+        ['Botulus Suit +1'] = { 'head', 'hands' },
+        -- covers hands, legs, feet
+        ['Adenium Suit'] = { 'hands', 'legs', 'feet' },
+        ['Bl. Chocobo Suit'] = { 'hands', 'legs', 'feet' },
+        ['Moogle Suit'] = { 'hands', 'legs', 'feet' },
+    },
+
     -- Spell name filters used by the generated <midmagic> rules (wildcards * and | allowed)
     rules = {
         cure          = 'Cure*|Cura*',
