@@ -53,6 +53,26 @@ local function item_icon(id)
     return icons[id] or nil;
 end
 
+-- CatsEyeXI logo for the header, loaded once from images\catseye.png (false = missing)
+local logo = nil;
+local function logo_texture()
+    if logo ~= nil then return logo or nil; end
+    logo = false;
+    pcall(function()
+        local f = io.open(addon.path .. '/images/catseye.png', 'rb');
+        if f == nil then return; end
+        local data = f:read('*a');
+        f:close();
+        local ptr = ffi.new('IDirect3DTexture8*[1]');
+        if ffi.C.D3DXCreateTextureFromFileInMemoryEx(d3d.get_device(), data, #data, 0xFFFFFFFF, 0xFFFFFFFF, 1, 0,
+                ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED, ffi.C.D3DX_DEFAULT, ffi.C.D3DX_DEFAULT, 0, nil, nil, ptr) == ffi.C.S_OK then
+            local tex = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', ptr[0]));
+            logo = { tex = tex, ptr = tonumber(ffi.cast('uint32_t', tex)) };
+        end
+    end);
+    return logo or nil;
+end
+
 ----------------------------------------------------------------------------------------------------
 -- Constants
 ----------------------------------------------------------------------------------------------------
@@ -3032,7 +3052,17 @@ local function draw_header()
         dl:AddRectFilled({ x + 10, y + 14 }, { x + 14, y + h - 14 }, u32(C.gold), 2);
         gold_line(dl, x + 10, y + h - 2, x + w * 0.8, 0.8);
 
-        imgui.SetCursorPos({ 26, 11 });
+        -- CatsEyeXI logo next to the accent bar, title text moves right to make room
+        local lx = 26;
+        local lg = logo_texture();
+        if lg then
+            imgui.SetCursorPos({ 22, 7 });
+            imgui.Image(lg.ptr, { 92, 56 });
+            if imgui.IsItemHovered() then imgui.SetTooltip('Made for CatsEyeXI'); end
+            lx = 124;
+        end
+
+        imgui.SetCursorPos({ lx, 11 });
         title_text('YUNA', 1.6, C.text);
         imgui.SameLine(0, 6);
         title_text('GEAROPT', 1.6, C.gold);
@@ -3041,7 +3071,7 @@ local function draw_header()
         imgui.TextColored(C.gold_dim, 'SET BUILDER');
         imgui.SameLine(0, 10);
         imgui.TextColored(C.muted, 'LegacyAC  /  LuAshitacast  /  GearSwap');
-        imgui.SetCursorPos({ 26, 44 });
+        imgui.SetCursorPos({ lx, 44 });
         imgui.TextColored(C.muted, string.format('%s   |   %d pieces   %d augmented   |   scanned %s', player_name(), #owned,
             ui.augmented, ui.last_scan));
         if not bis.done then

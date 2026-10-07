@@ -46,6 +46,7 @@ jobs:
           cp legacyac/README.txt dist/yunagearopt/legacyac/
           cp lac/README.txt dist/yunagearopt/lac/
           cp README.md dist/yunagearopt/
+          cp -r images dist/yunagearopt/
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
 
       - name: Create release
