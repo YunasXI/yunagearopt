@@ -533,6 +533,7 @@ local function build_bis_allowed()
     end
     for _, n in ipairs(data.bis_extra or {}) do add(n); end
     for n in pairs(data.adept_augments or {}) do add(n); end
+    for _, list in pairs(data.keep_range or {}) do add(list); end      -- Gjallarhorn
     return set;
 end
 
@@ -696,6 +697,43 @@ local function build_sets(job_id)
             if entry.range == nil then entry.no_ammo = true; end
         end
     end
+    -- Jobs that keep one item in the range slot in EVERY set (BRD: the instrument). Swapping it resets TP, so
+    -- every set wears the same piece and never touches ammo (ammo would take the instrument off).
+    local kr = (data.keep_range or {})[abbr];
+    if kr then
+        local keep = nil;
+        for _, n in ipairs(kr) do                                -- the listed ones first (Gjallarhorn)
+            for _, it in ipairs(owned) do
+                if keep == nil and name_key(it.name) == name_key(n) then keep = it.name; end
+            end
+        end
+        if keep == nil then                                       -- otherwise your best instrument for songs
+            local w = ((data.sets or {}).Songs_Buff or {}).weights or {};
+            local best, best_score = nil, -1;
+            local lvl = job_level(job_id);
+            for _, it in ipairs(owned) do
+                local only = ui.job_restrict[it.name:lower()];
+                local job_ok = only and in_list(only, abbr) or (not only and bit.band(it.jobs, bit.lshift(1, job_id)) ~= 0);
+                if INSTRUMENTS[it.skill] and job_ok and (s.ignore_level or it.level <= lvl) then
+                    local sc = it.level * 0.001;                  -- ties: the higher level one
+                    for k, v in pairs(it.stats or {}) do sc = sc + v * (w[k] or 0); end
+                    if sc > best_score then best, best_score = it.name, sc; end
+                end
+            end
+            keep = best;
+        end
+        for _, entry in ipairs(list) do
+            entry.no_ammo = true;
+            entry.bis_range = kr[1];
+            if keep then
+                entry.range, entry.range_weapon = 'keep', keep;
+                entry.pref_slots = entry.pref_slots or {};
+                entry.pref_slots.range = true;                    -- only that piece, never another instrument
+            else
+                entry.range = nil;                                -- no instrument owned: leave the slot alone
+            end
+        end
+    end
     return list;
 end
 
@@ -778,10 +816,12 @@ local function sub_ok(main, sub, dw)
     return false;                                                                                   -- grip without 2H
 end
 
-local function active_slots(desc)
+-- bis_only = true: a fixed set (Chakra, Focus, 2-hour...) only uses its listed slots, as in the Best in Slot view.
+-- Otherwise it shows every slot: the listed pieces plus empty slots you can fill with the dropdown.
+local function active_slots(desc, bis_only)
     local list = {};
     if desc.info then return list; end                     -- an info panel (e.g. attachments) has no gear slots
-    if desc.fixed then
+    if desc.fixed and bis_only then
         for _, def in ipairs(SLOTS) do
             if desc.fixed[def.key] then table.insert(list, def); end
         end
@@ -790,7 +830,7 @@ local function active_slots(desc)
     for _, def in ipairs(SLOTS) do
         local use = true;
         if def.weapon then use = desc.weapons and s.weapons; end
-        if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both'); end
+        if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both' or desc.range == 'keep'); end
         if def.key == 'ammo' and desc.range ~= nil and desc.range ~= 'both' then use = false; end
         if def.key == 'ammo' and desc.no_ammo then use = false; end
         if use then table.insert(list, def); end
@@ -857,11 +897,14 @@ local function optimize(job_id, desc, pins, pool)
     local w, caps = weights_for(job_id, desc), desc.caps or {};
     local pure = pool ~= nil;                -- BiS mode: whole game, base stats, no picks/preferred/fixed
     local lvl, dw = pure and (data.bis_level or 75) or job_level(job_id), dw_active(job_id);
-    local slots = active_slots(desc);
+    local slots = active_slots(desc, pure);
     pool = pool or owned;
     pins = pure and {} or (pins or {});
     if desc.fixed and not pure then
         local merged = {};
+        -- The listed pieces; every other slot stays empty (so the set only swaps what it needs)
+        -- unless you pick something for it with the dropdown
+        for _, def in ipairs(slots) do merged[def.key] = false; end
         for k, v in pairs(desc.fixed) do merged[k] = { name = v, alt = desc.fallback and desc.fallback[k] }; end
         for k, v in pairs(pins) do merged[k] = v; end
         pins = merged;
@@ -1093,27 +1136,27 @@ end
 local function bis_for(job_id, desc)
     if desc == nil then return nil; end
     local curated = curated_for(job_id, desc) or desc.fixed;
-    if desc.range_weapon then
+    local bis_range = desc.bis_range or desc.range_weapon;          -- BRD: Gjallarhorn is the BiS instrument
+    if bis_range then
         local merged = {};
         for k, v in pairs(curated or {}) do merged[k] = v; end
-        merged.range = desc.range_weapon;
+        merged.range = bis_range;
         curated = merged;
     end
     if not bis.done and curated == nil then return nil; end
     local key = JOBS[job_id] .. '|' .. desc.id .. '|' .. tostring(dw_active(job_id)) .. '|' .. ui.last_scan;
     local hit = bis.cache[key];
     if hit == nil then
-        -- Every item in the game (base stats) + your own pieces (with their augments):
-        -- an augmented piece you own can beat the plain version, so BiS is never below your set.
+        -- The same list for everyone: reference items with their base stats (Adept pieces with their full augment).
+        -- Your own pieces and their augments are NOT used here, so Best in Slot doesn't depend on who looks at it.
         local pool = {};
-        for _, it in ipairs(owned) do table.insert(pool, it); end
         for _, it in ipairs(bis.pool) do table.insert(pool, it); end
         local assign = {};
         if bis.done then assign = optimize(job_id, desc, nil, pool); end
         -- Your reference sets (bis.lua) win for every slot they list
         local w, caps = weights_for(job_id, desc), desc.caps or {};
         local active = {};
-        for _, def in ipairs(active_slots(desc)) do active[def.key] = true; end
+        for _, def in ipairs(active_slots(desc, true)) do active[def.key] = true; end
         for slot, iname in pairs(curated or {}) do
           if active[slot] then
             local it = nil;
@@ -1140,7 +1183,7 @@ local function bis_for(job_id, desc)
         for _, pname in ipairs(preferred_for(job_id, desc)) do
             local it = find_item_by_name(pname);
             if it and it.slots and it.slots ~= 0 then
-                for _, def in ipairs(active_slots(desc)) do
+                for _, def in ipairs(active_slots(desc, true)) do
                     if active[def.key] and not taken[def.key] and bit.band(it.slots, def.mask) ~= 0 then
                         assign[def.key] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };
                         taken[def.key] = true;
@@ -3227,7 +3270,8 @@ local function draw_card(def, max_score)
         imgui.PopStyleColor();
         tier_frame(col, r ~= nil and r >= 0.95);
     else
-        imgui.TextColored(C.muted, pin == false and 'Left empty' or 'Nothing useful');
+        local extra = pin == nil and ui.desc.fixed and not ui.desc.fixed[def.key];   -- a free slot in a fixed set
+        imgui.TextColored(C.muted, extra and 'Empty - add a piece with the arrow' or (pin == false and 'Left empty' or 'Nothing useful'));
     end
     imgui.EndChild();
     if c and imgui.IsItemHovered() and not imgui.IsPopupOpen('pick_' .. def.key) then item_tooltip(c.item); end
@@ -3308,7 +3352,7 @@ local function draw_content()
                 for _, c in pairs(ui.result or {}) do max_score = math.max(max_score, c.score); end
                 local active, by_key = {}, {};
                 for _, def in ipairs(SLOTS) do by_key[def.key] = def; end
-                for _, def in ipairs(active_slots(ui.desc)) do active[def.key] = def; end
+                for _, def in ipairs(active_slots(ui.desc, ui.show_bis)) do active[def.key] = def; end
                 if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
                     for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();

@@ -96,7 +96,7 @@ return {
     [11645] = { acc = 5, def = 5, hp = 18, racc = 14 }, -- Ydalir Ring +1
     [11654] = {  }, -- Puffin Ring
     [11655] = {  }, -- Noddy Ring
-    [11672] = { dex = 4, scb = 400 }, -- Mujin Band
+    [11672] = { dex = 4, scb = 4 }, -- Mujin Band
     [11673] = { att = 5 }, -- Demonry Ring
     [11680] = { pdt = -2, vit = 2 }, -- Soil Earring
     [11683] = { macc = 2, mnd = 2 }, -- Aqua Earring

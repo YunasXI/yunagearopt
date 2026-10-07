@@ -41,7 +41,7 @@ Every export first opens a **Before you export** window. It lists exactly which 
 
 ## Score and Best in Slot
 
-Every set shows a score and how close it is to **Best in Slot** — the best gear for that job and set among every item in the game (up to level 75, `bis_level` in `data.lua`) plus your own augmented pieces:
+Every set shows a score and how close it is to **Best in Slot** — the best gear for that job and set among the reference items (up to level 75, `bis_level` in `data.lua`). It is the same for everyone: your own pieces and their augments are not used for it, so your own set can even score above it:
 
 - **Orange**: 90%+ of BiS (BiS / very good)
 - **Yellow**: 70–89% (good)

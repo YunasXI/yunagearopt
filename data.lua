@@ -248,6 +248,12 @@ return {
 
     -- Jobs that also optimize the range slot in some sets (a ranged weapon there; ammo is left alone).
     -- Values: 'tp', 'ws' (set kinds) or set ids like 'Meditate'.
+    -- Jobs that keep ONE item in the range slot in every set (swapping it resets TP). The first one you own
+    -- is used; if you own none, your best instrument for songs. The first name is shown as Best in Slot.
+    keep_range = {
+        BRD = { 'Gjallarhorn' },
+    },
+
     job_range = {
         SAM = { 'tp', 'ws', 'Meditate' },
     },

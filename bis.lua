@@ -2224,4 +2224,11 @@ return {
             feet  = 'Pup. Babouches +1',
         },
     },
+    NIN = {
+        ['ws:Blade: Shun'] = { -- Blade: Shun picks
+            head  = 'Shr.Znr.Kabuto +1',
+            hands = 'Nin. Tekko +1',
+            feet  = 'Shr. Sune-Ate +1',
+        },
+    },
 };

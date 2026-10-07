@@ -149,7 +149,7 @@ return {
     [328] = { {'critdmg',1,0,1,'l'} },
     [329] = { {'cure',1,0,1,'l'} },
     [330] = { {'waltz',1,0,1,'l'} },
-    [332] = { {'scb',1,100,1,'l'} },
+    [332] = { {'scb',1,0,1,'l'} },    -- Skillchain damage +N% (the server's x100 is its own unit, not a bigger bonus)
     [333] = { {'ctp',1,0,1,'l'} },
     [334] = { {'mbb',1,0,1,'l'} },
     [335] = { {'mcritdmg',1,0,1,'l'} },
