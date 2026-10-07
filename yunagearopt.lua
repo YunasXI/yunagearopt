@@ -115,6 +115,7 @@ local s = settings.load(defaults);
 
 local S, data, AUG = nil, nil, {};
 local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
+local SERVER = {};    -- server_stats.lua: real base stats per item id from the CatsEyeXI server
 
 -- Crafting / gathering gear (Weaver's / Tanner's cuffs, smocks, aprons, synergy gear...) never belongs in a combat set.
 -- Names need the possessive ("Miner's") so real gear such as Minerva's Ring is never caught by mistake.
@@ -171,6 +172,8 @@ local function load_data()
     S, data, AUG = st, d, a;
     local okB, b = pcall(dofile, base_path() .. 'bis.lua');
     BIS_REF = (okB and type(b) == 'table') and b or {};
+    local okV, v = pcall(dofile, base_path() .. 'server_stats.lua');
+    SERVER = (okV and type(v) == 'table') and v or {};
     for _, sets in pairs(BIS_REF) do                       -- crafting gear is never a BiS piece
         for _, slots in pairs(sets) do
             for slot, v in pairs(slots) do
@@ -334,13 +337,31 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Scanning
 ----------------------------------------------------------------------------------------------------
--- Base stats for an item: overrides > parsed description, then stat_fix / stat_remove from data.lua
+-- Job ability effects ("Enhances Berserk") are often scripted on the server rather than stored as a stat,
+-- so for these the description is still read when the server data has nothing.
+local SCRIPTED = { 'berserk', 'warcry', 'meditate', 'boost', 'sublimation', 'roll', 'rolldur', 'rolldelay', 'rollaoe' };
+
+-- Base stats for an item: overrides > server stats (server_stats.lua) > parsed description,
+-- then stat_fix / stat_remove from data.lua
 local function compute_base(id, name, desc)
     local lname = name:lower();
     local base = ui.overrides[lname];
     if base == nil then
         base = base_cache[id];
-        if base == nil then base = parse_stats(desc); base_cache[id] = base; end
+        if base == nil then
+            local server = SERVER[id];
+            if server then
+                base = {};
+                for k, v in pairs(server) do base[k] = v; end
+                local parsed = parse_stats(desc);
+                for _, k in ipairs(SCRIPTED) do
+                    if base[k] == nil and parsed[k] ~= nil then base[k] = parsed[k]; end
+                end
+            else
+                base = parse_stats(desc);
+            end
+            base_cache[id] = base;
+        end
     end
     local fix = ui.stat_fix[lname];
     if fix then

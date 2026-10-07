@@ -93,6 +93,7 @@ Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory an
 | `data.lua` | Item/stat data |
 | `stats.lua` | Stat parsing |
 | `augments.lua` | Augment parsing |
+| `server_stats.lua` | Real base stats per item from the CatsEyeXI server, used before reading item descriptions |
 
 ## Releases
 

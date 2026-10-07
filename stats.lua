@@ -104,6 +104,10 @@ M.MOD = {
     [890] = 'enhdur', [902] = 'occult', [913] = 'bloodboon', [944] = 'ctp', [973] = 'sb', [1151] = 'enfdur',
     [881] = 'roll', [882] = 'rolldur', [1076] = 'rolldelay',
     [94] = 'meditate', [483] = 'warcry', [948] = 'berserk', [954] = 'berserk', [401] = 'sublimation', [97] = 'boost',
+    -- Weapon skills
+    [80] = 'sk_h2h', [81] = 'sk_dagger', [82] = 'sk_sword', [83] = 'sk_gsword', [84] = 'sk_axe', [85] = 'sk_gaxe',
+    [86] = 'sk_scythe', [87] = 'sk_polearm', [88] = 'sk_katana', [89] = 'sk_gkatana', [90] = 'sk_club', [91] = 'sk_staff',
+    [104] = 'archery', [105] = 'marksmanship', [106] = 'throwing', [346] = 'perp',
 };
 -- Server stores these in 1/100 % units
 M.DIV = { haste = 100, dt = 100, pdt = 100, mdt = 100, bdt = 100 };
