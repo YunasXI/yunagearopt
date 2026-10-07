@@ -151,7 +151,7 @@ return {
     [13079] = { def = 10, mnd = 3, mp = 5, str = -1 }, -- Darksteel Gorget
     [13087] = {  }, -- Jeweled Collar
     [13130] = { agi = 1, dex = 1, int = 1, mnd = 1, str = 1, vit = 1 }, -- Jeweled Collar +1
-    [13177] = { def = 4 }, -- Stone Gorget
+    [13177] = { def = 4, stoneskin = 30 }, -- Stone Gorget
     [13186] = { def = 7, haste = 12, pdt = -5, sb = 5, str = 7 }, -- Black Belt
     [13212] = { def = 7, mp = 10, sird = 6 }, -- Tarutaru Sash
     [13254] = { def = 4, hp = 30, int = -5, str = 3, vit = 2 }, -- Jungle Belt

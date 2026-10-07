@@ -1280,7 +1280,7 @@ return {
         },
         ['Stoneskin'] = { -- from Stoneskin
             head  = 'Maat\'s Cap',
-            neck  = 'Incanter\'s Torque',
+            neck  = 'Stone Gorget', -- Stoneskin +30
             ear1  = 'Augment. Earring',
             ear2  = 'Celestial Earring',
             body  = 'Argute Gown +1',
@@ -1617,7 +1617,7 @@ return {
         ['Stoneskin'] = { -- from MND
             ammo  = 'Rimestone',
             head  = 'Maat\'s Cap',
-            neck  = 'Incanter\'s Torque',
+            neck  = 'Stone Gorget', -- Stoneskin +30
             ear1  = 'Enfeebling Earring',
             ear2  = 'Aqua Earring',
             body  = 'Marduk\'s Jubbah',

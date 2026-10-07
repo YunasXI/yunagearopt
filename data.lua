@@ -234,7 +234,8 @@ return {
                           weights = { cure = 12, mnd = 3, vit = 1, healing = 0.8, cmp = 0.5, enmity = -1, sird = 0.5 } },
         Healing       = { label = 'Healing magic skill', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
         Enhancing     = { label = 'Enhancing magic skill', weapons = true, weights = { enhancing = 5, enhdur = 2, cmp = 0.5, sird = 0.5, mnd = 0.3 } },
-        Stoneskin     = { label = 'Stoneskin (MND)', weapons = true, weights = { mnd = 4, enhancing = 1.5 } },
+        -- stoneskin = extra damage absorbed (Stone Gorget +30); 1 point is worth about 1 MND in the Stoneskin formula
+        Stoneskin     = { label = 'Stoneskin (MND)', weapons = true, weights = { mnd = 4, enhancing = 1.5, stoneskin = 4 } },
         Enfeebling_MND = { label = 'Enfeebling - MND', weapons = true, weights = { mnd = 3, enfeebling = 3, macc = 3, enfdur = 1 } },
         Enfeebling_INT = { label = 'Enfeebling - INT', weapons = true, weights = { int = 3, enfeebling = 3, macc = 3, enfdur = 1 } },
         Divine        = { label = 'Divine magic', weapons = true, weights = { divine = 3, mnd = 2.5, mab = 5, macc = 2 } },

@@ -70,6 +70,7 @@ M.ALIAS = {
     ['berserk'] = 'berserk', ['berserk duration'] = 'berserk', ['berserk effect duration'] = 'berserk',
     ['warcry'] = 'warcry', ['warcry duration'] = 'warcry', ['warcry effect duration'] = 'warcry',
     ['sublimation'] = 'sublimation', ['sublimation effect'] = 'sublimation',
+    ['stoneskin'] = 'stoneskin', ['stoneskin effect'] = 'stoneskin',
     ['boost'] = 'boost', ['boost effect'] = 'boost', ['boost duration'] = 'boost', ['snapshot'] = 'snapshot', ['rapid shot'] = 'rapid', ['recycle'] = 'recycle',
     ['waltz potency'] = 'waltz', ['avatar perpetuation cost'] = 'perp', ['avatar perpetuation'] = 'perp',
     ['blood pact ability delay'] = 'bpdelay', ['blood pact ab. del. ii'] = 'bpdelay2', ['blood pact delay ii'] = 'bpdelay2',
@@ -108,6 +109,7 @@ M.MOD = {
     [80] = 'sk_h2h', [81] = 'sk_dagger', [82] = 'sk_sword', [83] = 'sk_gsword', [84] = 'sk_axe', [85] = 'sk_gaxe',
     [86] = 'sk_scythe', [87] = 'sk_polearm', [88] = 'sk_katana', [89] = 'sk_gkatana', [90] = 'sk_club', [91] = 'sk_staff',
     [104] = 'archery', [105] = 'marksmanship', [106] = 'throwing', [346] = 'perp',
+    [539] = 'stoneskin',
 };
 -- Server stores these in 1/100 % units
 M.DIV = { haste = 100, dt = 100, pdt = 100, mdt = 100, bdt = 100 };
@@ -133,6 +135,7 @@ M.LABELS = {
     sk_scythe = 'Scythe Skill', sk_polearm = 'Polearm Skill', sk_katana = 'Katana Skill', sk_gkatana = 'G.Katana Skill',
     sk_club = 'Club Skill', sk_staff = 'Staff Skill', sk_h2h = 'H2H Skill',
     fencer = 'Fencer', combatskill = 'Combat Skill', archery = 'Archery', marksmanship = 'Marksmanship', throwing = 'Throwing', meditate = 'Meditate', berserk = 'Berserk', warcry = 'Warcry', sublimation = 'Sublimation', boost = 'Boost',
+    stoneskin = 'Stoneskin+',
 };
 
 function M.normalize(chunk)
