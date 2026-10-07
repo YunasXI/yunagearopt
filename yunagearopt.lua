@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '4.1';
+addon.version = '4.2';
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -589,7 +589,15 @@ local function weights_for(job_id, desc)
         for k, v in pairs(desc.base_weights or {}) do w[k] = v; end
         if desc.kind == 'tp' and dw_active(job_id) then w.dw = data.dual_wield_weight or 5; end
     end
-    return apply_acc_bias(w);
+    w = apply_acc_bias(w);
+    -- "Polearm skill +7" etc. count like Combat Skill, but only for the weapon types this job uses
+    if w.combatskill and w.combatskill > 0 and S and S.SKILL_KEY then
+        for _, sn in ipairs((data.job_weapons or {})[JOBS[job_id]] or {}) do
+            local k = S.SKILL_KEY[sn];
+            if k and w[k] == nil then w[k] = w.combatskill; end
+        end
+    end
+    return w;
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -996,6 +1004,15 @@ local function bis_for(job_id, desc)
             assign[slot] = { idx = -1, item = it, score = score_of(it.stats or {}, w), curated = true };
           end
         end
+        -- A piece you listed can't also be filled in automatically in another slot (no ring or earring twice)
+        do
+            local listed = {};
+            for slot, c in pairs(assign) do if c.curated then listed[name_key(c.item.name)] = slot; end end
+            for slot, c in pairs(assign) do
+                local at = listed[name_key(c.item.name)];
+                if not c.curated and at and at ~= slot then assign[slot] = nil; end
+            end
+        end
         -- Your explicit rules (data.lua: Fotia on multi-hit, STR rings, Boost gloves...) apply to the BiS view too
         local taken = {};
         for _, pname in ipairs(preferred_for(job_id, desc)) do
@@ -1050,6 +1067,17 @@ local function equip_set(name)
 end
 
 -- branches: { { cond = 'attr="value"', body = fn }, ... }; default: fn or nil
+-- Job abilities that wear their own set (data.ja_sets), limited to the sets this export contains
+local function ja_list(built)
+    local present = {};
+    for _, b in ipairs(built) do present[b.desc.name] = true; end
+    local list = {};
+    for _, p in ipairs(data.ja_sets or {}) do
+        if present[p[2]] then table.insert(list, p); end
+    end
+    return list;
+end
+
 local function emit_chain(out, ind, branches, default)
     for i, b in ipairs(branches) do
         local tag = (i == 1) and 'if' or 'elseif';
@@ -1244,6 +1272,12 @@ local function build_full_xml(job_id)
         if have.Movement then
             table.insert(o, i .. '<!-- Running: movement speed gear -->');
             emit_chain(o, i, { { cond = attr('p_ismoving', 'true'), body = equip_set('Movement') } }, nil);
+            if have.DesertBoots then
+                table.insert(o, i .. '<!-- Running in earth weather: Desert Boots -->');
+                emit_chain(o, i, { { cond = attr('p_ismoving', 'true'), body = function(o2, i2)
+                    emit_chain(o2, i2, { { cond = attr('e_weather', 'Earth*'), body = equip_set('DesertBoots') } }, nil);
+                end } }, nil);
+            end
         end
     end or nil);
     if have.DW then
@@ -1260,6 +1294,10 @@ local function build_full_xml(job_id)
         if have.Precast_Cure then table.insert(b, { cond = attr('ad_name', R.cure), body = equip_set('Precast_Cure') }); end
         if have.Precast_Song then table.insert(b, { cond = attr('ad_type', 'bardsong'), body = equip_set('Precast_Song') }); end
         emit_chain(out, '        ', b, have.Precast and equip_set('Precast') or nil);
+        if have.Breath and R.breath_spells then
+            add('        <!-- Spells that make the wyvern breathe: breath trigger piece on top -->');
+            emit_chain(out, '        ', { { cond = attr('ad_name', R.breath_spells), body = equip_set('Breath') } }, nil);
+        end
         add('    </premagic>');
         add('');
     end
@@ -1300,6 +1338,9 @@ local function build_full_xml(job_id)
         table.insert(m, { cond = attr('ad_skill', 'singing'), body = function(o, i)
             emit_chain(o, i, { { cond = attr('ad_name', R.song_debuff), body = equip_set(debuff) } }, equip_set(buff));
         end });
+    end
+    if have.Precast and (data.utsusemi_precast or {})[abbr] then
+        table.insert(m, { cond = attr('ad_name', 'Utsusemi*'), body = equip_set('Precast') });
     end
     if have.BlueMagic then table.insert(m, { cond = attr('ad_skill', 'bluemagic'), body = equip_set('BlueMagic') }); end
     if have.Geomancy then table.insert(m, { cond = attr('ad_skill', 'geomancy'), body = equip_set('Geomancy') }); end
@@ -1361,8 +1402,8 @@ local function build_full_xml(job_id)
     if have.Waltz then table.insert(ja, { cond = attr('ad_type', 'waltz'), body = equip_set('Waltz') }); end
     if have.QuickDraw then table.insert(ja, { cond = attr('ad_type', 'quickdraw'), body = equip_set('QuickDraw') }); end
     if have.BP_Delay then table.insert(ja, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BP_Delay') }); end
-    for _, ja_name in ipairs({ 'Meditate', 'Berserk', 'Warcry', 'Sublimation', 'Chakra', 'Boost' }) do
-        if have[ja_name] then table.insert(ja, { cond = attr('ad_name', ja_name), body = equip_set(ja_name) }); end
+    for _, p in ipairs(ja_list(built)) do
+        table.insert(ja, { cond = attr('ad_name', p[1]), body = equip_set(p[2]) });
     end
     for _, b in ipairs(built) do
         if b.desc.sp_ability then
@@ -1375,9 +1416,12 @@ local function build_full_xml(job_id)
     end
     if #ja > 0 then add('    <jobability>'); emit_chain(out, '        ', ja, nil); add('    </jobability>'); add(''); end
 
-    if have.BloodPact then
+    local pet_b = {};
+    if have.BloodPact then table.insert(pet_b, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BloodPact') }); end
+    if have.BreathPotency and R.pet_breath then table.insert(pet_b, { cond = attr('ad_name', R.pet_breath), body = equip_set('BreathPotency') }); end
+    if #pet_b > 0 then
         add('    <petskill>');
-        emit_chain(out, '        ', { { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BloodPact') } }, nil);
+        emit_chain(out, '        ', pet_b, nil);
         add('    </petskill>');
     end
 
@@ -1559,6 +1603,11 @@ local function build_gearswap(job_id)
     end
     add('    }');
     add('');
+    add('    -- Job abilities that wear their own set');
+    add('    ja_map = {');
+    for _, p in ipairs(ja_list(built)) do add(string.format('        [%q] = %q,', p[1], p[2])); end
+    add('    }');
+    add('');
     add('    -- 2-hour (SP ability) -> Summit set');
     add('    sp_map = {');
     for _, b in ipairs(built) do
@@ -1582,7 +1631,10 @@ local function build_gearswap(job_id)
     add('        ele_dot     = ' .. lua_list(wild_to_patterns(R.elemental_dot)) .. ',');
     add('        drain_aspir = ' .. lua_list(wild_to_patterns(R.drain_aspir)) .. ',');
     add('        song_debuff = ' .. lua_list(wild_to_patterns(R.song_debuff)) .. ',');
+    add('        breath = ' .. lua_list(wild_to_patterns(R.breath_spells)) .. ',');
+    add('        pet_breath = ' .. lua_list(wild_to_patterns(R.pet_breath)) .. ',');
     add('    }');
+    add('    utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true));
     add('');
     local ms_line = {};
     for _, b in ipairs(built) do
@@ -1645,6 +1697,7 @@ function idle_gear()
         end
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
         if Moving then eq('Movement') end
+        if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
     if DWOn then eq('DW') end
 end
@@ -1686,6 +1739,7 @@ function precast(spell)
         elseif spell.type == 'BardSong' and eq('Precast_Song') then
         else eq('Precast')
         end
+        if matches(spell.english, rules.breath) then eq('Breath') end
     elseif spell.action_type == 'Ranged Attack' then
         eq(ranged_set('Preshot'))
     elseif spell.type == 'CorsairRoll' or spell.english == 'Double-Up' then
@@ -1698,8 +1752,8 @@ function precast(spell)
         eq('BP_Delay')
     elseif sp_map[spell.english] then
         eq(sp_map[spell.english])
-    elseif spell.english == 'Meditate' or spell.english == 'Berserk' or spell.english == 'Warcry' or spell.english == 'Sublimation' or spell.english == 'Chakra' or spell.english == 'Boost' then
-        eq(spell.english)
+    elseif ja_map[spell.english] then
+        eq(ja_map[spell.english])
     end
 end
 
@@ -1707,6 +1761,7 @@ function midcast(spell)
     if spell.action_type == 'Ranged Attack' then eq(ranged_set('Midshot')) return end
     if spell.action_type ~= 'Magic' then return end
     local name, skill = spell.english, spell.skill
+    if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light')
     elseif name == 'Stoneskin' and eq('Stoneskin') then
@@ -1742,7 +1797,8 @@ end
 function aftercast(spell) idle_gear() end
 
 function pet_midcast(spell)
-    if spell.type == 'BloodPactRage' or spell.type == 'BloodPactWard' then eq('BloodPact') end
+    if spell.type == 'BloodPactRage' or spell.type == 'BloodPactWard' then eq('BloodPact')
+    elseif matches(spell.english, rules.pet_breath) then eq('BreathPotency') end
 end
 
 function pet_aftercast(spell) idle_gear() end
@@ -1901,6 +1957,11 @@ local function build_lac(job_id)
     add('-- RNG: the gun tells Preshot / Midshot apart from the bow versions');
     add('local gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil') .. ';');
     add('');
+    add('-- Job abilities that wear their own set');
+    add('local ja_map = {');
+    for _, p in ipairs(ja_list(built)) do add(string.format('    [%q] = %q,', p[1], p[2])); end
+    add('};');
+    add('');
     add('-- 2-hour (SP ability) -> Summit set');
     add('local sp_map = {');
     for _, b in ipairs(built) do
@@ -1914,7 +1975,10 @@ local function build_lac(job_id)
     add('    ele_dot     = ' .. lua_list(wild_to_patterns(R.elemental_dot)) .. ',');
     add('    drain_aspir = ' .. lua_list(wild_to_patterns(R.drain_aspir)) .. ',');
     add('    song_debuff = ' .. lua_list(wild_to_patterns(R.song_debuff)) .. ',');
+    add('    breath      = ' .. lua_list(wild_to_patterns(R.breath_spells)) .. ',');
+    add('    pet_breath  = ' .. lua_list(wild_to_patterns(R.pet_breath)) .. ',');
     add('};');
+    add('local utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true) .. ';');
     add('');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
@@ -2005,6 +2069,9 @@ profile.HandleDefault = function()
         eq('BloodPact');
         return;
     end
+    if petAction ~= nil and petAction.Name ~= nil and matches(petAction.Name, rules.pet_breath) and eq('BreathPotency') then
+        return;
+    end
     local player = gData.GetPlayer();
     if player.Status == 'Engaged' then
         if Mode == 'pdt' and eq('PDT') then
@@ -2027,6 +2094,7 @@ profile.HandleDefault = function()
         end
         if buff('Sublimation: Activated') then eq('Sublimation'); end
         if player.IsMoving and sets['Movement'] then eq('Movement'); end
+        if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
     if DWOn then eq('DW'); end
 end
@@ -2039,7 +2107,7 @@ profile.HandleAbility = function()
     elseif kind:find('Blood Pact') then eq('BP_Delay');
     elseif name:find('Waltz') then eq('Waltz');
     elseif sp_map[name] then eq(sp_map[name]);
-    elseif name == 'Meditate' or name == 'Berserk' or name == 'Warcry' or name == 'Sublimation' or name == 'Chakra' or name == 'Boost' then eq(name);
+    elseif ja_map[name] then eq(ja_map[name]);
     end
 end
 
@@ -2052,11 +2120,13 @@ profile.HandlePrecast = function()
     elseif spell.Type == 'Bard Song' and eq('Precast_Song') then
     else eq('Precast');
     end
+    if matches(spell.Name or '', rules.breath) then eq('Breath'); end
 end
 
 profile.HandleMidcast = function()
     local spell = gData.GetAction();
     local name, skill = spell.Name or '', spell.Skill or '';
+    if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return; end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light');
     elseif name == 'Stoneskin' and eq('Stoneskin') then
@@ -2225,10 +2295,12 @@ local CATEGORY_OF = {
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',
     Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
-    Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities',
+    Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities', Focus = 'Abilities',
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
+    Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', DragonBreaker = 'Abilities',
+    Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end

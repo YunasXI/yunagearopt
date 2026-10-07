@@ -67,6 +67,11 @@ Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so ke
   which is worn on top of your engaged gear (TP, Hybrid, PDT, MDT) while the buff is up and comes off when you disengage.
 - **BLU**: Physical / Magical / Debuff blue magic, Spectral Floe, Battery Charge and a **Refresh** idle set you switch on
   with `/refresh` (`//gs c refresh` in GearSwap, `/lac fwd refresh` in LAC). Melee sets keep your sword and shield after casting.
+- **DRG**: Jump / High Jump, Angon, Dragon Breaker, Ancient Circle, wyvern breath sets (a trigger piece on precast for
+  Dia / Poison / Foot Kick / Barfire, a potency piece while the wyvern breathes), a Haste precast set that also covers
+  Utsusemi, and Desert Boots while you run in earth weather.
+- **Jailer torques** (Love, Prudence, Justice, Hope, Fortitude, Temp., Faith) are scored with their weapon skill bonuses
+  for the weapon types your job uses.
 - **BLU / WAR dual-wield weapons**: type **`/dw`** to toggle your dual-wield weapons on top of whatever set is active
   (BLU: Undulant Black + Blurred Rod +1, WAR: Brilliance + Blurred Rod +1). Type it again to switch back.
   GearSwap also accepts `//gs c dw`, LAC `/lac fwd dw`.

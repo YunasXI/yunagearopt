@@ -16,6 +16,8 @@
                 snapshot rapid counter kick ma perp bpdelay bpdmg mbb
                 healing divine enhancing enfeebling elemental dark summoning ninjutsu
                 singing string wind blue geomancy handbell
+                sk_dagger sk_sword sk_gsword sk_axe sk_gaxe sk_scythe sk_polearm sk_katana sk_gkatana sk_club sk_staff sk_h2h  (weapon skill +N: counted
+                like Combat Skill, only for the weapon types the job uses in job_weapons)
     (curect, songct, sird, perp, bpdelay are stored as the amount reduced: higher = better)
     range = 'any' lets a set swap the range slot (e.g. Opprimo for Phantom Roll); ammo is then left alone.
     ranged = 'job' / 'Archery' / 'Marksmanship' puts the job's BiS ranged weapon (ranged_weapons) on that set.
@@ -49,7 +51,21 @@ return {
     -- Best in Slot reference: highest item level considered when building the BiS list.
     bis_level = 75,
 
-    exclude   = { 'Aesir Mantle', "Boneworker's Smock" },
+    -- Extra items that may appear in the BiS list even if they aren't in a reference set or in your bags.
+    bis_extra = { 'Love Torque', 'Prudence Torque', 'Justice Torque', 'Hope Torque', 'Fortitude Torque',
+                  'Temp. Torque', 'Faith Torque' },
+
+    -- Job abilities that put a set on: { ability name, set id }
+    ja_sets = {
+        { 'Meditate', 'Meditate' }, { 'Berserk', 'Berserk' }, { 'Warcry', 'Warcry' }, { 'Sublimation', 'Sublimation' },
+        { 'Chakra', 'Chakra' }, { 'Boost', 'Boost' }, { 'Focus', 'Focus' },
+        { 'Jump', 'Jump' }, { 'High Jump', 'HighJump' }, { 'Angon', 'Angon' }, { 'Ancient Circle', 'AncientCircle' },
+        { 'Dragon Breaker', 'DragonBreaker' },
+    },
+    -- Jobs whose Precast set (haste / fast cast) also covers Utsusemi while it is being cast
+    utsusemi_precast = { DRG = true },
+
+    exclude   = { 'Aesir Mantle', "Boneworker's Smock", 'Latria Sash', 'Ishvara Earring' },   -- Latria Sash / Ishvara Earring don't exist on this server
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
     -- Preferred gear: always used in these sets when you own it (and the job can wear it).
@@ -93,6 +109,23 @@ return {
         ['Bloodbead Gorget']  = { hp = 60, vit = 3, acc = 5, pdt = -2 },
         ['Inmicus Cuisses']   = { hp = 25, eva = -10, dt = -2, enmity = 3 },
         ['Oneiros Cluster']   = { haste = 1, att = -3 },
+        -- Soil Earring = the NQ Terra's Earring
+        ['Soil Earring']      = { pdt = -2 },
+        ['Loquac. Earring']   = { mp = 30, fc = 2 },
+        ['Loquacious Earring'] = { mp = 30, fc = 2 },
+        -- Level-scaled rings (2~5 by level): the value at the level cap (75)
+        ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
+        ['Sattva Ring']       = { hp = 15, vit = 5, agi = 5, enmity = 3 },
+        ['Tamas Ring']        = { int = 5, mnd = 5, mp = 15, enmity = -3 },
+        -- Jailer torques (CatsEyeXI): one stat +5 and two weapon skills +7
+        ['Love Torque']       = { dex = 5, sk_dagger = 7, sk_polearm = 7 },
+        ['Prudence Torque']   = { int = 5, sk_gsword = 7, sk_club = 7 },
+        ['Justice Torque']    = { str = 5, sk_scythe = 7, sk_gkatana = 7 },
+        ['Hope Torque']       = { agi = 5, sk_katana = 7, archery = 7 },
+        ['Fortitude Torque']  = { vit = 5, sk_sword = 7, sk_gaxe = 7 },
+        ['Temp. Torque']      = { chr = 5, sk_axe = 7, sk_staff = 7 },
+        ['Temperance Torque'] = { chr = 5, sk_axe = 7, sk_staff = 7 },
+        ['Faith Torque']      = { mnd = 5, sk_h2h = 7, marksmanship = 7 },
     },
 
     -- Stats to ignore on specific items (e.g. bonuses that only work in certain zones).
@@ -156,6 +189,8 @@ return {
         elemental_dot = 'Burn|Frost|Choke|Rasp|Shock|Drown',
         song_debuff   = '*Requiem*|*Lullaby*|*Elegy*|*Threnody*|*Finale*|*Nocturne*',
         drain_aspir   = 'Drain*|Aspir*',
+        breath_spells = 'Dia*|Poison*|Poisonga*|Foot Kick|Barfire*',     -- spells that make the wyvern use a breath
+        pet_breath    = 'Healing Breath*|Flame Breath|Frost Breath|Gust Breath|Hydro Breath|Lightning Breath|Sand Breath|Remove Breath',
     },
 
     -- Elemental obis: worn on the waist when the spell element matches weather, day or a storm buff
@@ -257,6 +292,8 @@ return {
                         fixed = { head = 'Genmei Kabuto', body = { 'Temple Cyclas +1', 'Tpl. Cyclas +1' },
                                   hands = { 'Mel. Gloves +1', 'Melee Gloves +1' }, neck = 'Kiryoku Nenju' },
                         fallback = { head = "Genbu's Kabuto" } },
+        -- MNK Focus: Temple Crown +1 enhances the Focus effect (long or shortened in-game name)
+        Focus       = { label = 'Focus', weights = {}, fixed = { head = { 'Temple Crown +1', 'Tpl. Crown +1' } } },
         Meditate    = { label = 'Meditate', weights = { meditate = 10 } },
         Berserk     = { label = 'Berserk', weights = { berserk = 10 } },
         Warcry      = { label = 'Warcry', weights = { warcry = 10 } },
@@ -287,6 +324,17 @@ return {
                       fixed = { range = 'Animator +1', ammo = 'Bolt Stone', head = 'Puppetry Taj +1', neck = "Tinker's Collar",
                                 ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Pantin Tobe +1',
                                 hands = 'Venom Vambraces', back = 'Pantin Cape', legs = "Prince's Slops", feet = 'Ryuga Sune-Ate' } },
+        -- Dragoon
+        Jump        = { label = 'Jump', weights = { acc = 1.5, att = 1, str = 0.8, dex = 0.5, crit = 2, da = 2, ta = 3, haste = 1.5, stp = 1 } },
+        HighJump    = { label = 'High Jump', weights = { acc = 1.5, att = 1, str = 0.8, dex = 0.5, crit = 2, da = 2, ta = 3, haste = 1.5, stp = 1 } },
+        Angon       = { label = 'Angon', weights = {}, fixed = { ammo = 'Angon' } },
+        DragonBreaker = { label = 'Dragon Breaker', weights = {}, fixed = { ammo = 'Fjoturangon' } },
+        AncientCircle = { label = 'Ancient Circle', weights = {}, fixed = { legs = 'Drachen Brais' } },
+        -- Worn on top of Precast when a spell makes the wyvern breathe / while it breathes
+        Breath        = { label = 'Wyvern breath trigger (precast)', weights = {}, fixed = { head = 'Drachen Armet' } },
+        BreathPotency = { label = 'Wyvern breath potency (pet skill)', weights = {}, fixed = { head = 'Wyrm Armet' } },
+        -- Worn while running in earth weather
+        DesertBoots   = { label = 'Desert Boots (running in earth weather)', weights = {}, fixed = { feet = 'Desert Boots' } },
         -- /dw toggle: your dual-wield weapons, worn on top of whatever set is active while the toggle is ON.
         -- Only the exact weapons listed here are ever used (never an auto-picked weapon).
         DW = { label = 'Dual wield weapons (/dw toggle)', weights = { dw = 1 },
@@ -302,7 +350,7 @@ return {
 
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
-        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost' },
+        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement' },
@@ -314,7 +362,7 @@ return {
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP' },
-        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
+        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },

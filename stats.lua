@@ -62,6 +62,10 @@ M.ALIAS = {
     ['treasure hunter'] = 'th', ['fencer'] = 'fencer',
     ['meditate'] = 'meditate', ['meditate duration'] = 'meditate', ['meditate effect duration'] = 'meditate',
     ['meditate eff. dur.'] = 'meditate', ['meditate eff dur'] = 'meditate',
+    ['dagger skill'] = 'sk_dagger', ['sword skill'] = 'sk_sword', ['great sword skill'] = 'sk_gsword', ['axe skill'] = 'sk_axe',
+    ['great axe skill'] = 'sk_gaxe', ['scythe skill'] = 'sk_scythe', ['polearm skill'] = 'sk_polearm', ['katana skill'] = 'sk_katana',
+    ['great katana skill'] = 'sk_gkatana', ['club skill'] = 'sk_club', ['staff skill'] = 'sk_staff',
+    ['hand-to-hand skill'] = 'sk_h2h', ['h-to-h skill'] = 'sk_h2h', ['hand to hand skill'] = 'sk_h2h',
     ['archery skill'] = 'archery', ['marksmanship skill'] = 'marksmanship', ['throwing skill'] = 'throwing',
     ['berserk'] = 'berserk', ['berserk duration'] = 'berserk', ['berserk effect duration'] = 'berserk',
     ['warcry'] = 'warcry', ['warcry duration'] = 'warcry', ['warcry effect duration'] = 'warcry',
@@ -73,6 +77,11 @@ M.ALIAS = {
     ['phantom roll'] = 'roll', ['phantom roll effect'] = 'roll', ['phantom roll duration'] = 'rolldur',
     ['phantom roll area of effect'] = 'rollaoe', ['phantom roll ability delay'] = 'rolldelay', ['phantom roll delay'] = 'rolldelay', ['p.roll delay'] = 'rolldelay',
 };
+
+-- Weapon type (as in data.job_weapons) -> its weapon skill stat key. Used to score "Polearm skill +7" etc. for the job's own weapons.
+M.SKILL_KEY = { ['Dagger'] = 'sk_dagger', ['Sword'] = 'sk_sword', ['Great Sword'] = 'sk_gsword', ['Axe'] = 'sk_axe', ['Great Axe'] = 'sk_gaxe',
+    ['Scythe'] = 'sk_scythe', ['Polearm'] = 'sk_polearm', ['Katana'] = 'sk_katana', ['Great Katana'] = 'sk_gkatana', ['Club'] = 'sk_club',
+    ['Staff'] = 'sk_staff', ['Hand-to-Hand'] = 'sk_h2h', ['Archery'] = 'archery', ['Marksmanship'] = 'marksmanship' };
 
 -- Stats stored as "amount reduced" (positive = better): cast times, delays, perpetuation, interruption
 M.ABS = { curect = true, songct = true, songrecast = true, bpdelay = true, bpdelay2 = true, perp = true, sird = true, rolldelay = true };
@@ -116,6 +125,9 @@ M.LABELS = {
     hmp = 'MP Heal', hhp = 'HP Heal', th = 'Treasure Hunter', snapshot = 'Snapshot', rapid = 'Rapid Shot',
     recycle = 'Recycle', waltz = 'Waltz%', perp = 'Perpetuation-', bpdelay = 'BP Delay-', bpdelay2 = 'BP Delay II-',
     bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
+    sk_dagger = 'Dagger Skill', sk_sword = 'Sword Skill', sk_gsword = 'G.Sword Skill', sk_axe = 'Axe Skill', sk_gaxe = 'G.Axe Skill',
+    sk_scythe = 'Scythe Skill', sk_polearm = 'Polearm Skill', sk_katana = 'Katana Skill', sk_gkatana = 'G.Katana Skill',
+    sk_club = 'Club Skill', sk_staff = 'Staff Skill', sk_h2h = 'H2H Skill',
     fencer = 'Fencer', combatskill = 'Combat Skill', archery = 'Archery', marksmanship = 'Marksmanship', throwing = 'Throwing', meditate = 'Meditate', berserk = 'Berserk', warcry = 'Warcry', sublimation = 'Sublimation', boost = 'Boost',
 };
 
