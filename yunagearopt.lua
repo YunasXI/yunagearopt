@@ -778,6 +778,11 @@ local function weights_for(job_id, desc)
             if k and w[k] == nil then w[k] = w.combatskill; end
         end
     end
+    -- Jobs with no MP of their own: MP / Refresh are worth nothing (no Royal Cloak, Wivre Hairpin on MNK).
+    -- Magic accuracy, MAB and Fast Cast stay: NIN Ninjutsu / Utsusemi and COR Quick Draw use them.
+    if in_list(data.no_mp_jobs, JOBS[job_id]) then
+        for _, k in ipairs({ 'mp', 'refresh', 'hmp', 'cmp' }) do w[k] = nil; end
+    end
     return w;
 end
 
@@ -2760,6 +2765,7 @@ local CATEGORY_OF = {
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', DragonBreaker = 'Abilities',
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
+    Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end

@@ -30,6 +30,8 @@ local DEF = { dt = -50, pdt = -50, mdt = -50 };
 
 return {
     dual_wield_jobs   = { 'NIN', 'DNC', 'THF' },
+    -- Jobs with no MP of their own: MP, Refresh, MP-healing and Conserve MP never count for them
+    no_mp_jobs        = { 'WAR', 'MNK', 'THF', 'BST', 'RNG', 'SAM', 'NIN', 'DRG', 'COR', 'PUP', 'DNC' },
     dual_wield_weight = 5,
     weapon_jobs       = { 'WHM', 'BLM', 'SMN', 'SCH', 'GEO', 'BRD', 'RDM', 'BLU' },
 
@@ -61,6 +63,12 @@ return {
         'Chakra', 'Boost', 'Focus',
         'Jump', { 'High Jump', 'HighJump' }, 'Angon', { 'Ancient Circle', 'AncientCircle' },
         { 'Dragon Breaker', 'DragonBreaker' },
+        -- DNC
+        { 'Quickstep', 'Steps' }, { 'Box Step', 'Steps' }, { 'Stutter Step', 'Steps' }, { 'Feather Step', 'Steps' },
+        { 'Drain Samba', 'Samba' }, { 'Drain Samba II', 'Samba' }, { 'Drain Samba III', 'Samba' },
+        { 'Aspir Samba', 'Samba' }, { 'Aspir Samba II', 'Samba' }, { 'Haste Samba', 'Samba' },
+        { 'Spectral Jig', 'Jig' }, { 'Chocobo Jig', 'Jig' }, { 'Chocobo Jig II', 'Jig' },
+        { 'Violent Flourish', 'ViolentFlourish' },
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
     },
@@ -79,7 +87,8 @@ return {
     phalanx_received = { set = 'PhalanxRcv', single = { 107 }, party = { 106 }, single_time = 5, party_time = 8 },
 
     -- Artifact +1 (Tier 3) and Relic +1 (Rank 10) max augments on CatsEyeXI (bg-wiki: CatsEyeXI_Systems/
-    -- Artifact_+1_Augments, CatsEyeXI_Content/Dynamis_Augments). Added to those pieces in the Best in Slot list.
+    -- Artifact_+1_Augments, CatsEyeXI_Content/Dynamis_Augments), and the Venture Battle upgrades (A3, bg-wiki:
+    -- CatsEyeXI_Content/Ventures). Added to those pieces in the Best in Slot list.
     max_augments = {
         -- Artifact +1
         ["Wzd. Petasos +1"] = { stats = { hmp = 3, refresh = 1 } },   -- BLM
@@ -319,6 +328,35 @@ return {
         ["Clr. Pantaln. +1"] = { stats = { cure = 6, dt = -4, enhancing = 10 } },   -- WHM
         ["Clr. Duckbills +1"] = { stats = { str = 5, mnd = 5, enhdur = 8, sk_club = 8 } },   -- WHM
         ["Cleric's Belt"] = { stats = { mp = 10, cure = 5, mdb = 3 } },   -- WHM
+        -- Ventures A3
+        ["Sinister Sickle"] = { stats = { int = 4 } },   -- BLM
+        ["Hibernal Ring"] = { stats = { dex = 4, acc = 4, mab = 2 } },   -- BLM/BRD/SCH/GEO
+        ["Beastly Girdle"] = { stats = { haste = 6 } },   -- BST/DRG/SMN/PUP
+        ["Vesper Earring"] = { stats = { chr = 3, eva = 5 } },   -- BST/DRG/SMN/PUP
+        ["Flamedancer Glaive"] = { stats = { str = 4, dex = 4, acc = 2 } },   -- DNC
+        ["Zhulong Bell"] = { stats = { att = 3, mab = 3 } },   -- GEO
+        ["Bagua Ring"] = { stats = { acc = 5 } },   -- GEO
+        ["Wyrt Gorget"] = { stats = { acc = 3, att = 3 } },   -- MNK/WHM/RDM/THF/PLD/BST/BRD/DRG/SMN/BLU/COR/PUP/DNC/GEO/RUN
+        ["Luminous Earring"] = { stats = { hp = 15, macc = 3, stp = 2 } },   -- MNK/RDM/THF/BST/BRD/NIN/BLU/COR/PUP/DNC/RUN
+        ["Cullet Gloves"] = { stats = { agi = 5, haste = 2, macc = 4 } },   -- MNK/THF/BRD/RNG/NIN/COR/DNC
+        ["Eldritch Sabatons"] = { stats = { int = 4, mnd = 4, mbb = 3, sk_sword = 3 } },   -- RDM/DRK/BLU/RUN
+        ["Kennan's Longbow"] = { stats = { enmity = -5, racc = 3 } },   -- RNG/SAM
+        ["Kyugutachi"] = { stats = { att = 12, ratt = 12 } },   -- SAM
+        ["Enlightenment"] = { stats = { cure = 3, eva = 3 } },   -- SCH
+        ["Liberty"] = { stats = { eva = 3, ratt = 3 } },   -- THF/RNG/NIN/COR
+        ["Hailstone Hose"] = { stats = { agi = 4, haste = 2, macc = 4 } },   -- THF/RNG/NIN/COR
+        ["Tigris Grip"] = { stats = { dex = 3, chr = 3 } },   -- WAR/MNK/WHM/BLM/RDM/THF/PLD/DRK/BST/BRD/RNG/SAM/NIN/DRG/SMN/BLU/COR/PUP/DNC/SCH/GEO/RUN
+        ["Slippery Cape"] = { stats = { dex = 3, agi = 3 } },   -- WAR/THF/RNG/SAM/NIN/DNC
+        ["Myrmeleo Ring"] = { stats = { enmity = 3, eva = 3 } },   -- WAR/MNK/WHM/BLM/RDM/THF/PLD/DRK/BST/BRD/RNG/SAM/NIN/DRG/SMN/BLU/COR/PUP/DNC/SCH/GEO/RUN
+        ["Chivalric Emblem"] = { stats = { mnd = 3, acc = 3 } },   -- WAR/PLD/RUN
+        ["Avarice"] = { stats = { str = 5, att = 12 } },   -- WAR/DRK/RUN
+        ["Sprightly Feather"] = { stats = { att = 4, eva = 4 } },   -- WAR/MNK/WHM/BLM/RDM/THF/PLD/DRK/BST/BRD/RNG/SAM/NIN/DRG/SMN/BLU/COR/PUP/DNC/SCH/GEO/RUN
+        ["Rikugame Nodowa"] = { stats = { hp = 30, dex = 2, acc = 8 } },   -- WAR/MNK/DRK/SAM/DRG/RUN
+        ["Emberpearl Earring"] = { stats = { hp = 15, att = 3, wsacc = 2 } },   -- WAR/MNK/WHM/RDM/PLD/DRK/BST/RNG/SAM/DRG/BLU/COR/GEO/RUN
+        ["Oathbreaker"] = { stats = { vit = 4, enmity = 3, refresh = 1 } },   -- WAR/PLD/NIN/RUN
+        ["Shaarat'kor"] = { stats = { enmity = 6 } },   -- WAR/PLD/DRK/RUN
+        ["Tellus Pendulum"] = { stats = { mp = 30, int = 4, mab = 2 } },   -- WHM/BLM/SMN/SCH/GEO
+        ["Manaflow Sash"] = { stats = { enmity = -6, haste = 6 } },   -- WHM/BLM/SMN/SCH/GEO
     },
 
     -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
@@ -409,7 +447,7 @@ return {
         ["Blessed Pumps +1"] = { job = 'WHM', stats = { str = 5 } },
     },
 
-    exclude   = { 'Aesir Mantle', "Boneworker's Smock", 'Latria Sash', 'Ishvara Earring' },   -- Latria Sash / Ishvara Earring don't exist on this server
+    exclude   = { 'Aesir Mantle', 'Bonewrk. Smock' },
     -- Items never used in one job's set (your own set and Best in Slot): job = { set id = { items } }
     set_exclude = {
         NIN = { TP = { 'Shukuyu Ring' } },
@@ -459,7 +497,7 @@ return {
         -- Fotia only helps every hit on fTP-replicating weaponskills; on CatsEyeXI those are only these four
         -- (bg-wiki: CatsEyeXI_Systems/Weaponskills). Elsewhere it is scored by its stats like any neck.
         { ws_names = { 'Resolution', 'Stardiver', 'Blade: Shun', 'Last Stand' }, items = { 'Fotia Gorget' } },
-        { ws = 'single', items = { 'Combatant Torque' } },
+        { ws = 'single', items = { "Combatant's Torque" } },
         -- NIN / THF TP: Ares's Ring (Shukuyu Ring is excluded there, see set_exclude)
         { sets = { 'TP' }, jobs = { 'NIN', 'THF' }, items = { "Ares's Ring" } },
         -- NIN weaponskill ammo (every other NIN set keeps Yoru Shuriken): DEX weaponskills / STR weaponskills
@@ -479,7 +517,6 @@ return {
         -- Soil Earring = the NQ Terra's Earring
         ['Soil Earring']      = { pdt = -2 },
         ['Loquac. Earring']   = { mp = 30, fc = 2 },
-        ['Loquacious Earring'] = { mp = 30, fc = 2 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
         ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
         ['Sattva Ring']       = { hp = 15, vit = 5, agi = 5, enmity = 3 },
@@ -491,14 +528,13 @@ return {
         ['Hope Torque']       = { agi = 5, sk_katana = 7, archery = 7 },
         ['Fortitude Torque']  = { vit = 5, sk_sword = 7, sk_gaxe = 7 },
         ['Temp. Torque']      = { chr = 5, sk_axe = 7, sk_staff = 7 },
-        ['Temperance Torque'] = { chr = 5, sk_axe = 7, sk_staff = 7 },
         ['Faith Torque']      = { mnd = 5, sk_h2h = 7, marksmanship = 7 },
     },
 
     -- Stats to ignore on specific items (e.g. bonuses that only work in certain zones).
     -- The rest of the item's stats still count. Use the stat keys listed at the top.
     stat_remove = {
-        ["Ares' Ring"] = { 'da' },     -- Double Attack +2% only in Lumoria
+        ["Ares's Ring"] = { 'da' },    -- Double Attack +2% only in Lumoria
     },
 
     -- GearSwap export: CatsEyeXI renamed some items in its custom game files, but Windower/GearSwap
@@ -635,7 +671,12 @@ return {
         -- Utility
         Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3 } },
         TH          = { label = 'Treasure Hunter', weights = { th = 50, acc = 0.5, stp = 1 } },
-        Waltz       = { label = 'Waltz potency', weights = { waltz = 10, chr = 1, vit = 1 } },
+        Waltz       = { label = 'Waltz potency', weights = { waltz = 10, chr = 1, vit = 1, waltzdelay = 3 } },
+        -- DNC abilities (worn when you use them)
+        Steps           = { label = 'Steps (accuracy)', weights = { stepacc = 3, acc = 2, stepfinish = 15, dex = 0.3 } },
+        Samba           = { label = 'Samba (duration)', weights = { samba = 3, sambap = 10 } },
+        Jig             = { label = 'Jig (duration)', weights = { jig = 10 } },
+        ViolentFlourish = { label = 'Violent Flourish', weights = { vfmacc = 3, macc = 2, acc = 1, chr = 0.5 } },
         Preshot     = { label = 'Ranged - Preshot', ranged = 'job', weights = { snapshot = 8, rapid = 6 } },
         Preshot_Gun = { label = 'Ranged - Preshot (gun)', ranged = 'Marksmanship', weights = { snapshot = 8, rapid = 6 } },
         Midshot     = { label = 'Ranged - Midshot', ranged = 'job', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
@@ -696,7 +737,7 @@ return {
         PetTank   = { label = 'Automaton - Tank (pet DT)', weights = { dt = -4, pdt = -4, hp = 0.05, vit = 0.5 },
                       fixed = { head = { 'Pantin Taj +1', 'Puppetry Taj +1' }, neck = "Shepherd's Chain",
                                 ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Apex Togi',
-                                hands = 'Pantin Dastanas +1', ring1 = 'Defending Ring +1', ring2 = { 'Titanium Band', 'Titanium Ring' },
+                                hands = 'Pantin Dastanas +1', ring1 = 'Defending Ring +1', ring2 = 'Titanium Band',
                                 back = { 'Oneiros Cappa', 'Pantin Cape' }, waist = 'Beastly Girdle', legs = "Enticer's Pants",
                                 feet = 'Pup. Babouches +1' } },
         PetRanged = { label = 'Automaton - Ranged', weights = { agi = 0.5, racc = 0.5, ratt = 0.5 }, pref_slots = { 'range', 'ammo' },
@@ -760,7 +801,7 @@ return {
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
-        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },

@@ -85,7 +85,8 @@ M.SKILL_KEY = { ['Dagger'] = 'sk_dagger', ['Sword'] = 'sk_sword', ['Great Sword'
     ['Staff'] = 'sk_staff', ['Hand-to-Hand'] = 'sk_h2h', ['Archery'] = 'archery', ['Marksmanship'] = 'marksmanship' };
 
 -- Stats stored as "amount reduced" (positive = better): cast times, delays, perpetuation, interruption
-M.ABS = { curect = true, songct = true, songrecast = true, bpdelay = true, bpdelay2 = true, perp = true, sird = true, rolldelay = true };
+M.ABS = { curect = true, songct = true, songrecast = true, bpdelay = true, bpdelay2 = true, perp = true, sird = true, rolldelay = true,
+          waltzdelay = true };
 
 -- Server (LandSandBoat) modifier id -> stat key, used to build augments.lua
 M.MOD = {
@@ -113,6 +114,9 @@ M.MOD = {
     -- PLD: Phalanx potency / Phalanx received, and the ability pieces (Valor gear)
     [301] = 'phalanx', [1182] = 'phalanxrcv', [837] = 'sentinel', [385] = 'shieldbash', [92] = 'rampart',
     [967] = 'cover', [965] = 'covermp',
+    -- DNC: Step accuracy, Samba / Jig duration, Waltz delay, Violent Flourish accuracy, extra finishing moves
+    [403] = 'stepacc', [490] = 'samba', [498] = 'sambap', [492] = 'jig', [497] = 'waltzdelay', [493] = 'vfmacc',
+    [494] = 'stepfinish',
 };
 -- Server stores these in 1/100 % units
 M.DIV = { haste = 100, dt = 100, pdt = 100, mdt = 100, bdt = 100 };
@@ -141,6 +145,8 @@ M.LABELS = {
     stoneskin = 'Stoneskin+',
     phalanx = 'Phalanx+', phalanxrcv = 'Phalanx Rcvd+', sentinel = 'Sentinel+', shieldbash = 'Shield Bash+',
     rampart = 'Rampart Dur.', cover = 'Cover Dur.', covermp = 'Cover->MP',
+    stepacc = 'Step Acc.', samba = 'Samba Dur.', sambap = 'Samba Dur.%', jig = 'Jig Dur.%', waltzdelay = 'Waltz Delay-',
+    vfmacc = 'V.Flourish Acc.', stepfinish = 'Step FM+',
 };
 
 function M.normalize(chunk)
