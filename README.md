@@ -26,6 +26,7 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo gs` (or `gearswap`) | Export the GearSwap Lua for your main job |
 | `/ygo equip [set]` | Equip the current (or named) set |
 | `/ygo compact` | Toggle compact mode |
+| `/ygo update` | Check GitHub for a new version now (and open the download page if there is one) |
 | `/ygo notice` | Show the notice again |
 | `/ygo reload` | Reload data files |
 | `/ygo debug <item>` | Dump how an owned item was parsed |

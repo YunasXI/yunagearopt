@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '4.2';
+addon.version = '1.1.3';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -31,6 +31,27 @@ do
 end
 local chat     = require('chat');
 local settings = require('settings');
+local ffi      = require('ffi');
+local d3d      = require('d3d8');
+
+-- Item icons straight from the game files, loaded once per item id (false = no icon)
+local icons = {};
+local function item_icon(id)
+    if id == nil or id == 0 or id == 65535 then return nil; end
+    if icons[id] ~= nil then return icons[id] or nil; end
+    icons[id] = false;
+    pcall(function()
+        local item = AshitaCore:GetResourceManager():GetItemById(id);
+        if item == nil or item.Bitmap == nil or (item.ImageSize or 0) == 0 then return; end
+        local ptr = ffi.new('IDirect3DTexture8*[1]');
+        if ffi.C.D3DXCreateTextureFromFileInMemoryEx(d3d.get_device(), item.Bitmap, item.ImageSize, 0xFFFFFFFF, 0xFFFFFFFF, 1, 0,
+                ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED, ffi.C.D3DX_DEFAULT, ffi.C.D3DX_DEFAULT, 0xFF000000, nil, nil, ptr) == ffi.C.S_OK then
+            local tex = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', ptr[0]));
+            icons[id] = { tex = tex, ptr = tonumber(ffi.cast('uint32_t', tex)) };
+        end
+    end);
+    return icons[id] or nil;
+end
 
 ----------------------------------------------------------------------------------------------------
 -- Constants
@@ -110,7 +131,7 @@ local C = {
 ----------------------------------------------------------------------------------------------------
 -- State
 ----------------------------------------------------------------------------------------------------
-local defaults = T{ acc_bias = 1.0, ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, excluded = T{} };
+local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', excluded = T{} };
 local s = settings.load(defaults);
 
 local S, data, AUG = nil, nil, {};
@@ -144,6 +165,62 @@ local ui = {
 ----------------------------------------------------------------------------------------------------
 local function msg(text)
     print(chat.header(addon.name):append(chat.message(text)));
+end
+
+----------------------------------------------------------------------------------------------------
+-- Update notice: compares this version with the latest GitHub release (asked at most every 6 hours)
+----------------------------------------------------------------------------------------------------
+local REPO = 'YunasXI/yunagearopt';
+local RELEASES_URL = 'https://github.com/' .. REPO .. '/releases/latest';
+local update = { latest = nil, newer = false };
+
+local function version_parts(v)
+    local a, b, c = tostring(v or ''):match('^v?(%d+)%.(%d+)%.?(%d*)');
+    if a == nil then return nil; end
+    return { tonumber(a), tonumber(b), tonumber(c) or 0 };
+end
+
+local function is_newer(latest, current)
+    local l, c = version_parts(latest), version_parts(current);
+    if l == nil or c == nil then return false; end
+    for i = 1, 3 do
+        if l[i] ~= c[i] then return l[i] > c[i]; end
+    end
+    return false;
+end
+
+-- force = true asks GitHub now (/ygo update); otherwise a recent answer is reused so loading stays fast
+local function check_for_update(force)
+    local now = os.time();
+    if force or s.latest_version == '' or now - (s.update_checked or 0) > 6 * 3600 then
+        pcall(function()
+            local http, ltn12 = require('socket.http'), require('socket.ltn12');
+            local chunks, old_timeout = {}, http.TIMEOUT;
+            http.TIMEOUT = 4;
+            local ok, res, code = pcall(http.request, {
+                url = 'https://api.github.com/repos/' .. REPO .. '/releases/latest',
+                headers = { ['User-Agent'] = 'yunagearopt', ['Accept'] = 'application/vnd.github+json' },
+                sink = ltn12.sink.table(chunks),
+            });
+            http.TIMEOUT = old_timeout;
+            if ok and res and tonumber(code) == 200 then
+                local tag = table.concat(chunks):match('"tag_name"%s*:%s*"([^"]+)"');
+                if tag then
+                    s.latest_version, s.update_checked = tag, now;
+                    settings.save();
+                end
+            end
+        end);
+    end
+    update.latest = s.latest_version ~= '' and s.latest_version or nil;
+    update.newer = is_newer(update.latest, addon.version);
+    if update.newer then
+        msg(string.format('New version %s is available (you have %s). Click UPDATE in the window or type /ygo update.',
+            update.latest, addon.version));
+    elseif force then
+        msg(update.latest and string.format('You are up to date (version %s).', addon.version)
+            or 'Could not reach GitHub to check for updates. Try again later.');
+    end
 end
 
 local function base_path()
@@ -490,13 +567,6 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Set descriptors per job
 ----------------------------------------------------------------------------------------------------
-local function apply_acc_bias(w)
-    for _, k in ipairs({ 'acc', 'racc', 'macc', 'wsacc', 'combatskill' }) do
-        if w[k] then w[k] = w[k] * s.acc_bias; end
-    end
-    return w;
-end
-
 local function ws_weights(ws)
     local w, hits, kind = {}, ws.hits or 1, ws.kind or 'physical';
     local function add(k, v) w[k] = (w[k] or 0) + v; end
@@ -610,7 +680,6 @@ local function weights_for(job_id, desc)
         for k, v in pairs(desc.base_weights or {}) do w[k] = v; end
         if desc.kind == 'tp' and dw_active(job_id) then w.dw = data.dual_wield_weight or 5; end
     end
-    w = apply_acc_bias(w);
     -- "Polearm skill +7" etc. count like Combat Skill, but only for the weapon types this job uses
     if w.combatskill and w.combatskill > 0 and S and S.SKILL_KEY then
         for _, sn in ipairs((data.job_weapons or {})[JOBS[job_id]] or {}) do
@@ -999,7 +1068,7 @@ local function bis_for(job_id, desc)
         curated = merged;
     end
     if not bis.done and curated == nil then return nil; end
-    local key = JOBS[job_id] .. '|' .. desc.id .. '|' .. tostring(s.acc_bias) .. '|' .. tostring(dw_active(job_id)) .. '|' .. ui.last_scan;
+    local key = JOBS[job_id] .. '|' .. desc.id .. '|' .. tostring(dw_active(job_id)) .. '|' .. ui.last_scan;
     local hit = bis.cache[key];
     if hit == nil then
         -- Every item in the game (base stats) + your own pieces (with their augments):
@@ -2373,13 +2442,6 @@ local function ghost_button(label, size)
     return clicked;
 end
 
-local function caption(title)
-    imgui.Spacing();
-    imgui.SetWindowFontScale(0.92);
-    imgui.TextColored(C.gold_dim, title);
-    imgui.SetWindowFontScale(1.0);
-end
-
 local function title_text(text, scale, color)
     imgui.SetWindowFontScale(scale);
     imgui.TextColored(color or C.text, text);
@@ -2502,26 +2564,133 @@ local function text_w(text)
 end
 local function btn_w(text) return math.floor(text_w(text) + 26); end
 
+local function u32(c) return imgui.GetColorU32(c); end
+
+-- Frame around the current card in its tier color. Best-in-Slot level pieces also get a soft inner glow.
+local function tier_frame(col, glow)
+    local dl = imgui.GetWindowDrawList();
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    -- A child window clips its left/right padding, which cut the frame down to two loose lines: draw on the full card
+    dl:PushClipRect({ x, y }, { x + w, y + h }, false);
+    if glow then
+        local alpha = { 0.30, 0.18, 0.10, 0.05 };
+        for i = 1, 4 do
+            dl:AddRect({ x + i, y + i }, { x + w - i, y + h - i }, u32({ col[1], col[2], col[3], alpha[i] }), 9, 0, 2);
+        end
+    end
+    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], glow and 0.95 or 0.45 }), 9, 0,
+        glow and 2 or 1);
+    dl:PopClipRect();
+end
+
+-- Item icon in a dark rounded tile with a tier-colored edge (empty tile when there is no item)
+local ICON = 36;
+local function slot_icon(item, col)
+    local dl = imgui.GetWindowDrawList();
+    local x, y = imgui.GetCursorScreenPos();
+    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0.03, 0.035, 0.05, 1 }), 6);
+    local ic = item and item_icon(item.id);
+    if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + ICON - 2, y + ICON - 2 }); end
+    dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], item and 0.7 or 0.2 }), 6, 0, 1);
+    imgui.Dummy({ ICON, ICON });
+end
+
+-- Horizontal gradient: thin vertical strips blended from color a (left) to color b (right)
+local function hgradient(dl, x1, y1, x2, y2, a, b, steps)
+    steps = steps or 40;
+    local w = (x2 - x1) / steps;
+    for i = 0, steps - 1 do
+        local t = i / (steps - 1);
+        local c = { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t, a[4] + (b[4] - a[4]) * t };
+        dl:AddRectFilled({ x1 + i * w, y1 }, { x1 + (i + 1) * w + 1, y2 }, u32(c));
+    end
+end
+
+-- Gold hairline that fades out to the right
+local function gold_line(dl, x1, y, x2, alpha)
+    local g = C.gold;
+    hgradient(dl, x1, y, x2, y + 1, { g[1], g[2], g[3], alpha or 0.75 }, { g[1], g[2], g[3], 0 }, 30);
+end
+
+-- Section title in gold with a hairline running to the right edge
+local function caption(title)
+    imgui.Spacing();
+    local x, y = imgui.GetCursorScreenPos();
+    imgui.SetWindowFontScale(0.92);
+    imgui.TextColored(C.gold_dim, title);
+    imgui.SetWindowFontScale(1.0);
+    local wx = imgui.GetWindowPos();
+    local x1 = x + text_w(title) * 0.92 + 10;
+    local x2 = wx + imgui.GetWindowWidth() - 14;
+    if x2 > x1 then gold_line(imgui.GetWindowDrawList(), x1, y + 8, x2, 0.35); end
+end
+
+-- Job buttons tinted by role, so the grid reads at a glance; the current job is solid gold
+local ROLE = { WAR = 'Melee', MNK = 'Melee', THF = 'Melee', DRK = 'Melee', BST = 'Melee', SAM = 'Melee', NIN = 'Melee',
+               DRG = 'Melee', DNC = 'Melee', BLU = 'Melee', PUP = 'Melee', PLD = 'Tank', RUN = 'Tank',
+               WHM = 'Healer', SCH = 'Healer', BLM = 'Mage', SMN = 'Mage', RDM = 'Mage', GEO = 'Mage',
+               BRD = 'Support', COR = 'Support', RNG = 'Ranged' };
+local ROLE_COL = { Tank = { 0.45, 0.65, 1.00, 1 }, Healer = { 0.45, 0.90, 0.60, 1 }, Melee = { 1.00, 0.50, 0.45, 1 },
+                   Mage = { 0.74, 0.58, 1.00, 1 }, Support = { 0.35, 0.85, 0.85, 1 }, Ranged = { 1.00, 0.76, 0.38, 1 } };
+local function job_button(i, abbr, size)
+    if i == ui.job then return accent_button(abbr .. '##j', size, true); end
+    local c = ROLE_COL[ROLE[abbr]] or C.muted;
+    imgui.PushStyleColor(ImGuiCol_Button, { c[1], c[2], c[3], 0.10 });
+    imgui.PushStyleColor(ImGuiCol_ButtonHovered, { c[1], c[2], c[3], 0.26 });
+    imgui.PushStyleColor(ImGuiCol_ButtonActive, { c[1], c[2], c[3], 0.36 });
+    imgui.PushStyleColor(ImGuiCol_Text, c);
+    local clicked = imgui.Button(abbr .. '##j', size);
+    imgui.PopStyleColor(4);
+    return clicked;
+end
+
 local function draw_header()
-    imgui.PushStyleColor(ImGuiCol_ChildBg, C.header);
-    if imgui.BeginChild('ygo_header', { 0, 66 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
-        imgui.SetCursorPos({ 18, 10 });
-        title_text('YUNA', 1.55, C.text);
+    imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
+    if imgui.BeginChild('ygo_header', { 0, 70 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+        local dl = imgui.GetWindowDrawList();
+        local x, y = imgui.GetWindowPos();
+        local w, h = imgui.GetWindowSize();
+        -- Warm gold glow on the left fading into the window color, a gold accent bar and a gold underline
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(C.header), 10);
+        hgradient(dl, x + 6, y, x + w * 0.65, y + h - 2, { 0.24, 0.18, 0.08, 0.85 }, { C.header[1], C.header[2], C.header[3], 0 }, 48);
+        dl:AddRectFilled({ x + 10, y + 14 }, { x + 14, y + h - 14 }, u32(C.gold), 2);
+        gold_line(dl, x + 10, y + h - 2, x + w * 0.8, 0.8);
+
+        imgui.SetCursorPos({ 26, 11 });
+        title_text('YUNA', 1.6, C.text);
         imgui.SameLine(0, 6);
-        title_text('GEAROPT', 1.55, C.gold);
-        imgui.SameLine(0, 12);
-        imgui.SetCursorPosY(19);
-        imgui.TextColored(C.muted, 'set builder  |  LegacyAC  /  LuAshitacast  /  GearSwap exporter');
-        imgui.SetCursorPos({ 18, 41 });
-        imgui.TextColored(C.muted, string.format('%d pieces   %d augmented   scanned %s   |   %s', #owned, ui.augmented,
-            ui.last_scan, player_name()));
+        title_text('GEAROPT', 1.6, C.gold);
+        imgui.SameLine(0, 14);
+        imgui.SetCursorPosY(20);
+        imgui.TextColored(C.gold_dim, 'SET BUILDER');
+        imgui.SameLine(0, 10);
+        imgui.TextColored(C.muted, 'LegacyAC  /  LuAshitacast  /  GearSwap');
+        imgui.SetCursorPos({ 26, 44 });
+        imgui.TextColored(C.muted, string.format('%s   |   %d pieces   %d augmented   |   scanned %s', player_name(), #owned,
+            ui.augmented, ui.last_scan));
         if not bis.done then
             imgui.SameLine();
             imgui.TextColored(C.gold_dim, string.format('   |   building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
         end
 
         local wwidth = imgui.GetWindowWidth();
-        imgui.SetCursorPos({ wwidth - 92, 18 });
+        if update.newer then
+            local label = 'UPDATE  ' .. update.latest;
+            local bw = btn_w(label);
+            imgui.SetCursorPos({ wwidth - 92 - 12 - bw, 20 });
+            imgui.PushStyleColor(ImGuiCol_Button, { C.green[1], C.green[2], C.green[3], 0.85 });
+            imgui.PushStyleColor(ImGuiCol_ButtonHovered, C.green);
+            imgui.PushStyleColor(ImGuiCol_ButtonActive, C.green);
+            imgui.PushStyleColor(ImGuiCol_Text, C.dark);
+            if imgui.Button(label .. '##ygo_update', { bw, 30 }) then ashita.misc.open_url(RELEASES_URL); end
+            imgui.PopStyleColor(4);
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(string.format('A new version is out: %s (you have %s).' .. '\n' .. 'Click to open the download page on GitHub.',
+                    update.latest, addon.version));
+            end
+        end
+        imgui.SetCursorPos({ wwidth - 92, 20 });
         if ghost_button('_##ygo_compact', { 32, 30 }) then s.compact = true; settings.save(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Lazy mode'); end
         imgui.SameLine(0, 4);
@@ -2532,17 +2701,16 @@ local function draw_header()
 end
 
 local function draw_sidebar()
-    imgui.PushStyleColor(ImGuiCol_ChildBg, { 0.08, 0.085, 0.11, 1 });
-    if imgui.BeginChild('ygo_side', { 236, -54 }, true) then
+    imgui.PushStyleColor(ImGuiCol_ChildBg, { 0.075, 0.080, 0.105, 1 });
+    if imgui.BeginChild('ygo_side', { 236, -60 }, true) then
         caption('JOB');
         for i, abbr in ipairs(JOBS) do
-            if accent_button(abbr .. '##j', { 48, 26 }, i == ui.job) then select_job(i); end
-            if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d', abbr, job_level(i))); end
+            if job_button(i, abbr, { 48, 28 }) then select_job(i); end
+            if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d   (%s)', abbr, job_level(i), ROLE[abbr] or '')); end
             if i % 4 ~= 0 then imgui.SameLine(0, 4); end
         end
 
         imgui.Spacing();
-        imgui.Separator();
         caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets));
         for _, cat in ipairs(CATEGORY_ORDER) do
             local first = true;
@@ -2560,8 +2728,15 @@ local function draw_sidebar()
                         first = false;
                     end
                     local label = (d.kind == 'ws' and d.ws and d.id ~= 'WS') and d.ws.name or d.label:gsub('^WS %- ', '');
-                    if imgui.Selectable('   ' .. label .. '##set' .. i, i == ui.set_idx) then
+                    local sel = i == ui.set_idx;
+                    local sx, sy = imgui.GetCursorScreenPos();
+                    if sel then imgui.PushStyleColor(ImGuiCol_Text, C.gold); end
+                    if imgui.Selectable('   ' .. label .. '##set' .. i, sel) then
                         ui.set_idx, ui.dirty = i, true;
+                    end
+                    if sel then
+                        imgui.PopStyleColor();
+                        imgui.GetWindowDrawList():AddRectFilled({ sx, sy + 1 }, { sx + 3, sy + imgui.GetTextLineHeight() - 1 }, u32(C.gold), 1);
                     end
                 end
             end
@@ -2573,37 +2748,21 @@ end
 
 local function draw_set_header()
     local d = ui.desc;
-    title_text(d.label, 1.3, C.text);
-    imgui.SameLine();
-    imgui.SetCursorPosY(imgui.GetCursorPosY() + 4);
-    imgui.TextColored(C.muted, '  XML set ');
-    imgui.SameLine(0, 2);
-    imgui.TextColored(C.gold, d.name);
-    imgui.SameLine();
-    local ratio = set_ratio();
-    local col = tier(ratio);
-    imgui.TextColored(C.muted, ui.show_bis and '   BiS score' or '   score');
-    imgui.SameLine(0, 6);
-    if ui.show_bis then
-        imgui.TextColored(TIER_ORANGE, string.format('%.0f', (ui.bis and ui.bis.total) or 0));
-    else
-        imgui.TextColored(col, string.format('%.0f', ui.total or 0));
-    end
+    -- The set name takes the set's quality color (no number): white -> blue -> yellow -> orange towards Best in Slot
+    local col = ui.show_bis and TIER_ORANGE or (set_ratio() and tier(set_ratio()) or C.text);
+    local hx, hy = imgui.GetCursorScreenPos();
+    title_text(d.label, 1.35, col);
     if imgui.IsItemHovered() then
-        local lines = {
-            'How good is this set?',
-            '',
-            string.format('Your set score:      %.0f', ui.total or 0),
-            ui.bis and string.format('Best in Slot score:  %.0f', ui.bis.total or 0) or 'Best in Slot score:  still being calculated',
-        };
-        if ratio then table.insert(lines, string.format('You are at %d%% of the best possible set.', math.floor(ratio * 100 + 0.5))); end
-        table.insert(lines, '');
-        table.insert(lines, 'The score adds up every useful stat on your gear for this set.');
-        table.insert(lines, 'BiS = the best gear for this job and set: every item in the game (Lv.' .. (data.bis_level or 75) .. ')');
-        table.insert(lines, 'plus your own augmented pieces when they are better.');
+        local lines = { 'The color of the set name shows how close it is to Best in Slot.' };
         score_legend(lines);
         imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
     end
+    imgui.SameLine();
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 5);
+    imgui.TextColored(C.muted, '  XML set ');
+    imgui.SameLine(0, 2);
+    imgui.TextColored(C.gold_dim, d.name);
+    gold_line(imgui.GetWindowDrawList(), hx, hy + 26, hx + imgui.GetWindowWidth() * 0.6, 0.45);
 
     imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
     if accent_button((ui.show_bis and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 24 }, ui.show_bis) then
@@ -2625,11 +2784,6 @@ local function draw_set_header()
 
     -- Options row
     imgui.Spacing();
-    local bias = { s.acc_bias };
-    imgui.PushItemWidth(150);
-    if imgui.SliderFloat('Accuracy##acc', bias, 0.0, 3.0, '%.1fx') then s.acc_bias, ui.dirty = bias[1], true; end
-    imgui.PopItemWidth();
-    imgui.SameLine(0, 16);
     local ign = { s.ignore_level };
     if imgui.Checkbox('Ignore level', ign) then s.ignore_level, ui.dirty = ign[1], true; end
     if d.weapons then
@@ -2681,7 +2835,7 @@ local function draw_picker(def)
             for i, c in ipairs(list) do
                 local bis_piece = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
                 local is_bis = bis_piece ~= nil and c.score > 0 and name_key(bis_piece.item.name) == name_key(c.item.name);
-                local label = string.format('%-26s %6.0f   %s%s##p%d', c.item.name, c.score, c.item.where,
+                local label = string.format('%-26s   %s%s##p%d', c.item.name, c.item.where,
                     c.item.augmented and '   AUG' or '', i);
                 local rc = c.score > 0 and tier(slot_ratio(def.key, c.score)) or C.muted;
                 imgui.PushStyleColor(ImGuiCol_Text, rc);
@@ -2703,43 +2857,75 @@ local function draw_picker(def)
     imgui.EndPopup();
 end
 
+-- Paper-doll cards: 4 x 4 like the in-game equipment screen, each with the item icon and a tier-colored frame
+local CARD_H = 112;
+local CARD_FLAGS = bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse);
+local DOLL = { 'main', 'sub', 'range', 'ammo', 'head', 'neck', 'ear1', 'ear2',
+               'body', 'hands', 'ring1', 'ring2', 'back', 'waist', 'legs', 'feet' };
+
+-- Slight lift when the mouse is over a card
+local function hover_shade()
+    if not imgui.IsWindowHovered() then return; end
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    imgui.GetWindowDrawList():AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.035 }), 9);
+end
+
 local function draw_bis_card(def)
     local b = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
+    local have = b and owns(b.item.name);
     imgui.PushStyleColor(ImGuiCol_ChildBg, b and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
-    imgui.BeginChild('bcard_' .. def.key, { 0, 82 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse));
+    imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
+    imgui.BeginChild('bcard_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    hover_shade();
     imgui.SetWindowFontScale(0.85);
+    slot_icon(b and b.item, b and TIER_ORANGE or C.muted);
+    imgui.SameLine(0, 8);
+    imgui.BeginGroup();
     imgui.TextColored(C.gold_dim, def.label:upper());
     imgui.SameLine();
     imgui.TextColored(TIER_ORANGE, 'BiS');
+    if b then imgui.TextColored(have and C.green or C.muted, have and 'owned' or 'not owned'); end
+    imgui.EndGroup();
     if b then
-        local have = owns(b.item.name);
         imgui.TextColored(have and TIER_ORANGE or C.text, b.item.name);
-        imgui.SameLine();
-        imgui.TextColored(have and C.green or C.muted, have and '  owned' or '  not owned');
-        local chips = stat_chips(b.item, ui.weights or {}, 3);
+        local chips = stat_chips(b.item, ui.weights or {}, 2);
+        if text_w(chips) * 0.85 > imgui.GetWindowWidth() - 24 then chips = stat_chips(b.item, ui.weights or {}, 1); end
         imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips ~= '' and chips or ' ');
     else
-        imgui.TextColored(C.muted, ui.bis and 'Nothing better for this slot' or 'BiS loading...');
+        imgui.TextColored(C.muted, ui.bis and 'Nothing better' or 'BiS loading...');
     end
+    if b then tier_frame(TIER_ORANGE, have); end
     imgui.EndChild();
     if b and imgui.IsItemHovered() and next(b.item.stats or {}) ~= nil then item_tooltip(b.item); end
-    imgui.PopStyleColor();
+    imgui.PopStyleColor(2);
 end
 
 local function draw_card(def, max_score)
     if ui.show_bis then draw_bis_card(def); return; end
     local c = ui.result and ui.result[def.key];
     local pin = (ui.pins[ui.ctx] or {})[def.key];
+    local r = c and slot_ratio(def.key, c.score);
+    local col = c and tier(r) or C.muted;
     imgui.PushStyleColor(ImGuiCol_ChildBg, c and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
-    imgui.BeginChild('card_' .. def.key, { 0, 82 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse));
+    imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
+    imgui.BeginChild('card_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    hover_shade();
     imgui.SetWindowFontScale(0.85);
+    slot_icon(c and c.item, col);
+    imgui.SameLine(0, 8);
+    imgui.BeginGroup();
     imgui.TextColored(C.gold_dim, def.label:upper());
+    -- Tags go on the bag line, which has room for them (next to the slot name they ran into the arrow)
+    if c then imgui.TextColored(EQUIP_BAGS[c.item.where] and C.muted or C.red, c.item.where); end
     if pin ~= nil then
-        imgui.SameLine(); imgui.TextColored(C.gold, 'PINNED');
-    elseif ui.forced and ui.forced[def.key] then
-        imgui.SameLine(); imgui.TextColored(C.green, 'PREFERRED');
+        imgui.SameLine(); imgui.TextColored(C.gold, 'PIN');
+    elseif c and ui.forced and ui.forced[def.key] then
+        imgui.SameLine(); imgui.TextColored(C.green, 'PREF');
     end
     if c and c.item.augmented then imgui.SameLine(); imgui.TextColored(C.aug, 'AUG'); end
+    imgui.EndGroup();
+    -- Outside the group: inside one, SameLine's offset counts from the group's left edge and the arrow ends up off the card
     imgui.SameLine(imgui.GetWindowWidth() - 34);
     if imgui.ArrowButton('##arrow_' .. def.key, ImGuiDir_Down) then imgui.OpenPopup('pick_' .. def.key); end
     if imgui.IsItemHovered() then imgui.SetTooltip('Choose a different piece'); end
@@ -2747,19 +2933,36 @@ local function draw_card(def, max_score)
 
     if c then
         imgui.Text(c.item.name);
-        imgui.SameLine();
-        imgui.TextColored(EQUIP_BAGS[c.item.where] and C.muted or C.red, '  ' .. c.item.where);
-        imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, stat_chips(c.item, ui.weights or {}, 3));
-        local r = slot_ratio(def.key, c.score);
-        imgui.PushStyleColor(ImGuiCol_PlotHistogram, (tier(r)));
+        -- Two stats when they fit on the card, otherwise only the most important one
+        local chips = stat_chips(c.item, ui.weights or {}, 2);
+        if text_w(chips) * 0.85 > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
+        imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips);
+        imgui.PushStyleColor(ImGuiCol_PlotHistogram, col);
         imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 3 }, '');
         imgui.PopStyleColor();
+        tier_frame(col, r ~= nil and r >= 0.95);
     else
-        imgui.TextColored(C.muted, pin == false and 'Left empty (no swap)' or 'No useful item found');
+        imgui.TextColored(C.muted, pin == false and 'Left empty' or 'Nothing useful');
     end
     imgui.EndChild();
     if c and imgui.IsItemHovered() and not imgui.IsPopupOpen('pick_' .. def.key) then item_tooltip(c.item); end
-    imgui.PopStyleColor();
+    imgui.PopStyleColor(2);
+end
+
+-- A slot this set doesn't swap (e.g. weapons when weapon swaps are off): a dim placeholder keeps the doll shape
+local function draw_unused(def)
+    imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.25 });
+    imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
+    imgui.BeginChild('unused_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    imgui.SetWindowFontScale(0.85);
+    slot_icon(nil, C.muted);
+    imgui.SameLine(0, 8);
+    imgui.BeginGroup();
+    imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.6 }, def.label:upper());
+    imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.6 }, 'not swapped');
+    imgui.EndGroup();
+    imgui.EndChild();
+    imgui.PopStyleColor(2);
 end
 
 local function draw_totals()
@@ -2795,7 +2998,7 @@ local function draw_totals()
 end
 
 local function draw_content()
-    if imgui.BeginChild('ygo_content', { 0, -54 }, false) then
+    if imgui.BeginChild('ygo_content', { 0, -60 }, false) then
         if ui.desc == nil then
             imgui.TextColored(C.muted, 'No sets defined for this job in data.lua.');
         else
@@ -2818,10 +3021,13 @@ local function draw_content()
             else
                 local max_score = 0;
                 for _, c in pairs(ui.result or {}) do max_score = math.max(max_score, c.score); end
-                if imgui.BeginTable('ygo_cards', 2, ImGuiTableFlags_SizingStretchSame) then
-                    for _, def in ipairs(active_slots(ui.desc)) do
+                local active, by_key = {}, {};
+                for _, def in ipairs(SLOTS) do by_key[def.key] = def; end
+                for _, def in ipairs(active_slots(ui.desc)) do active[def.key] = def; end
+                if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
+                    for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();
-                        draw_card(def, max_score);
+                        if active[key] then draw_card(active[key], max_score); else draw_unused(by_key[key]); end
                     end
                     imgui.EndTable();
                 end
@@ -2841,8 +3047,15 @@ local function copy_current_set()
 end
 
 local function draw_footer()
-    imgui.Separator();
-    imgui.Spacing();
+    local dl = imgui.GetWindowDrawList();
+    local wx = imgui.GetWindowPos();
+    local _, y = imgui.GetCursorScreenPos();
+    local w = imgui.GetWindowWidth();
+    y = y + 4;
+    dl:AddRectFilled({ wx + 10, y }, { wx + w - 10, y + 48 }, u32({ 0.085, 0.092, 0.125, 1 }), 10);
+    gold_line(dl, wx + 10, y, wx + w * 0.75, 0.6);
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 11);
+    imgui.SetCursorPosX(imgui.GetCursorPosX() + 8);
     if imgui.Button('Rescan', { 80, 34 }) then msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented)); end
     imgui.SameLine();
     if imgui.Button('Copy set', { 90, 34 }) then copy_current_set(); end
@@ -2868,8 +3081,8 @@ local function draw_footer()
 end
 
 local function draw_full()
-    imgui.SetNextWindowSize({ 920, 860 }, ImGuiCond_FirstUseEver);
-    imgui.SetNextWindowSizeConstraints({ 760, 520 }, { 4000, 4000 });
+    imgui.SetNextWindowSize({ 1120, 860 }, ImGuiCond_FirstUseEver);
+    imgui.SetNextWindowSizeConstraints({ 980, 600 }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
         draw_header();
         imgui.Spacing();
@@ -2960,11 +3173,11 @@ local function draw_lazy()
         imgui.PopStyleColor();
 
         do
+            -- Set quality as a color bar only (no number)
             local ratio = set_ratio();
-            local col = tier(ratio);
-            imgui.TextColored(C.muted, 'score');
-            imgui.SameLine(0, 6);
-            imgui.TextColored(col, string.format('%.0f', ui.total or 0));
+            imgui.PushStyleColor(ImGuiCol_PlotHistogram, tier(ratio));
+            imgui.ProgressBar(ratio and math.min(1, ratio) or 0, { -1, 4 }, '');
+            imgui.PopStyleColor();
             if imgui.IsItemHovered() then
                 local lines = { 'Your set compared with the best gear in the game for this set.' };
                 score_legend(lines);
@@ -3048,7 +3261,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
     if e ~= nil then s = e; ui.dirty = true; end
 end);
 
-ashita.events.register('load', 'ygo_load', function() load_data(); end);
+ashita.events.register('load', 'ygo_load', function() load_data(); check_for_update(false); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
 ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); draw_ui(); end);
 
@@ -3100,6 +3313,9 @@ ashita.events.register('command', 'ygo_command', function(e)
         end
         recompute();
         equip_current_set();
+    elseif sub == 'update' then
+        check_for_update(true);
+        if update.newer then ashita.misc.open_url(RELEASES_URL); end
     elseif sub == 'reload' then
         base_cache = {};
         bis_reset();

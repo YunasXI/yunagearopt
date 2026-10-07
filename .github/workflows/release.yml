@@ -39,6 +39,8 @@ jobs:
         run: |
           mkdir -p dist/yunagearopt
           cp *.lua dist/yunagearopt/
+          # The addon compares this number with the latest release to show its update notice
+          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/yunagearopt.lua
           mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac dist/yunagearopt/lac
           cp gearswap/README.txt dist/yunagearopt/gearswap/
           cp legacyac/README.txt dist/yunagearopt/legacyac/
