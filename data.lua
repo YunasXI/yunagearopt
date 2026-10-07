@@ -57,13 +57,114 @@ return {
 
     -- Job abilities that put a set on: { ability name, set id }
     ja_sets = {
-        { 'Meditate', 'Meditate' }, { 'Berserk', 'Berserk' }, { 'Warcry', 'Warcry' }, { 'Sublimation', 'Sublimation' },
-        { 'Chakra', 'Chakra' }, { 'Boost', 'Boost' }, { 'Focus', 'Focus' },
-        { 'Jump', 'Jump' }, { 'High Jump', 'HighJump' }, { 'Angon', 'Angon' }, { 'Ancient Circle', 'AncientCircle' },
+        'Meditate', 'Berserk', 'Warcry', 'Sublimation',
+        'Chakra', 'Boost', 'Focus',
+        'Jump', { 'High Jump', 'HighJump' }, 'Angon', { 'Ancient Circle', 'AncientCircle' },
         { 'Dragon Breaker', 'DragonBreaker' },
+        'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
+        'Rampart', 'Cover',
     },
     -- Jobs whose Precast set (haste / fast cast) also covers Utsusemi while it is being cast
     utsusemi_precast = { DRG = true },
+
+    -- Spells that wear their own midcast set, checked before the usual magic-skill rules: { name (* = wildcard), set }
+    spell_sets = {
+        'Flash', 'Reprisal', { 'Phalanx*', 'Phalanx' },
+    },
+    -- Set put on first for every spell / every job ability, before that spell's or ability's own set (tanks)
+    midcast_base = { PLD = 'SIR' },
+    ability_base = { PLD = 'Enmity' },
+    -- Phalanx cast on you by someone else: wear the PhalanxRcv set for a few seconds (from phalanx.lua):
+    -- Phalanx II (107) aimed at you, or Phalanx (106) cast by a party member
+    phalanx_received = { set = 'PhalanxRcv', single = { 107 }, party = { 106 }, single_time = 5, party_time = 8 },
+
+    -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
+    -- (Tier 3, HQ only). Added to that piece's stats in the Best in Slot list, and only for its own job.
+    adept_augments = {
+        -- BLM
+        ["Genie Tiara"] = { job = 'BLM', stats = { int = 8, enfdur = 10, fc = 3, macc = 5 } },
+        ["Genie Weskit"] = { job = 'BLM', stats = { int = 6, cmp = 6, haste = 4, sk_staff = 15 } },
+        ["Genie Manillas"] = { job = 'BLM', stats = { int = 8, cmp = 6, mcrit = 8, occult = 30 } },
+        ["Genie Lappas"] = { job = 'BLM', stats = { enfdur = 10, haste = 5, macc = 5, sk_staff = 15 } },
+        ["Genie Huaraches"] = { job = 'BLM', stats = { mnd = 8, dark = 10, drain = 6, enhancing = 6 } },
+        -- BRD
+        ["Sheikh Turban"] = { job = 'BRD', stats = { hp = 20, vit = 5, cmp = 2, cure = 5 } },
+        ["Sheikh Manteel"] = { job = 'BRD', stats = { hp = 25, dex = 5, acc = 10, regen = 1 } },
+        ["Sheikh Gages"] = { job = 'BRD', stats = { hp = 20, haste = 3, sk_sword = 8, stp = 2 } },
+        ["Sheikh Seraweels"] = { job = 'BRD', stats = { hp = 25, haste = 5, pdt = -4, sb = 4 } },
+        ["Sheikh Crackows"] = { job = 'BRD', stats = { hp = 20, acc = 5, sird = 10 } },
+        -- BST
+        ["Stout Bonnet"] = { job = 'BST', stats = { mnd = 8, mab = 8, macc = 8, regen = 1, scb = 4 } },
+        ["Stout Jacket"] = { job = 'BST', stats = { cmp = 10, cure = 12, fc = 3 } },
+        ["Stout Wristbands"] = { job = 'BST', stats = { dex = 8, att = 8, ctp = 8 } },
+        ["Stout Kecks"] = { job = 'BST', stats = { dt = -3, refresh = 1 } },
+        ["Stout Gamashes"] = { job = 'BST', stats = { hp = 20, mp = 20, counter = 4, haste = 3 } },
+        -- DRG
+        ["Dragon Mask +1"] = { job = 'DRG', stats = { mp = 30, haste = 4, pdt = -4, th = 1 } },
+        ["Dragon Mail +1"] = { job = 'DRG', stats = { mp = 60, str = 8, dex = 8, acc = 15 } },
+        ["Dragon F. Gnt. +1"] = { job = 'DRG', stats = { mp = 40, haste = 4 } },
+        ["Dragon Cuisses +1"] = { job = 'DRG', stats = { mp = 50, cmp = 3, haste = 4 } },
+        ["Drg. Greaves +1"] = { job = 'DRG', stats = { mp = 40, counter = 4, haste = 3 } },
+        -- DRK
+        ["Onyx Sallet"] = { job = 'DRK', stats = { str = 6, scb = 2, sk_gsword = 5, stp = 5 } },
+        ["Plastron +1"] = { job = 'DRK', stats = { str = 3, ctp = 10, scb = 3, sk_scythe = 10 } },
+        ["Onyx Gadlings"] = { job = 'DRK', stats = { att = 5, ctp = 5, scb = 3, sk_gsword = 5 } },
+        ["Onyx Cuisses"] = { job = 'DRK', stats = { int = 4, mab = 8, scb = 3, sk_scythe = 8 } },
+        ["Onyx Sollerets"] = { job = 'DRK', stats = { int = 6, att = 5, ctp = 4, sk_scythe = 5 } },
+        -- GEO
+        ["Tempest Bonnet"] = { job = 'GEO', stats = { dt = -3, eva = 8, sb = 5 } },
+        ["Tempest Jacket"] = { job = 'GEO', stats = { dw = 3, mdt = -5, stp = 5 } },
+        ["Tempest Wrists"] = { job = 'GEO', stats = { mnd = 8, fencer = 3, sk_club = 8 } },
+        ["Tempest Kecks"] = { job = 'GEO', stats = { acc = 10, da = 3 } },
+        ["Tempest Gamashes"] = { job = 'GEO', stats = { haste = 2, sk_club = 10 } },
+        -- NIN
+        ["Yasha Jinpachi +1"] = { job = 'NIN', stats = { enmity = 3, eva = 10, haste = 5, sird = 4 } },
+        ["Yasha Samue +1"] = { job = 'NIN', stats = { int = 8, fc = 4, mab = 8, ninjutsu = 10 } },
+        ["Yasha Tekko +1"] = { job = 'NIN', stats = { int = 8, haste = 3, mbb = 6, ninjutsu = 8 } },
+        ["Yasha Hakama +1"] = { job = 'NIN', stats = { int = 8, enmity = 3, haste = 4, mab = 5 } },
+        ["Ysh. Sune-Ate +1"] = { job = 'NIN', stats = { eva = 8, haste = 3, mdt = -4, sird = 6 } },
+        -- PLD
+        ["King's Armet"] = { job = 'PLD', stats = { hp = 25, vit = 8, haste = 5, sird = 8 } },
+        ["King's Cuirass"] = { job = 'PLD', stats = { vit = 8, curercv = 4, fc = 4, sird = 10 } },
+        ["King's Gauntlets"] = { job = 'PLD', stats = { hp = 20, vit = 8, pdt = -3, regen = 3 } },
+        ["King's Cuisses"] = { job = 'PLD', stats = { hp = 30, def = 10, vit = 8, phalanxrcv = 3 } },
+        ["King's Sabatons"] = { job = 'PLD', stats = { hp = 20, def = 8, vit = 8, curect = 6 } },
+        -- RDM
+        ["Wise Cap +1"] = { job = 'RDM', stats = { haste = 5, sk_dagger = 6 } },
+        ["Chasuble +1"] = { job = 'RDM', stats = { str = 10, mnd = 10, acc = 8, att = 8, dw = 5, mdt = -4 } },
+        ["Wise Gloves +1"] = { job = 'RDM', stats = { str = 5, int = 5, ctp = 8, haste = 3, sk_sword = 6 } },
+        ["Wise Braconi +1"] = { job = 'RDM', stats = { acc = 8, att = 8, haste = 4, meva = 5, sb = 5, stp = 5 } },
+        ["Wise Pigaches +1"] = { job = 'RDM', stats = { str = 5, agi = 5, archery = 15, phalanxrcv = 2, stp = 4 } },
+        -- RUN
+        ["Dux Visor"] = { job = 'RUN', stats = { hp = 30, mp = 30, haste = 3, mdt = -4 } },
+        ["Dux Scale Mail"] = { job = 'RUN', stats = { hp = 50, mp = 50, acc = 10, haste = 3, pdt = -3 } },
+        ["Dux Finger Gauntlets"] = { job = 'RUN', stats = { hp = 30, dex = 8, mnd = 8, da = 3 } },
+        ["Dux Cuisses"] = { job = 'RUN', stats = { hp = 40, mp = 40, str = 8, acc = 10, att = 10 } },
+        ["Dux Greaves"] = { job = 'RUN', stats = { hp = 30, mnd = 8, enhdur = 10, sird = 15 } },
+        -- SAM
+        ["Hmn. Jinpachi +1"] = { job = 'SAM', stats = { att = 10, counter = 4, haste = 4, zanshin = 5 } },
+        ["Hmn. Domaru +1"] = { job = 'SAM', stats = { str = 6, att = 12, ctp = 6, scb = 3 } },
+        ["Hachiman Kote +1"] = { job = 'SAM', stats = { acc = 8, att = 10, mab = 8, tpb = 100 } },
+        ["Hmn. Hakama +1"] = { job = 'SAM', stats = { str = 6, agi = 8, ratt = 8, snapshot = 4 } },
+        ["Hmn. Sune-Ate +1"] = { job = 'SAM', stats = { str = 4, agi = 8, archery = 6, sk_polearm = 10 } },
+        -- THF
+        ["Dragon Cap +1"] = { job = 'THF', stats = { agi = 6, sb = 6, sk_dagger = 8, th = 1 } },
+        ["Dragon Harness +1"] = { job = 'THF', stats = { dex = 3, agi = 3, att = 12, scb = 4 } },
+        ["Dragon Mittens +1"] = { job = 'THF', stats = { dex = 8, att = 8, haste = 3, meva = 6 } },
+        ["Drn. Subligar +1"] = { job = 'THF', stats = { att = 10, eva = 8, haste = 3, waltz = 5 } },
+        ["Drn. Leggings +1"] = { job = 'THF', stats = { acc = 8, att = 8, crit = 3, sb = 6 } },
+        -- WAR
+        ["Unicorn Cap +1"] = { job = 'WAR', stats = { hp = 24, counter = 4, enmity = 4, haste = 4 } },
+        ["Ucn. Harness +1"] = { job = 'WAR', stats = { hp = 32, acc = 15, counter = 4, mdt = -4 } },
+        ["Ucn. Mittens +1"] = { job = 'WAR', stats = { hp = 26, haste = 3, mdt = -4 } },
+        ["Ucn. Subligar +1"] = { job = 'WAR', stats = { hp = 28, acc = 8, haste = 4, mdt = -4 } },
+        ["Ucn. Leggings +1"] = { job = 'WAR', stats = { hp = 20, counter = 4, mdt = -4 } },
+        -- WHM
+        ["Blessed Bliaut +1"] = { job = 'WHM', stats = { mp = 40, dex = 5, att = 10 } },
+        ["Blessed Mitts +1"] = { job = 'WHM', stats = { dex = 5, acc = 8, fc = 2 } },
+        ["Bls. Trousers +1"] = { job = 'WHM', stats = { str = 5, att = 10, da = 2 } },
+        ["Blessed Pumps +1"] = { job = 'WHM', stats = { str = 5 } },
+    },
 
     exclude   = { 'Aesir Mantle', "Boneworker's Smock", 'Latria Sash', 'Ishvara Earring' },   -- Latria Sash / Ishvara Earring don't exist on this server
     overrides = { ['Aesir Mantle'] = { da = 1 } },
@@ -77,8 +178,10 @@ return {
         { sets = { 'PhantomRoll' }, items = { "Luzaf's Ring" } },
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'SCH' }, items = { 'Coeus' } },
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'BLM', 'RDM', 'SCH', 'GEO', 'BLU' }, items = { 'Moepapa Pendant' } },
-        { sets = { 'Boost' }, jobs = { 'MNK' }, items = { 'Temple Gloves +1', 'Tpl. Gloves +1' } },
+        { sets = { 'Boost' }, jobs = { 'MNK' }, items = { 'Tpl. Gloves +1' } },
         { sets = { 'Meditate' },    items = { 'Pinnacle Dastanas' } },
+        -- PLD: King's Cuisses raise Phalanx received (no stat for it in the server data, so it's forced)
+        { sets = { 'PhalanxRcv', 'Phalanx' }, jobs = { 'PLD' }, items = { "King's Cuisses" } },
         -- SAM: bow in the range slot (swapping range doesn't reset TP). "TP Bonus" has no number in
         -- the description, so it's forced for weaponskills instead of scored.
         { ws = 'any', jobs = { 'SAM' }, items = { "Kennan's Longbow" } },
@@ -293,11 +396,11 @@ return {
         -- MNK Chakra: your BiS pieces. If you don't own Genmei Kabuto, Genbu's Kabuto is used instead.
         Chakra      = { label = 'Chakra', weights = { vit = 2, hp = 0.05 },
                         -- a list = any of these spellings (long or shortened in-game name)
-                        fixed = { head = 'Genmei Kabuto', body = { 'Temple Cyclas +1', 'Tpl. Cyclas +1' },
-                                  hands = { 'Mel. Gloves +1', 'Melee Gloves +1' }, neck = 'Kiryoku Nenju' },
+                        fixed = { head = 'Genmei Kabuto', body = 'Tpl. Cyclas +1',
+                                  hands = 'Mel. Gloves +1', neck = 'Kiryoku Nenju' },
                         fallback = { head = "Genbu's Kabuto" } },
         -- MNK Focus: Temple Crown +1 enhances the Focus effect (long or shortened in-game name)
-        Focus       = { label = 'Focus', weights = {}, fixed = { head = { 'Temple Crown +1', 'Tpl. Crown +1' } } },
+        Focus       = { label = 'Focus', weights = {}, fixed = { head = 'Tpl. Crown +1' } },
         Meditate    = { label = 'Meditate', weights = { meditate = 10 } },
         Berserk     = { label = 'Berserk', weights = { berserk = 10 } },
         Warcry      = { label = 'Warcry', weights = { warcry = 10 } },
@@ -323,7 +426,7 @@ return {
                                 ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Apex Togi',
                                 hands = 'Pantin Dastanas +1', ring1 = 'Defending Ring +1', ring2 = { 'Titanium Band', 'Titanium Ring' },
                                 back = { 'Oneiros Cappa', 'Pantin Cape' }, waist = 'Beastly Girdle', legs = "Enticer's Pants",
-                                feet = 'Puppetry Babouches +1' } },
+                                feet = 'Pup. Babouches +1' } },
         PetRanged = { label = 'Automaton - Ranged', weights = { agi = 0.5, racc = 0.5, ratt = 0.5 }, pref_slots = { 'range', 'ammo' },
                       fixed = { range = 'Animator +1', ammo = 'Bolt Stone', head = 'Puppetry Taj +1', neck = "Tinker's Collar",
                                 ear1 = 'Ghillie Earring +1', ear2 = 'Ghillie Earring +1', body = 'Pantin Tobe +1',
@@ -346,6 +449,18 @@ return {
                    BLU = { main = 'Undulant Black', sub = 'Blurred Rod +1' },
                    WAR = { main = 'Brilliance',     sub = 'Blurred Rod +1' },
                } },
+        -- PLD spells and abilities (sets from a PLD LuAshitacast profile)
+        SIR        = { label = 'Spell interruption (midcast base)', weights = { sird = 6, hp = 0.05, dt = -3, pdt = -3, mdt = -2, enmity = 1 } },
+        Flash      = { label = 'Flash', weights = { enmity = 6, hp = 0.05, sird = 1, dt = -2, pdt = -2 } },
+        Reprisal   = { label = 'Reprisal', weights = { enmity = 4, sird = 3, hp = 0.08, dt = -2, pdt = -2 } },
+        Phalanx    = { label = 'Phalanx (your own cast)', weights = { phalanx = 10, phalanxrcv = 10, enhancing = 1.5, sird = 1 } },
+        -- Only the Phalanx-received pieces, worn on top of your gear for a few seconds
+        PhalanxRcv = { label = 'Phalanx received (cast on you)', weights = { phalanxrcv = 10 } },
+        -- Ability pieces, worn on top of the Enmity set when you use the ability
+        Sentinel   = { label = 'Sentinel', weights = { sentinel = 10 } },
+        ShieldBash = { label = 'Shield Bash / Chivalry', weights = { shieldbash = 10 } },
+        Rampart    = { label = 'Rampart', weights = { rampart = 10 } },
+        Cover      = { label = 'Cover', weights = { cover = 10, covermp = 1 } },
         -- Not gear: the attachments for the ranged automaton setup, shown as a list in the set window
         Attachments = { label = 'Automaton attachments (ranged setup)',
                         info = { 'Tension Spring III', 'Magniplug', 'Magniplug II', 'Drum Magazine', 'Scope III', 'Repeater',
@@ -359,7 +474,9 @@ return {
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP' },
-        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Cure', 'Enhancing', 'Divine', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
+        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
+                'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
+                'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement' },

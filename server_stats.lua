@@ -5,6 +5,10 @@
     Generated file: re-create it instead of editing by hand. Fix single items in data.lua (stat_fix).
 ]]
 return {
+    [10656] = { def = 36, enmity = 6, hp = 25, mp = 25, vit = 7 }, -- Vlr. Coronet +2
+    [10676] = { covermp = 30, def = 72, dt = -4, enmity = 7, hp = 42 }, -- Vlr. Surcoat +2
+    [10696] = { def = 29, enmity = 6, hp = 22, mnd = 8, shieldbash = 12, vit = 8 }, -- Vlr. Gauntlets +2
+    [10736] = { def = 25, enmity = 4, hp = 25, mdt = -4, sentinel = 10 }, -- Vlr. Leggings +2
     [10754] = { agi = 5, marksmanship = 3, sk_dagger = 3 }, -- Moepapa Ring
     [10755] = { sk_gkatana = 3, sk_gsword = 3, str = 5 }, -- Moepapa Annulet
     [10757] = { mnd = 5, sk_club = 3, sk_sword = 3 }, -- Tjukurrpa Annulet
@@ -141,6 +145,7 @@ return {
     [12286] = { def = 19, enmity = -1, mnd = 2, mp = 10 }, -- Furia Clogs
     [12296] = { def = 24, eva = 10, pdt = -10 }, -- Genbus Shield
     [12434] = { def = 35, hp = 50, vit = 15 }, -- Genbus Kabuto
+    [12515] = { cover = 5, def = 24, enmity = 2, hp = 12, mnd = 3 }, -- Gallant Coronet
     [12519] = { def = 16, hp = 12, mnd = 5 }, -- Drachen Armet
     [12617] = { agi = 2, def = 43, regen = 1, str = -2, throwing = 10 }, -- War Shinobi Gi
     [12618] = { def = 43, enmity = 4, int = 3, sird = 10 }, -- Yasha Samue
@@ -253,7 +258,7 @@ return {
     [14489] = { dark = 5, def = 41, haste = 3, healing = 5, macc = 5 }, -- Nashira Manteel
     [14501] = { def = 45, hhp = 6, regen = 1, vit = 6 }, -- Mel. Cyclas +1
     [14502] = { def = 43, enmity = -3, mp = 29, refresh = 1 }, -- Clr. Bliaut +1
-    [14506] = { def = 56, dex = 3, enmity = 5, hp = 30 }, -- Vlr. Surcoat +1
+    [14506] = { covermp = 20, def = 56, dex = 3, enmity = 5, hp = 30 }, -- Vlr. Surcoat +1
     [14509] = { att = 20, def = 46, hp = 19 }, -- Brd. Jstcorps +1
     [14510] = { def = 46, dex = 5, enmity = -4, hp = 23, rapid = 5 }, -- Sct. Jerkin +1
     [14514] = { bpdelay = 4, def = 39, mp = 20 }, -- Smn. Doublet +1
@@ -310,6 +315,7 @@ return {
     [14905] = { acc = 4, def = 20, enmity = 3, haste = 3, hp = 20, mp = 20 }, -- Homam Manopolas
     [14910] = { att = 18, def = 16, sb = 5 }, -- Mel. Gloves +1
     [14913] = { def = 18, enhancing = 15, int = 5, mdb = 2, mp = 23 }, -- Dls. Gloves +1
+    [14915] = { def = 23, enmity = 4, hp = 16, shieldbash = 10, vit = 6 }, -- Vlr. Gauntlets +1
     [14918] = { def = 19, enmity = -4, eva = 5, hp = 16, wind = 5 }, -- Brd. Cuffs +1
     [14920] = { att = 12, def = 22, enmity = 1, hp = 20, meditate = 4 }, -- Sao. Kote +1
     [14923] = { bpdelay = 2, def = 16, mp = 30, summoning = 12 }, -- Smn. Bracers +1
@@ -333,21 +339,25 @@ return {
     [15041] = { def = 15, enfeebling = 7, enmity = -3, int = 4, mnd = 4, mp = 20 }, -- Argute Bracers +1
     [15042] = { def = 12, enmity = 2, str = 3 }, -- Gothic Gauntlets
     [15057] = { chr = 5, def = 18, enmity = -2, macc = 5, mnd = 5 }, -- Brictas Cuffs
-    [15070] = { def = 40, mdt = -25 }, -- Aegis
+    [15070] = { def = 40, mdt = -25, shieldbash = 200 }, -- Aegis
     [15075] = { def = 23, elemental = 10, enfeebling = 5, enmity = -2, mp = 23 }, -- Sorcerers Petas.
+    [15078] = { def = 28, enmity = 3, healing = 10, hp = 18, rampart = 15 }, -- Valor Coronet
     [15084] = { def = 22, hp = 20 }, -- Koga Hatsuburi
     [15085] = { def = 25, hp = 16, str = 4 }, -- Wyrm Armet
     [15087] = { att = 10, def = 50, enmity = 4, hp = 10 }, -- Warriors Lorica
     [15091] = { agi = 4, def = 45, fc = 10, healing = 10, mp = 24 }, -- Duelists Tabard
     [15092] = { agi = 4, crit = 1, def = 45, enmity = 3, hp = 22 }, -- Assassins Vest
+    [15093] = { covermp = 20, def = 55, dex = 3, enmity = 4, hp = 23 }, -- Valor Surcoat
     [15094] = { acc = 10, def = 49, hp = 20, mab = 10, mnd = 4 }, -- Abyss Cuirass
     [15099] = { acc = 12, att = 16, def = 46, racc = 8, ratt = 8 }, -- Koga Chainmail
     [15104] = { def = 16, enfeebling = 15, enmity = -3, mp = 20 }, -- Clerics Mitts
     [15107] = { chr = 5, def = 16, enmity = 3, hp = 7, th = 1 }, -- Assassins Armlets
+    [15108] = { def = 22, enmity = 3, hp = 16, shieldbash = 10, vit = 5 }, -- Valor Gauntlets
     [15111] = { def = 18, enmity = -3, eva = 5, hp = 16, wind = 3 }, -- Bards Cuffs
     [15114] = { def = 18 }, -- Koga Tekko
     [15115] = { acc = 5, agi = 3, def = 19, hp = 16 }, -- Wyrm Fng.Gnt.
     [15137] = { chr = 5, def = 15, enmity = 2, hp = 15, ta = 1 }, -- Assassins Pouln.
+    [15138] = { def = 19, enmity = 1, hp = 18, mnd = 3, sentinel = 10 }, -- Valor Leggings
     [15139] = { def = 17, enfeebling = 5, mp = 12 }, -- Abyss Sollerets
     [15140] = { def = 14, hp = 13, vit = 4 }, -- Monster Gaiters
     [15184] = { dex = 4, str = 3 }, -- Voyager Sallet
@@ -359,6 +369,7 @@ return {
     [15227] = { def = 21, enmity = -1, hmp = 1, mnd = 7, mp = 28 }, -- Hlr. Cap +1
     [15229] = { def = 24, elemental = 10, fc = 10, int = 5, mp = 25 }, -- Wlk. Chapeau +1
     [15230] = { def = 24, dex = 3, eva = 10, hp = 13, racc = 8 }, -- Rog. Bonnet +1
+    [15231] = { cover = 5, def = 28, enmity = 3, hp = 12, mnd = 6 }, -- Glt. Coronet +1
     [15236] = { def = 25, hp = 13, meditate = 4, mnd = 5, str = 5 }, -- Myn. Kabuto +1
     [15237] = { agi = 8, chr = 8, def = 22, eva = 8, hp = 10, ninjutsu = 5 }, -- Nin. Hatsuburi +1
     [15238] = { def = 25, hp = 12, mnd = 8, vit = 8 }, -- Drn. Armet +1
@@ -367,6 +378,7 @@ return {
     [15241] = { def = 19, enmity = -5, haste = 2, macc = 5, sird = 10 }, -- Nashira Turban
     [15245] = { def = 29, dex = 6, enmity = 1, warcry = 10 }, -- War. Mask +1
     [15249] = { def = 25, enfeebling = 15, hp = 14, mnd = 3, mp = 14, refresh = 1 }, -- Dls. Chapeau +1
+    [15251] = { def = 29, enmity = 4, healing = 10, hp = 18, mp = 18, rampart = 15 }, -- Vlr. Coronet +1
     [15254] = { chr = 6, def = 20, enmity = -4, hp = 13, singing = 5 }, -- Brd. Roundlet +1
     [15255] = { def = 25, enmity = -4, hp = 15, mnd = 5, recycle = 25 }, -- Sct. Beret +1
     [15256] = { acc = 12, def = 26, enmity = 1, hp = 20, racc = 7 }, -- Sao. Kabuto +1
@@ -387,6 +399,7 @@ return {
     [15393] = { def = 33, enmity = -6, haste = 4, mnd = 7, mp = 30 }, -- Bls. Trousers +1
     [15394] = { def = 37, stp = 4, wsacc = 7 }, -- Hmn. Hakama +1
     [15397] = { acc = 2, def = 33, enmity = -5, macc = 3, mp = 20 }, -- Wise Braconi +1
+    [15399] = { def = 39, enmity = 3, hp = 12, vit = 3 }, -- Kings Cuisses
     [15400] = { att = 14, def = 29, dt = 13, str = 4 }, -- Black Cuisses
     [15457] = { acc = 3, att = -5, haste = 4 }, -- Swift Belt
     [15458] = { att = 6, def = 6, haste = 6, sb = 6, sird = 6 }, -- Ninurtas Sash
@@ -451,6 +464,7 @@ return {
     [15667] = { def = 16, enhancing = 10, enmity = -2, mnd = 6, mp = 18 }, -- Clr. Duckbills +1
     [15668] = { cmp = 5, def = 15, enmity = -2, int = 3, mp = 18 }, -- Src. Sabots +1
     [15669] = { def = 16, mab = 5, mnd = 5, mp = 15 }, -- Dls. Boots +1
+    [15671] = { def = 20, enmity = 2, hp = 18, mnd = 4, sentinel = 10 }, -- Vlr. Leggings +1
     [15675] = { def = 17, enmity = -4, hp = 12, ratt = 12, vit = 5 }, -- Sct. Socks +1
     [15705] = { def = 14, hp = 22, mdb = 4, mp = 22 }, -- Ataractic Solea
     [15711] = { acc = 7, agi = 3, att = 7, def = 20, eva = -7, vit = 3 }, -- Ares Sollerets
@@ -472,7 +486,7 @@ return {
     [15807] = { macc = 4 }, -- Balrahns Ring
     [15810] = {  }, -- Luzafs Ring
     [15814] = { wind = 3 }, -- Nereid Ring
-    [15831] = {  }, -- Fenian Ring
+    [15831] = { shieldbash = 50 }, -- Fenian Ring
     [15839] = { blue = 2, ninjutsu = 2 }, -- Antica Ring
     [15859] = { dt = -3, mp = 30 }, -- Succor Ring
     [15872] = { def = 4, hmp = 3, mnd = 6, mp = 40 }, -- Clerics Belt
@@ -630,7 +644,7 @@ return {
     [20618] = { acc = 8, agi = 4, dex = 4, enmity = 4, eva = 5, hp = 15, ta = 1 }, -- Sandung
     [20632] = { acc = 12, agi = 8, racc = 12 }, -- Turbulence
     [20705] = { cure = 15, enmity = 5, mnd = 10 }, -- Brilliance
-    [20720] = { acc = 8, enmity = -4, hp = 15, mab = 4, macc = 4, mnd = 4, mp = 15, str = 4 }, -- Egeking
+    [20720] = { acc = 8, enmity = -4, hp = 15, mab = 4, macc = 4, mnd = 4, mp = 15, phalanxrcv = 3, str = 4 }, -- Egeking
     [20740] = { def = 15, dt = -5, enmity = 5, mnd = 3 }, -- Unbreakable
     [20872] = { sk_gaxe = 3, stp = 5, str = 3, vit = 3 }, -- Ixtab
     [21026] = { chr = 5 }, -- Flamedancer Glaive
@@ -663,6 +677,7 @@ return {
     [22211] = { int = 2, mab = 4 }, -- Norns Grip +1
     [22280] = { da = 2, str = 4, vit = 6 }, -- Furys Edge
     [22500] = {  }, -- Fjoturangon
+    [23046] = { cover = 5, cure = 7, def = 33, dt = -4, enmity = 4, haste = 4, hp = 20, mnd = 8 }, -- Gallant Coronet +2
     [23992] = { mp = 10 }, -- Spire Earring
     [23993] = { def = 3, hp = 15 }, -- Kiryoku Nenju
     [23998] = { def = 14, mp = 15 }, -- Eminence Robe

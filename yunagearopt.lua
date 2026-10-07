@@ -131,7 +131,7 @@ local C = {
 ----------------------------------------------------------------------------------------------------
 -- State
 ----------------------------------------------------------------------------------------------------
-local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', excluded = T{} };
+local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{} };
 local s = settings.load(defaults);
 
 local S, data, AUG = nil, nil, {};
@@ -266,6 +266,10 @@ local function load_data()
     for name, stats in pairs(d.overrides or {}) do ui.overrides[name:lower()] = stats; end
     ui.job_restrict, ui.set_restrict = {}, {};
     for name, jobs in pairs(d.job_restrict or {}) do ui.job_restrict[name:lower()] = jobs; end
+    -- Adept pieces count only for the job whose augment they carry
+    for name, a in pairs(d.adept_augments or {}) do
+        if a.job and ui.job_restrict[name:lower()] == nil then ui.job_restrict[name:lower()] = { a.job }; end
+    end
     for name, sets in pairs(d.set_restrict or {}) do ui.set_restrict[name:lower()] = sets; end
     ui.stat_fix = {};
     for name, fix in pairs(d.stat_fix or {}) do ui.stat_fix[name:lower()] = fix; end
@@ -528,7 +532,18 @@ local function build_bis_allowed()
         for _, fx in pairs(def.fixed_by_job or {}) do for _, n in pairs(fx) do add(n); end end
     end
     for _, n in ipairs(data.bis_extra or {}) do add(n); end
+    for n in pairs(data.adept_augments or {}) do add(n); end
     return set;
+end
+
+-- Full Adept augment for a piece (data.adept_augments), looked up by name like everything else
+local adept_by_key = nil;
+local function adept_augment(name)
+    if adept_by_key == nil then
+        adept_by_key = {};
+        for n, a in pairs(data.adept_augments or {}) do adept_by_key[name_key(n)] = a.stats; end
+    end
+    return adept_by_key[name_key(name)];
 end
 
 local function bis_step()
@@ -544,12 +559,17 @@ local function bis_step()
             local desc = r.Description and r.Description[1] or '';
             if name ~= '' and name ~= '.' and bis_allowed[name_key(name)] and not is_craft_gear(name, desc) then
                 local base = compute_base(id, name, desc);
-                if next(base) ~= nil then
+                -- Adept Reforging pieces are rated with their full (Tier 3) augment
+                local aug = adept_augment(name) or {};
+                local stats = {};
+                for k, v in pairs(base) do stats[k] = v; end
+                for k, v in pairs(aug) do stats[k] = (stats[k] or 0) + v; end
+                if next(stats) ~= nil then
                     table.insert(bis.pool, {
                         id = id, name = name, where = 'BiS', desc = desc,
                         slots = r.Slots, jobs = r.Jobs or 0, level = r.Level or 0,
                         skill = r.Skill or 0, shield = r.ShieldSize or 0,
-                        base = base, aug = {}, unknown = {}, augmented = false, stats = base,
+                        base = base, aug = aug, unknown = {}, augmented = next(aug) ~= nil, stats = stats,
                     });
                 end
             end
@@ -561,7 +581,7 @@ end
 
 local function bis_reset()
     bis.pool, bis.next_id, bis.done, bis.cache = {}, 1, false, {};
-    bis_allowed = nil;
+    bis_allowed, adept_by_key = nil, nil;
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -1168,6 +1188,21 @@ local function equip_set(name)
     return function(out, ind) table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name))); end;
 end
 
+-- Spells with their own midcast set (data.spell_sets), limited to the sets this export contains
+local function spell_set_list(have)
+    local list = {};
+    for _, p in ipairs(data.spell_sets or {}) do
+        if have[p[2]] then table.insert(list, p); end
+    end
+    return list;
+end
+
+-- A job's base set for spells / abilities (data.midcast_base, data.ability_base) if this export contains it
+local function job_base(map, abbr, have)
+    local name = (map or {})[abbr];
+    return (name and have[name]) and name or nil;
+end
+
 -- branches: { { cond = 'attr="value"', body = fn }, ... }; default: fn or nil
 -- Job abilities that wear their own set (data.ja_sets), limited to the sets this export contains
 local function ja_list(built)
@@ -1288,6 +1323,16 @@ local function build_full_xml(job_id)
     add('    <!-- Commands: /pdt /mdt /hybrid toggle defensive modes, /mb toggles magic burst, /th toggles Treasure Hunter. -->');
     add('    <!-- /warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring. -->');
     add('    <!-- Any set can also be forced with: /la set SetName 60 -->');
+    local prc = data.phalanx_received;
+    if prc and have[prc.set] then
+        add('    <!-- Phalanx cast on you: keep YunaGearOpt loaded and it puts on ' .. prc.set .. ' for a few seconds (/la set). -->');
+    end
+    -- Remember which jobs' XML has the Phalanx-received set, so the addon only sends /la set for those
+    local list = {};
+    for j in (s.xml_phalanx or ''):gmatch('[^,]+') do if j ~= abbr then table.insert(list, j); end end
+    if prc and have[prc.set] then table.insert(list, abbr); end
+    s.xml_phalanx = table.concat(list, ',');
+    settings.save();
     add('');
     add('    <sets>');
     for _, b in ipairs(built) do
@@ -1446,8 +1491,17 @@ local function build_full_xml(job_id)
     end
     if have.BlueMagic then table.insert(m, { cond = attr('ad_skill', 'bluemagic'), body = equip_set('BlueMagic') }); end
     if have.Geomancy then table.insert(m, { cond = attr('ad_skill', 'geomancy'), body = equip_set('Geomancy') }); end
-    if #m > 0 then
+    -- Spells with their own set (Flash, Reprisal, Phalanx) come before the magic-skill rules
+    for i, p in ipairs(spell_set_list(have)) do
+        table.insert(m, i, { cond = attr('ad_name', p[1]), body = equip_set(p[2]) });
+    end
+    local base_mid = job_base(data.midcast_base, abbr, have);
+    if #m > 0 or base_mid then
         add('    <midmagic>');
+        if base_mid then
+            add('        <!-- Every spell: ' .. base_mid .. ' first, then the spell\'s own set on top -->');
+            add(string.format('        <equip set="%s" />', base_mid));
+        end
         emit_chain(out, '        ', m, nil);
         add('    </midmagic>');
         add('');
@@ -1516,7 +1570,17 @@ local function build_full_xml(job_id)
         table.insert(ja, { cond = attr('ad_type', 'corsairroll'), body = equip_set('PhantomRoll') });
         table.insert(ja, { cond = attr('ad_name', 'Double-Up'), body = equip_set('PhantomRoll') });
     end
-    if #ja > 0 then add('    <jobability>'); emit_chain(out, '        ', ja, nil); add('    </jobability>'); add(''); end
+    local base_ja = job_base(data.ability_base, abbr, have);
+    if #ja > 0 or base_ja then
+        add('    <jobability>');
+        if base_ja then
+            add('        <!-- Every ability: ' .. base_ja .. ' first, then the ability\'s own pieces on top -->');
+            add(string.format('        <equip set="%s" />', base_ja));
+        end
+        emit_chain(out, '        ', ja, nil);
+        add('    </jobability>');
+        add('');
+    end
 
     local pet_b = {};
     if have.BloodPact then table.insert(pet_b, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BloodPact') }); end
@@ -1738,6 +1802,28 @@ local function build_gearswap(job_id)
     add('    }');
     add('    utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true));
     add('');
+    add('    -- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
+    add('    spell_sets = {');
+    for _, p in ipairs(spell_set_list(have)) do
+        add(string.format('        { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
+    end
+    add('    }');
+    local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
+    add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
+    add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
+    add('');
+    local prc = data.phalanx_received;
+    local function id_set(ids)
+        local parts = {};
+        for _, id in ipairs(ids or {}) do table.insert(parts, string.format('[%d] = true', id)); end
+        return '{ ' .. table.concat(parts, ', ') .. ' }';
+    end
+    add('    -- Phalanx cast on you: wear this set for a few seconds (Phalanx II aimed at you / Phalanx from a party member)');
+    add('    phalanx_set = ' .. ((prc and have[prc.set]) and string.format('%q', prc.set) or 'nil'));
+    add('    phalanx_single, phalanx_party = ' .. id_set(prc and prc.single) .. ', ' .. id_set(prc and prc.party));
+    add(string.format('    phalanx_single_time, phalanx_party_time, phalanx_until = %d, %d, 0',
+        (prc and prc.single_time) or 5, (prc and prc.party_time) or 8));
+    add('');
     local ms_line = {};
     for _, b in ipairs(built) do
         if b.desc.id == 'MightyStrikes' then
@@ -1802,7 +1888,37 @@ function idle_gear()
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
     if DWOn then eq('DW') end
+    if phalanx_set and os.clock() < phalanx_until then eq(phalanx_set) end
 end
+
+-- Phalanx received (logic from phalanx.lua): when a Phalanx starts on you, wear phalanx_set for a few seconds
+local function in_party(id)
+    local p = windower.ffxi.get_party()
+    for _, k in ipairs({ 'p0', 'p1', 'p2', 'p3', 'p4', 'p5' }) do
+        if p and p[k] and p[k].mob and p[k].mob.id == id then return true end
+    end
+    return false
+end
+
+windower.raw_register_event('action', function(act)
+    if not phalanx_set or not sets[phalanx_set] then return end
+    local me = windower.ffxi.get_player()
+    if not me then return end
+    for _, t in ipairs(act.targets or {}) do
+        for _, a in ipairs(t.actions or {}) do
+            if a.message == 3 or a.message == 327 then
+                local hold = nil
+                if phalanx_single[a.param] and t.id == me.id then hold = phalanx_single_time
+                elseif phalanx_party[a.param] and in_party(act.actor_id) then hold = phalanx_party_time end
+                if hold then
+                    phalanx_until = os.clock() + hold
+                    windower.send_command('gs c _phalanx; wait ' .. (hold + 0.2) .. '; gs c _phalanx')
+                    return
+                end
+            end
+        end
+    end
+end)
 
 -- Typing /warp runs the warp command
 windower.raw_register_event('outgoing text', function(original)
@@ -1833,6 +1949,7 @@ windower.raw_register_event('prerender', function()
 end)
 
 function precast(spell)
+    if ability_base and spell.type == 'JobAbility' then eq(ability_base) end
     if spell.type == 'WeaponSkill' then
         if not eq(ws_map[spell.id] or 'WS') then eq('WS') end
         if buffactive['Mighty Strikes'] and ms_ws[spell.id] then eq('MightyStrikes') end
@@ -1863,7 +1980,11 @@ function midcast(spell)
     if spell.action_type == 'Ranged Attack' then eq(ranged_set('Midshot')) return end
     if spell.action_type ~= 'Magic' then return end
     local name, skill = spell.english, spell.skill
+    if midcast_base then eq(midcast_base) end
     if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return end
+    for _, ss in ipairs(spell_sets) do
+        if matches(name, ss.pats) and eq(ss.set) then return end
+    end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light')
     elseif name == 'Stoneskin' and eq('Stoneskin') then
@@ -1938,6 +2059,10 @@ function self_command(command)
         if not midaction() and player.status ~= 'Engaged' then idle_gear() end
         return
     end
+    if c == '_phalanx' then
+        if not midaction() then idle_gear() end
+        return
+    end
     if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
         Mode = (Mode == c) and 'normal' or c
         add_to_chat(158, 'Mode: ' .. Mode)
@@ -1986,10 +2111,13 @@ end
 
 local function build_lac(job_id)
     local abbr = JOBS[job_id];
-    local built = {};
+    local built, have = {}, {};
     for _, desc in ipairs(build_sets(job_id)) do
         local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
-        if next(assign) ~= nil then table.insert(built, { desc = desc, assign = assign }); end
+        if next(assign) ~= nil then
+            table.insert(built, { desc = desc, assign = assign });
+            have[desc.name] = true;
+        end
     end
     local R, obis = data.rules or {}, owned_obis();
     local o = {};
@@ -2082,6 +2210,28 @@ local function build_lac(job_id)
     add('};');
     add('local utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true) .. ';');
     add('');
+    add('-- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
+    add('local spell_sets = {');
+    for _, p in ipairs(spell_set_list(have)) do
+        add(string.format('    { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
+    end
+    add('};');
+    local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
+    add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
+    add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
+    add('');
+    local prc = data.phalanx_received;
+    local function id_set(ids)
+        local parts = {};
+        for _, id in ipairs(ids or {}) do table.insert(parts, string.format('[%d] = true', id)); end
+        return '{ ' .. table.concat(parts, ', ') .. ' }';
+    end
+    add('-- Phalanx cast on you: wear this set for a few seconds (Phalanx II aimed at you / Phalanx from a party member)');
+    add('local phalanx_set = ' .. ((prc and have[prc.set]) and string.format('%q', prc.set) or 'nil') .. ';');
+    add('local phalanx_single, phalanx_party = ' .. id_set(prc and prc.single) .. ', ' .. id_set(prc and prc.party) .. ';');
+    add(string.format('local phalanx_single_time, phalanx_party_time = %d, %d;',
+        (prc and prc.single_time) or 5, (prc and prc.party_time) or 8));
+    add('');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 
@@ -2122,8 +2272,59 @@ local function warp()
     AshitaCore:GetChatManager():QueueCommand(1, '/ygo warp');
 end
 
+-- Phalanx received (logic from phalanx.lua): reads the action packet and notes when a Phalanx starts on you
+local phalanx_until = 0;
+local function in_party(id)
+    local party = AshitaCore:GetMemoryManager():GetParty();
+    for i = 0, 5 do
+        if party:GetMemberServerId(i) == id then return true; end
+    end
+    return false;
+end
+
+local function on_action(e)
+    if phalanx_set == nil or sets[phalanx_set] == nil then return; end
+    local raw, pos, max = e.data_raw, 40, e.size * 8;
+    local function bits(n)
+        if pos + n >= max then max = 0; return 0; end
+        local v = ashita.bits.unpack_be(raw, 0, pos, n);
+        pos = pos + n;
+        return v;
+    end
+    local actor = bits(32);
+    local targets = bits(6);
+    pos = pos + 4;
+    bits(4); bits(32); bits(32);                       -- action type, id, recast
+    local me = GetPlayerEntity();
+    local my_id = me and me.ServerId or 0;
+    for _ = 1, targets do
+        local target = bits(32);
+        local count = bits(4);
+        for _ = 1, count do
+            bits(5); bits(12); bits(7); bits(3);        -- reaction, animation, effect, knockback
+            local param = bits(17);
+            local message = bits(10);
+            bits(31);
+            if bits(1) == 1 then bits(10); bits(17); bits(10); end
+            if bits(1) == 1 then bits(10); bits(14); bits(10); end
+            if message == 3 or message == 327 then
+                if phalanx_single[param] and target == my_id then
+                    phalanx_until = os.clock() + phalanx_single_time;
+                    return;
+                elseif phalanx_party[param] and in_party(actor) then
+                    phalanx_until = os.clock() + phalanx_party_time;
+                    return;
+                end
+            end
+        end
+    end
+end
+
 profile.OnLoad = function()
     gSettings.AllowAddSet = false;
+    ashita.events.register('packet_in', 'ygo_lac_phalanx', function(e)
+        if e.id == 0x28 then pcall(on_action, e); end
+    end);
     ashita.events.register('command', 'ygo_lac_warp', function(e)
         if e.command:lower():match('^/warp%s*$') then
             e.blocked = true;
@@ -2137,6 +2338,7 @@ end
 
 profile.OnUnload = function()
     ashita.events.unregister('command', 'ygo_lac_warp');
+    ashita.events.unregister('packet_in', 'ygo_lac_phalanx');
 end
 
 profile.HandleCommand = function(args)
@@ -2199,11 +2401,13 @@ profile.HandleDefault = function()
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
     if DWOn then eq('DW'); end
+    if phalanx_set and os.clock() < phalanx_until then eq(phalanx_set); end
 end
 
 profile.HandleAbility = function()
     local action = gData.GetAction();
     local name, kind = action.Name or '', action.Type or '';
+    if ability_base then eq(ability_base); end
     if kind == 'Corsair Roll' or name == 'Double-Up' then eq('PhantomRoll');
     elseif kind == 'Quick Draw' then eq('QuickDraw');
     elseif kind:find('Blood Pact') then eq('BP_Delay');
@@ -2228,7 +2432,11 @@ end
 profile.HandleMidcast = function()
     local spell = gData.GetAction();
     local name, skill = spell.Name or '', spell.Skill or '';
+    if midcast_base then eq(midcast_base); end
     if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return; end
+    for _, ss in ipairs(spell_sets) do
+        if matches(name, ss.pats) and eq(ss.set) then return; end
+    end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light');
     elseif name == 'Stoneskin' and eq('Stoneskin') then
@@ -2304,6 +2512,70 @@ local function export_lac()
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
     if backup then msg('  Your hand-made ' .. fname .. ' was kept as: ' .. backup); end
     msg('  Load it in game with: /lac load');
+end
+
+----------------------------------------------------------------------------------------------------
+-- Export confirmation: every export button asks first and can back up the files it will replace
+----------------------------------------------------------------------------------------------------
+local EXPORTS = {
+    xml = { label = 'LegacyAC XML',         run = export_full },
+    lac = { label = 'LuAshitacast profile', run = export_lac },
+    gs  = { label = 'GearSwap file',        run = export_gearswap },
+};
+
+-- Files an export writes: { folder, file name, path shown to the player }
+local function export_targets(kind)
+    local abbr, name = JOBS[ui.job], player_name();
+    local install = '';
+    pcall(function() install = AshitaCore:GetInstallPath(); end);
+    install = install:gsub('[\\/]+$', '');
+    local t = {};
+    if kind == 'xml' then
+        local f = name .. '_' .. abbr .. '.xml';
+        table.insert(t, { base_path() .. 'legacyac\\', f, 'addons\\yunagearopt\\legacyac\\' .. f });
+        if install ~= '' then table.insert(t, { install .. '\\config\\LegacyAC\\', f, 'config\\LegacyAC\\' .. f }); end
+    elseif kind == 'lac' then
+        local f = name .. '_' .. abbr .. '.lua';
+        table.insert(t, { base_path() .. 'lac\\', f, 'addons\\yunagearopt\\lac\\' .. f });
+        if install ~= '' then
+            local folder = name .. '_' .. player_server_id();
+            table.insert(t, { install .. '\\config\\addons\\luashitacast\\' .. folder .. '\\', abbr .. '.lua',
+                              'config\\addons\\luashitacast\\' .. folder .. '\\' .. abbr .. '.lua' });
+        end
+    else
+        local f = name .. '_' .. abbr .. '.lua';
+        table.insert(t, { base_path() .. 'gearswap\\', f, 'addons\\yunagearopt\\gearswap\\' .. f });
+    end
+    return t;
+end
+
+local function file_exists(path)
+    local f = io.open(path, 'r');
+    if f then f:close(); return true; end
+    return false;
+end
+
+-- Copy every file the export will replace to NAME_backup_<date>.ext in the same folder
+local function backup_targets(kind)
+    local stamp = os.date('%Y%m%d_%H%M%S');
+    for _, t in ipairs(export_targets(kind)) do
+        local f = io.open(t[1] .. t[2], 'r');
+        if f then
+            local old = f:read('*a');
+            f:close();
+            local base, ext = t[2]:match('^(.*)(%.[^%.]+)$');
+            local bak = (base or t[2]) .. '_backup_' .. stamp .. (ext or '');
+            if write_file(t[1] .. bak, old) then
+                local folder = (t[3]:gsub('[^\\]+$', ''));
+                msg('  Backup saved: ' .. folder .. bak);
+            end
+        end
+    end
+end
+
+-- Export buttons only ask; the popup (drawn with the window) does the export
+local function ask_export(kind)
+    ui.pending_export, ui.open_export_popup = kind, true;
 end
 
 
@@ -2403,6 +2675,7 @@ local CATEGORY_OF = {
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', DragonBreaker = 'Abilities',
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
+    PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end
@@ -3058,6 +3331,44 @@ local function copy_current_set()
     msg('Set "' .. ui.desc.name .. '" copied to clipboard.');
 end
 
+-- "Before you export" window: recommends a backup and lists exactly which files will be replaced
+local function draw_export_confirm()
+    local id = 'Before you export###ygo_export';
+    if ui.open_export_popup then
+        imgui.OpenPopup(id);
+        ui.open_export_popup = false;
+    end
+    if not imgui.BeginPopupModal(id, nil, ImGuiWindowFlags_AlwaysAutoResize) then return; end
+    local kind = ui.pending_export or 'xml';
+    local e = EXPORTS[kind];
+    title_text('Recommendation: back up your current files first', 1.1, C.gold);
+    imgui.Spacing();
+    imgui.Text(string.format('Exporting the %s %s will write these files:', JOBS[ui.job], e.label));
+    for _, t in ipairs(export_targets(kind)) do
+        local exists = file_exists(t[1] .. t[2]);
+        imgui.TextColored(exists and C.red or C.muted, '   ' .. t[3]);
+        imgui.SameLine();
+        imgui.TextColored(exists and C.red or C.green, exists and '  (already there - will be replaced)' or '  (new file)');
+    end
+    if kind == 'gs' then
+        imgui.TextColored(C.muted, 'Your Windower GearSwap folder is not touched: you copy the file there yourself.');
+    end
+    imgui.Spacing();
+    imgui.TextColored(C.muted, 'BACK UP & EXPORT keeps a copy of each file as NAME_backup_<date> in the same folder.');
+    imgui.Spacing();
+    local lx, ly = imgui.GetCursorScreenPos();
+    gold_line(imgui.GetWindowDrawList(), lx, ly, lx + 420, 0.5);
+    imgui.Spacing();
+    local b1, b2, b3 = 'BACK UP & EXPORT', 'EXPORT WITHOUT BACKUP', 'CANCEL';
+    local function finish() ui.pending_export = nil; imgui.CloseCurrentPopup(); end
+    if accent_button(b1 .. '##ygo_bk', { btn_w(b1), 32 }, true) then backup_targets(kind); e.run(); finish(); end
+    imgui.SameLine(0, 8);
+    if imgui.Button(b2 .. '##ygo_nobk', { btn_w(b2), 32 }) then e.run(); finish(); end
+    imgui.SameLine(0, 8);
+    if ghost_button(b3 .. '##ygo_cancel', { btn_w(b3), 32 }) then finish(); end
+    imgui.EndPopup();
+end
+
 local function draw_footer()
     local dl = imgui.GetWindowDrawList();
     local wx = imgui.GetWindowPos();
@@ -3082,13 +3393,13 @@ local function draw_footer()
     local l1, l2, l3 = 'EXPORT XML', 'EXPORT LAC', 'EXPORT GEARSWAP';
     local w1, w2, w3 = btn_w(l1), btn_w(l2), btn_w(l3);
     imgui.SameLine(imgui.GetWindowWidth() - (w1 + w2 + w3 + 16 + 14));
-    if accent_button(l1, { w1, 34 }, true) then export_full(); end
+    if accent_button(l1, { w1, 34 }, true) then ask_export('xml'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '.xml'); end
     imgui.SameLine(0, 8);
-    if accent_button(l2, { w2, 34 }, true) then export_lac(); end
+    if accent_button(l2, { w2, 34 }, true) then ask_export('lac'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
     imgui.SameLine(0, 8);
-    if accent_button(l3, { w3, 34 }, true) then export_gearswap(); end
+    if accent_button(l3, { w3, 34 }, true) then ask_export('gs'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower): every ' .. JOBS[ui.job] .. ' set + rules\n-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
 end
 
@@ -3204,13 +3515,13 @@ local function draw_lazy()
         if imgui.IsItemHovered() then imgui.SetTooltip('Put this set on right now so you can see it.'); end
         imgui.TextColored(C.muted, 'Export every set for this job:');
         local bw = math.floor((imgui.GetWindowWidth() - 28 - 12) / 3);
-        if imgui.Button('XML##lx', { bw, 30 }) then export_full(); end
+        if imgui.Button('XML##lx', { bw, 30 }) then ask_export('xml'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita)'); end
         imgui.SameLine(0, 6);
-        if imgui.Button('LAC##ll', { bw, 30 }) then export_lac(); end
+        if imgui.Button('LAC##ll', { bw, 30 }) then ask_export('lac'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita)'); end
         imgui.SameLine(0, 6);
-        if imgui.Button('GEARSWAP##lg', { bw, 30 }) then export_gearswap(); end
+        if imgui.Button('GEARSWAP##lg', { bw, 30 }) then ask_export('gs'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower)'); end
     end
     imgui.End();
@@ -3262,6 +3573,7 @@ local function draw_ui()
     local nc, nv = push_theme();
     if s.compact then draw_lazy(); else draw_full(); end
     draw_notice();
+    draw_export_confirm();
     imgui.PopStyleVar(nv);
     imgui.PopStyleColor(nc);
 end
@@ -3276,6 +3588,65 @@ end);
 ashita.events.register('load', 'ygo_load', function() load_data(); check_for_update(false); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
 ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); draw_ui(); end);
+
+-- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
+-- starts on you the addon locks the PhalanxRcv set on with /la set for a few seconds. Only for jobs whose
+-- exported XML has that set, and only while LegacyAC is loaded. (LuAshitacast / GearSwap exports do this themselves.)
+local function phalanx_for_legacyac(e)
+    local prc = data and data.phalanx_received;
+    if prc == nil then return; end
+    local job = JOBS[main_job()];
+    if not (',' .. (s.xml_phalanx or '') .. ','):find(',' .. job .. ',', 1, true) then return; end
+    local okL, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
+    if not (okL and loaded) then return; end
+    local single, party = {}, {};
+    for _, id in ipairs(prc.single or {}) do single[id] = true; end
+    for _, id in ipairs(prc.party or {}) do party[id] = true; end
+
+    local raw, pos, max = e.data_raw, 40, e.size * 8;
+    local function bits(n)
+        if pos + n >= max then max = 0; return 0; end
+        local v = ashita.bits.unpack_be(raw, 0, pos, n);
+        pos = pos + n;
+        return v;
+    end
+    local actor = bits(32);
+    local targets = bits(6);
+    pos = pos + 4;
+    bits(4); bits(32); bits(32);                           -- action type, id, recast
+    local me = GetPlayerEntity();
+    local my_id = me and me.ServerId or 0;
+    local pm = AshitaCore:GetMemoryManager():GetParty();
+    local function in_party(id)
+        for i = 0, 5 do if pm:GetMemberServerId(i) == id then return true; end end
+        return false;
+    end
+    for _ = 1, targets do
+        local target = bits(32);
+        local count = bits(4);
+        for _ = 1, count do
+            bits(5); bits(12); bits(7); bits(3);            -- reaction, animation, effect, knockback
+            local param = bits(17);
+            local message = bits(10);
+            bits(31);
+            if bits(1) == 1 then bits(10); bits(17); bits(10); end
+            if bits(1) == 1 then bits(10); bits(14); bits(10); end
+            if message == 3 or message == 327 then
+                local hold = nil;
+                if single[param] and target == my_id then hold = prc.single_time or 5;
+                elseif party[param] and in_party(actor) then hold = prc.party_time or 8; end
+                if hold then
+                    AshitaCore:GetChatManager():QueueCommand(1, string.format('/la set %s %d', prc.set, hold));
+                    return;
+                end
+            end
+        end
+    end
+end
+
+ashita.events.register('packet_in', 'ygo_phalanx', function(e)
+    if e.id == 0x28 then pcall(phalanx_for_legacyac, e); end
+end);
 
 ashita.events.register('command', 'ygo_command', function(e)
     local args = e.command:args();
@@ -3301,18 +3672,18 @@ ashita.events.register('command', 'ygo_command', function(e)
         msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
     elseif sub == 'export' or sub == 'xml' then
         if #owned == 0 then scan(); end
-        ui.job = main_job();
-        export_full();
+        ui.job, ui.dirty, ui.open[1] = main_job(), true, true;
+        ask_export('xml');            -- same confirmation window as the buttons
     elseif sub == 'warp' then
         do_warp();
     elseif sub == 'lac' then
         if #owned == 0 then scan(); end
-        ui.job = main_job();
-        export_lac();
+        ui.job, ui.dirty, ui.open[1] = main_job(), true, true;
+        ask_export('lac');            -- same confirmation window as the buttons
     elseif sub == 'gs' or sub == 'gearswap' then
         if #owned == 0 then scan(); end
-        ui.job = main_job();
-        export_gearswap();
+        ui.job, ui.dirty, ui.open[1] = main_job(), true, true;
+        ask_export('gs');            -- same confirmation window as the buttons
     elseif sub == 'equip' then
         if #owned == 0 then scan(); end
         if args[3] then

@@ -33,6 +33,8 @@ Commands (`/ygo` or `/yunagearopt`):
 
 ## Exports
 
+Every export first opens a **Before you export** window. It lists exactly which files will be written (in red if one already exists and will be replaced) and lets you **Back up & export** (each existing file is kept as `NAME_backup_<date>` in the same folder), export without a backup, or cancel.
+
 - **LegacyAC** (Ashita): saved to `legacyac/CharacterName_JOB.xml`, with a copy in `Ashita\config\LegacyAC\`. Load with `/la load CharacterName_JOB.xml`.
 - **LuAshitacast** (Ashita): saved to `lac/CharacterName_JOB.lua` and straight into `Ashita\config\addons\luashitacast\CharacterName_ID\JOB.lua` (an existing profile is backed up first as `JOB_backup_<date>.lua`). Load with `/lac load`. Toggles: `/lac fwd pdt`, `mdt`, `hybrid`, `mb`, `th`.
 - **GearSwap** (Windower): saved to `gearswap/CharacterName_JOB.lua`. Copy it to `Windower\addons\GearSwap\data\`.
@@ -68,6 +70,13 @@ Every export also has a **`/warp`** command (XML and LAC call `/ygo warp`, so ke
   which is worn on top of your engaged gear (TP, Hybrid, PDT, MDT) while the buff is up and comes off when you disengage.
 - **BLU**: Physical / Magical / Debuff blue magic, Spectral Floe, Battery Charge and a **Refresh** idle set you switch on
   with `/refresh` (`//gs c refresh` in GearSwap, `/lac fwd refresh` in LAC). Melee sets keep your sword and shield after casting.
+- **Adept Reforging**: all 69 Adept pieces (BLM, BRD, BST, DRG, DRK, GEO, NIN, PLD, RDM, RUN, SAM, THF, WAR, WHM) are in the
+  Best in Slot list with their **full augment** (Tier 3, HQ), each only for its own job (`adept_augments` in `data.lua`).
+- **PLD**: every spell puts on a **SIR** (spell interruption) set first, then **Flash**, **Reprisal** or **Phalanx** sets on top;
+  every job ability puts on **Enmity** first, then its own piece (**Sentinel**, **Shield Bash / Chivalry**, **Rampart**, **Cover**);
+  plus a Cure precast set. **Phalanx received**: when someone starts casting Phalanx on you (Phalanx II on you, or Phalanx from a
+  party member), King's Cuisses / Phalanx-received gear goes on for 5-8 seconds - built into the LAC and GearSwap files, and for
+  LegacyAC the addon does it with `/la set` (keep YunaGearOpt loaded).
 - **DRG**: Jump / High Jump, Angon, Dragon Breaker, Ancient Circle, wyvern breath sets (a trigger piece on precast for
   Dia / Poison / Foot Kick / Barfire, a potency piece while the wyvern breathes), a Haste precast set that also covers
   Utsusemi, and Desert Boots while you run in earth weather.

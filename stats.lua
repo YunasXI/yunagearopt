@@ -110,6 +110,9 @@ M.MOD = {
     [86] = 'sk_scythe', [87] = 'sk_polearm', [88] = 'sk_katana', [89] = 'sk_gkatana', [90] = 'sk_club', [91] = 'sk_staff',
     [104] = 'archery', [105] = 'marksmanship', [106] = 'throwing', [346] = 'perp',
     [539] = 'stoneskin',
+    -- PLD: Phalanx potency / Phalanx received, and the ability pieces (Valor gear)
+    [301] = 'phalanx', [1182] = 'phalanxrcv', [837] = 'sentinel', [385] = 'shieldbash', [92] = 'rampart',
+    [967] = 'cover', [965] = 'covermp',
 };
 -- Server stores these in 1/100 % units
 M.DIV = { haste = 100, dt = 100, pdt = 100, mdt = 100, bdt = 100 };
@@ -136,6 +139,8 @@ M.LABELS = {
     sk_club = 'Club Skill', sk_staff = 'Staff Skill', sk_h2h = 'H2H Skill',
     fencer = 'Fencer', combatskill = 'Combat Skill', archery = 'Archery', marksmanship = 'Marksmanship', throwing = 'Throwing', meditate = 'Meditate', berserk = 'Berserk', warcry = 'Warcry', sublimation = 'Sublimation', boost = 'Boost',
     stoneskin = 'Stoneskin+',
+    phalanx = 'Phalanx+', phalanxrcv = 'Phalanx Rcvd+', sentinel = 'Sentinel+', shieldbash = 'Shield Bash+',
+    rampart = 'Rampart Dur.', cover = 'Cover Dur.', covermp = 'Cover->MP',
 };
 
 function M.normalize(chunk)
