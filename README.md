@@ -25,6 +25,7 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo lac` | Export the LuAshitacast profile for your main job |
 | `/ygo gs` (or `gearswap`) | Export the GearSwap Lua for your main job |
 | `/ygo equip [set]` | Equip the current (or named) set |
+| `/ygo lockstyle` (or `ls`) | Lock your job's Lockstyle set on (also done by itself after login and every job change) |
 | `/ygo compact` | Toggle compact mode |
 | `/ygo update` | Check GitHub for a new version now (and open the download page if there is one) |
 | `/ygo notice` | Show the notice again |

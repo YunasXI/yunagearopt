@@ -109,6 +109,16 @@ local SLOTS = {
     { key = 'feet',  label = 'Feet',   mask = 0x0100, tag = 'feet' },
 };
 
+-- Game equipment slot ids (GetEquippedItem, lockstyle packet)
+local EQUIP_ID = { main = 0, sub = 1, range = 2, ammo = 3, head = 4, body = 5, hands = 6, legs = 7, feet = 8,
+                   neck = 9, waist = 10, ear1 = 11, ear2 = 12, ring1 = 13, ring2 = 14, back = 15 };
+-- Lockstyle helpers (one table: the main chunk can only hold 200 local names).
+-- slots = the ones that show on your character, the only ones a lockstyle uses.
+local look = { job = nil, checked = 0,
+               slots = { main = true, sub = true, range = true, head = true, body = true, hands = true, legs = true, feet = true } };
+-- Button actions defined further down (same 200-name limit)
+local actions = {};
+
 -- Weapon skills (FFXI skill ids)
 local TWO_HANDED = { [4] = true, [6] = true, [7] = true, [8] = true, [10] = true, [12] = true };
 local SKILL_H2H, INSTRUMENTS = 1, { [41] = true, [42] = true };
@@ -130,18 +140,20 @@ local STOP_WORDS = {
 
 local DW_MODES = { 'AUTO', 'ON', 'OFF' };
 
+-- Minimal theme: near-black neutrals, white hairlines, and gold only where it matters (title, selection, exports, BiS)
 local C = {
-    bg       = { 0.065, 0.070, 0.095, 0.97 },
-    header   = { 0.105, 0.090, 0.060, 1.00 },
-    card     = { 0.105, 0.115, 0.150, 1.00 },
-    frame    = { 0.135, 0.145, 0.190, 1.00 },
-    frame_hi = { 0.175, 0.185, 0.240, 1.00 },
-    border   = { 0.960, 0.780, 0.360, 0.18 },
-    gold     = { 0.960, 0.780, 0.360, 1.00 },
-    gold_dim = { 0.960, 0.780, 0.360, 0.60 },
-    gold_bg  = { 0.960, 0.780, 0.360, 0.85 },
-    text     = { 0.930, 0.935, 0.950, 1.00 },
-    muted    = { 0.550, 0.580, 0.650, 1.00 },
+    bg       = { 0.052, 0.055, 0.064, 0.97 },
+    side     = { 0.066, 0.070, 0.082, 1.00 },
+    card     = { 0.082, 0.087, 0.101, 1.00 },
+    frame    = { 0.110, 0.116, 0.134, 1.00 },
+    frame_hi = { 0.150, 0.157, 0.180, 1.00 },
+    border   = { 1.000, 1.000, 1.000, 0.06 },
+    line     = { 1.000, 1.000, 1.000, 0.07 },
+    gold     = { 0.940, 0.770, 0.420, 1.00 },
+    gold_dim = { 0.940, 0.770, 0.420, 0.62 },
+    gold_bg  = { 0.940, 0.770, 0.420, 0.92 },
+    text     = { 0.910, 0.918, 0.935, 1.00 },
+    muted    = { 0.500, 0.528, 0.590, 1.00 },
     aug      = { 0.720, 0.560, 1.000, 1.00 },
     green    = { 0.450, 0.900, 0.600, 1.00 },
     red      = { 1.000, 0.450, 0.450, 1.00 },
@@ -151,8 +163,10 @@ local C = {
 ----------------------------------------------------------------------------------------------------
 -- State
 ----------------------------------------------------------------------------------------------------
-local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{} };
+local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{},
+                    picks = T{} };   -- your slot picks per 'JOB|set', kept between sessions
 local s = settings.load(defaults);
+s.picks = s.picks or T{};
 
 local S, data, AUG = nil, nil, {};
 local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
@@ -176,7 +190,7 @@ local owned, base_cache = {}, {};
 local ui = {
     open = { false }, job = 1, set_idx = 1, sets = {}, desc = nil,
     result = nil, total = 0, full = {}, ctx = '',
-    pins = {}, show_bis = false, dirty = true, last_scan = '--:--', augmented = 0,
+    pins = s.picks, show_bis = false, dirty = true, last_scan = '--:--', augmented = 0,
     data_excl = {}, overrides = {}, job_restrict = {}, set_restrict = {}, stat_remove = {}, stat_fix = {},
 };
 
@@ -798,6 +812,10 @@ local function build_sets(job_id)
             end
         end
     end
+    -- Lockstyle: the look you want, picked by hand (or imported from what you wear). Nothing is chosen
+    -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
+    table.insert(list, { id = 'Lockstyle', name = 'Lockstyle', label = 'Lockstyle (your look)', kind = 'lockstyle',
+                         base_weights = {}, caps = {}, weapons = true, range = 'any', fixed = {}, lockstyle = true });
     return list;
 end
 
@@ -900,6 +918,13 @@ end
 local function active_slots(desc, bis_only)
     local list = {};
     if desc.info then return list; end                     -- an info panel (e.g. attachments) has no gear slots
+    if desc.lockstyle then                                 -- only the slots you can see: weapons + armor, no BiS
+        if bis_only then return list; end
+        for _, def in ipairs(SLOTS) do
+            if look.slots[def.key] then table.insert(list, def); end
+        end
+        return list;
+    end
     if desc.fixed and bis_only then
         for _, def in ipairs(SLOTS) do
             if desc.fixed[def.key] then table.insert(list, def); end
@@ -993,7 +1018,8 @@ local function optimize(job_id, desc, pins, pool)
     for _, def in ipairs(slots) do
         local all, list = {}, {};
         for idx, item in ipairs(pool) do
-            if bit.band(item.slots, def.mask) ~= 0 and can_wear(item, job_id, lvl, pure) then
+            -- Lockstyle: any piece you own that fits the slot, whatever its job or level
+            if bit.band(item.slots, def.mask) ~= 0 and (desc.lockstyle or can_wear(item, job_id, lvl, pure)) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
                 table.insert(all, c);
                 if c.score > 0 and not is_excluded(item.name) and not set_excluded(job_id, desc, item.name)
@@ -1467,6 +1493,9 @@ local function build_full_xml(job_id)
     if prc and have[prc.set] then
         add('    <!-- Phalanx cast on you: keep YunaGearOpt loaded and it puts on ' .. prc.set .. ' for a few seconds (/la set). -->');
     end
+    if have.Lockstyle then
+        add('    <!-- Lockstyle: keep YunaGearOpt loaded and it locks your Lockstyle look on after login / job change (/ygo lockstyle). -->');
+    end
     -- Remember which jobs' XML has the Phalanx-received set, so the addon only sends /la set for those
     local list = {};
     for j in (s.xml_phalanx or ''):gmatch('[^,]+') do if j ~= abbr then table.insert(list, j); end end
@@ -1814,7 +1843,6 @@ local function export_full()
     msg(string.format('%s XML exported: %d sets (also copied to clipboard).', abbr, count));
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
     for _, b in ipairs(backups) do msg('  Your hand-made ' .. fname .. ' was kept as: ' .. b); end
-    msg(string.format('  Load it in game with: /la load %s', fname));
     local list = {};
     for k in pairs(stored) do table.insert(list, k); end
     if #list > 0 then
@@ -1978,6 +2006,13 @@ local function build_gearswap(job_id)
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
+    for _, b in ipairs(built) do
+        if b.desc.lockstyle then
+            add('');
+            add('    -- Lockstyle: a few seconds after this file loads (login / job change), wear your look and lock it');
+            add("    send_command('wait 3; gs equip sets.Lockstyle; wait 2; input /lockstyle on')");
+        end
+    end
     add('end');
     add('');
     add([[
@@ -2660,7 +2695,6 @@ local function export_lac()
     msg(string.format('%s LuAshitacast profile exported: %d sets (also copied to clipboard).', abbr, count));
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
     if backup then msg('  Your hand-made ' .. fname .. ' was kept as: ' .. backup); end
-    msg('  Load it in game with: /lac load');
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -2719,6 +2753,34 @@ local function backup_targets(kind)
                 msg('  Backup saved: ' .. folder .. bak);
             end
         end
+    end
+end
+
+-- After an export, load the new file right away when it's for the job you're on:
+-- LegacyAC: /la load (Name_JOB.xml), LuAshitacast: /lac load. GearSwap runs in Windower, so it can't be done from here.
+function actions.reload_after_export(kind)
+    local abbr = JOBS[ui.job];
+    local on_job = player_call(function(p) return p:GetMainJob(); end, 0) == ui.job;
+    if kind == 'gs' then
+        msg('  In Windower, load it with: //gs reload');
+        return;
+    end
+    if not on_job then
+        msg('  You are not on ' .. abbr .. ' right now: it loads by itself when you change to ' .. abbr .. '.');
+        return;
+    end
+    local cm = AshitaCore:GetChatManager();
+    if kind == 'xml' then
+        local okL, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
+        if okL and loaded then
+            cm:QueueCommand(1, '/la load');
+            msg('  LegacyAC reloaded with the new XML.');
+        else
+            msg('  LegacyAC is not loaded. Load it with: /load legacyac');
+        end
+    elseif kind == 'lac' then
+        cm:QueueCommand(1, '/lac load');
+        msg('  LuAshitacast reloaded with the new profile.');
     end
 end
 
@@ -2806,6 +2868,69 @@ local function equip_current_set()
     msg('  Tip: if LegacyAC/an XML is loaded it may swap gear back. Use /la disable to preview, /la enable after.');
 end
 
+----------------------------------------------------------------------------------------------------
+-- Lockstyle: shows the job's Lockstyle set on your character without wearing it (same packet as
+-- LuAshitacast's gFunc.LockStyle). Pieces can be in any bag. Works with LegacyAC, LuAshitacast or nothing.
+----------------------------------------------------------------------------------------------------
+function look.picks(job_id)
+    return ui.pins[JOBS[job_id] .. '|Lockstyle'] or {};
+end
+
+function look.apply(job_id, quiet)
+    local picks, packet, count, missing = look.picks(job_id), {}, 0, {};
+    for i = 1, 136 do packet[i] = 0; end
+    packet[0x05 + 1], packet[0x06 + 1] = 3, 1;
+    local ok, err = pcall(function()
+        local inv = AshitaCore:GetMemoryManager():GetInventory();
+        local res = AshitaCore:GetResourceManager();
+        for _, def in ipairs(SLOTS) do
+            local pin = picks[def.key];
+            if look.slots[def.key] and type(pin) == 'table' and pin.name then
+                local key, found = name_key(pin.name), false;
+                for cid = 0, 16 do
+                    for idx = 1, (inv:GetContainerCountMax(cid) or 0) do
+                        local it = inv:GetContainerItem(cid, idx);
+                        if it ~= nil and it.Id ~= 0 and it.Id ~= 65535 then
+                            local r = res:GetItemById(it.Id);
+                            if r and name_key(r.Name[1] or '') == key and bit.band(r.Slots or 0, def.mask) ~= 0 then
+                                local at = 8 + count * 8 + 1;
+                                packet[at], packet[at + 1], packet[at + 2] = idx, EQUIP_ID[def.key], cid;
+                                packet[at + 4], packet[at + 5] = bit.band(it.Id, 0xFF), bit.rshift(it.Id, 8);
+                                count, found = count + 1, true;
+                                break;
+                            end
+                        end
+                    end
+                    if found then break; end
+                end
+                if not found then table.insert(missing, pin.name); end
+            end
+        end
+        packet[0x04 + 1] = count;
+        if count > 0 then AshitaCore:GetPacketManager():AddOutgoingPacket(0x53, packet); end
+    end);
+    if not ok then msg('Lockstyle error: ' .. tostring(err)); return; end
+    if count == 0 then
+        if not quiet then msg(JOBS[job_id] .. ' has no Lockstyle set yet: pick pieces in the Lockstyle section (or import what you wear).'); end
+        return;
+    end
+    if not quiet then msg(string.format('Lockstyle on: %d pieces (%s).', count, JOBS[job_id])); end
+    if #missing > 0 then msg('  Lockstyle pieces not found in your bags: ' .. table.concat(missing, ', ')); end
+end
+
+-- Lockstyle turns off when you change job: put it back a few seconds after login / every job change
+function look.watch()
+    local now = os.time();
+    if now == look.checked then return; end
+    look.checked = now;
+    local j = player_call(function(p) return p:GetMainJob(); end, 0);
+    if type(j) ~= 'number' or j < 1 or j > #JOBS or j == look.job then return; end
+    look.job = j;
+    if next(look.picks(j)) ~= nil then
+        after(5, function() if look.job == j then look.apply(j, true); end end);
+    end
+end
+
 
 ----------------------------------------------------------------------------------------------------
 -- UI: theme & helpers
@@ -2826,6 +2951,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
+    Lockstyle = 'Lockstyle',
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end
@@ -2835,23 +2961,24 @@ end
 
 local function push_theme()
     local cols = {
-        { ImGuiCol_WindowBg, C.bg }, { ImGuiCol_ChildBg, { 0, 0, 0, 0 } }, { ImGuiCol_PopupBg, { 0.09, 0.10, 0.13, 0.98 } },
+        { ImGuiCol_WindowBg, C.bg }, { ImGuiCol_ChildBg, { 0, 0, 0, 0 } }, { ImGuiCol_PopupBg, { 0.075, 0.079, 0.092, 0.99 } },
         { ImGuiCol_Border, C.border }, { ImGuiCol_Text, C.text }, { ImGuiCol_TextDisabled, C.muted },
         { ImGuiCol_FrameBg, C.frame }, { ImGuiCol_FrameBgHovered, C.frame_hi }, { ImGuiCol_FrameBgActive, C.frame_hi },
-        { ImGuiCol_Button, C.frame }, { ImGuiCol_ButtonHovered, C.frame_hi }, { ImGuiCol_ButtonActive, C.gold_dim },
-        { ImGuiCol_Header, { 0.96, 0.78, 0.36, 0.22 } }, { ImGuiCol_HeaderHovered, { 0.96, 0.78, 0.36, 0.14 } },
-        { ImGuiCol_HeaderActive, { 0.96, 0.78, 0.36, 0.30 } },
+        { ImGuiCol_Button, C.frame }, { ImGuiCol_ButtonHovered, C.frame_hi }, { ImGuiCol_ButtonActive, C.frame_hi },
+        { ImGuiCol_Header, { 1, 1, 1, 0.06 } }, { ImGuiCol_HeaderHovered, { 1, 1, 1, 0.045 } },
+        { ImGuiCol_HeaderActive, { 1, 1, 1, 0.09 } },
         { ImGuiCol_SliderGrab, C.gold }, { ImGuiCol_SliderGrabActive, C.gold }, { ImGuiCol_CheckMark, C.gold },
-        { ImGuiCol_PlotHistogram, C.gold }, { ImGuiCol_Separator, C.border },
-        { ImGuiCol_ScrollbarBg, { 0, 0, 0, 0 } }, { ImGuiCol_ScrollbarGrab, C.frame_hi },
-        { ImGuiCol_ScrollbarGrabHovered, C.gold_dim }, { ImGuiCol_TableRowBg, { 0, 0, 0, 0 } },
+        { ImGuiCol_PlotHistogram, C.gold }, { ImGuiCol_Separator, C.line },
+        { ImGuiCol_ScrollbarBg, { 0, 0, 0, 0 } }, { ImGuiCol_ScrollbarGrab, { 1, 1, 1, 0.08 } },
+        { ImGuiCol_ScrollbarGrabHovered, { 1, 1, 1, 0.16 } }, { ImGuiCol_ScrollbarGrabActive, { 1, 1, 1, 0.22 } },
+        { ImGuiCol_TableRowBg, { 0, 0, 0, 0 } },
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
-        { ImGuiStyleVar_WindowRounding, 12 }, { ImGuiStyleVar_ChildRounding, 9 }, { ImGuiStyleVar_FrameRounding, 7 },
-        { ImGuiStyleVar_GrabRounding, 7 }, { ImGuiStyleVar_PopupRounding, 8 }, { ImGuiStyleVar_ScrollbarRounding, 8 },
-        { ImGuiStyleVar_WindowPadding, { 14, 12 } }, { ImGuiStyleVar_FramePadding, { 10, 6 } },
-        { ImGuiStyleVar_ItemSpacing, { 8, 7 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 10 },
+        { ImGuiStyleVar_WindowRounding, 12 }, { ImGuiStyleVar_ChildRounding, 8 }, { ImGuiStyleVar_FrameRounding, 6 },
+        { ImGuiStyleVar_GrabRounding, 6 }, { ImGuiStyleVar_PopupRounding, 8 }, { ImGuiStyleVar_ScrollbarRounding, 8 },
+        { ImGuiStyleVar_WindowPadding, { 16, 14 } }, { ImGuiStyleVar_FramePadding, { 10, 6 } },
+        { ImGuiStyleVar_ItemSpacing, { 8, 8 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 8 },
     };
     for _, v in ipairs(vars) do imgui.PushStyleVar(v[1], v[2]); end
     return #cols, #vars;
@@ -2918,10 +3045,11 @@ local function item_tooltip(item)
     imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
 end
 
-local function set_pin(slot, value)
+local function set_pin(slot, value, no_save)
     ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
     ui.pins[ui.ctx][slot] = value;
     ui.dirty = true;
+    if not no_save then settings.save(); end
 end
 
 local function select_job(i)
@@ -3001,80 +3129,54 @@ local function btn_w(text) return math.floor(text_w(text) + 26); end
 
 local function u32(c) return imgui.GetColorU32(c); end
 
--- Frame around the current card in its tier color. Best-in-Slot level pieces also get a soft inner glow.
-local function tier_frame(col, glow)
+-- Thin edge around the current card in its tier color (a touch stronger for Best-in-Slot level pieces)
+local function tier_frame(col, strong)
     local dl = imgui.GetWindowDrawList();
     local x, y = imgui.GetWindowPos();
     local w, h = imgui.GetWindowSize();
     -- A child window clips its left/right padding, which cut the frame down to two loose lines: draw on the full card
     dl:PushClipRect({ x, y }, { x + w, y + h }, false);
-    if glow then
-        local alpha = { 0.30, 0.18, 0.10, 0.05 };
-        for i = 1, 4 do
-            dl:AddRect({ x + i, y + i }, { x + w - i, y + h - i }, u32({ col[1], col[2], col[3], alpha[i] }), 9, 0, 2);
-        end
-    end
-    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], glow and 0.95 or 0.45 }), 9, 0,
-        glow and 2 or 1);
+    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], strong and 0.75 or 0.22 }), 8, 0, 1);
     dl:PopClipRect();
 end
 
--- Item icon in a dark rounded tile with a tier-colored edge (empty tile when there is no item)
+-- Item icon on a soft dark tile (empty tile when there is no item)
 local ICON = 36;
 local function slot_icon(item, col)
     local dl = imgui.GetWindowDrawList();
     local x, y = imgui.GetCursorScreenPos();
-    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0.03, 0.035, 0.05, 1 }), 6);
+    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0, 0, 0, 0.28 }), 6);
     local ic = item and item_icon(item.id);
     if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + ICON - 2, y + ICON - 2 }); end
-    dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], item and 0.7 or 0.2 }), 6, 0, 1);
+    if item then dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], 0.35 }), 6, 0, 1); end
     imgui.Dummy({ ICON, ICON });
 end
 
--- Horizontal gradient: thin vertical strips blended from color a (left) to color b (right)
-local function hgradient(dl, x1, y1, x2, y2, a, b, steps)
-    steps = steps or 40;
-    local w = (x2 - x1) / steps;
-    for i = 0, steps - 1 do
-        local t = i / (steps - 1);
-        local c = { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t, a[4] + (b[4] - a[4]) * t };
-        dl:AddRectFilled({ x1 + i * w, y1 }, { x1 + (i + 1) * w + 1, y2 }, u32(c));
-    end
+-- Hairline divider (plain, neutral; the name stays from the old gold version)
+local function gold_line(dl, x1, y, x2)
+    dl:AddRectFilled({ x1, y }, { x2, y + 1 }, u32(C.line));
 end
 
--- Gold hairline that fades out to the right
-local function gold_line(dl, x1, y, x2, alpha)
-    local g = C.gold;
-    hgradient(dl, x1, y, x2, y + 1, { g[1], g[2], g[3], alpha or 0.75 }, { g[1], g[2], g[3], 0 }, 30);
-end
-
--- Section title in gold with a hairline running to the right edge
+-- Section title: small, quiet, uppercase - no line, just space around it
 local function caption(title)
     imgui.Spacing();
-    local x, y = imgui.GetCursorScreenPos();
-    imgui.SetWindowFontScale(0.92);
-    imgui.TextColored(C.gold_dim, title);
+    imgui.SetWindowFontScale(0.82);
+    imgui.TextColored(C.muted, title);
     imgui.SetWindowFontScale(1.0);
-    local wx = imgui.GetWindowPos();
-    local x1 = x + text_w(title) * 0.92 + 10;
-    local x2 = wx + imgui.GetWindowWidth() - 14;
-    if x2 > x1 then gold_line(imgui.GetWindowDrawList(), x1, y + 8, x2, 0.35); end
 end
 
--- Job buttons tinted by role, so the grid reads at a glance; the current job is solid gold
+-- Job roles (shown in the job button tooltip); the current job is solid gold
 local ROLE = { WAR = 'Melee', MNK = 'Melee', THF = 'Melee', DRK = 'Melee', BST = 'Melee', SAM = 'Melee', NIN = 'Melee',
                DRG = 'Melee', DNC = 'Melee', BLU = 'Melee', PUP = 'Melee', PLD = 'Tank', RUN = 'Tank',
                WHM = 'Healer', SCH = 'Healer', BLM = 'Mage', SMN = 'Mage', RDM = 'Mage', GEO = 'Mage',
                BRD = 'Support', COR = 'Support', RNG = 'Ranged' };
-local ROLE_COL = { Tank = { 0.45, 0.65, 1.00, 1 }, Healer = { 0.45, 0.90, 0.60, 1 }, Melee = { 1.00, 0.50, 0.45, 1 },
-                   Mage = { 0.74, 0.58, 1.00, 1 }, Support = { 0.35, 0.85, 0.85, 1 }, Ranged = { 1.00, 0.76, 0.38, 1 } };
 local function job_button(i, abbr, size)
     if i == ui.job then return accent_button(abbr .. '##j', size, true); end
-    local c = ROLE_COL[ROLE[abbr]] or C.muted;
-    imgui.PushStyleColor(ImGuiCol_Button, { c[1], c[2], c[3], 0.10 });
-    imgui.PushStyleColor(ImGuiCol_ButtonHovered, { c[1], c[2], c[3], 0.26 });
-    imgui.PushStyleColor(ImGuiCol_ButtonActive, { c[1], c[2], c[3], 0.36 });
-    imgui.PushStyleColor(ImGuiCol_Text, c);
+    -- Plain: neutral text, a soft hover; only the selected job is gold
+    imgui.PushStyleColor(ImGuiCol_Button, { 1, 1, 1, 0.03 });
+    imgui.PushStyleColor(ImGuiCol_ButtonHovered, { 1, 1, 1, 0.08 });
+    imgui.PushStyleColor(ImGuiCol_ButtonActive, { 1, 1, 1, 0.12 });
+    imgui.PushStyleColor(ImGuiCol_Text, { C.text[1], C.text[2], C.text[3], 0.78 });
     local clicked = imgui.Button(abbr .. '##j', size);
     imgui.PopStyleColor(4);
     return clicked;
@@ -3086,37 +3188,54 @@ local function draw_header()
         local dl = imgui.GetWindowDrawList();
         local x, y = imgui.GetWindowPos();
         local w, h = imgui.GetWindowSize();
-        -- Warm gold glow on the left fading into the window color, a gold accent bar and a gold underline
-        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(C.header), 10);
-        hgradient(dl, x + 6, y, x + w * 0.65, y + h - 2, { 0.24, 0.18, 0.08, 0.85 }, { C.header[1], C.header[2], C.header[3], 0 }, 48);
-        dl:AddRectFilled({ x + 10, y + 14 }, { x + 14, y + h - 14 }, u32(C.gold), 2);
-        gold_line(dl, x + 10, y + h - 2, x + w * 0.8, 0.8);
+        -- Flat: no fill or glow, one hairline under the header
+        gold_line(dl, x, y + h - 1, x + w);
 
-        -- CatsEyeXI logo next to the accent bar, title text moves right to make room
-        local lx = 26;
+        -- CatsEyeXI logo, then the title and a single quiet info line
+        local lx = 4;
         local lg = logo_texture();
         if lg then
-            imgui.SetCursorPos({ 22, 7 });
+            imgui.SetCursorPos({ 0, 7 });
             imgui.Image(lg.ptr, { 92, 56 });
             if imgui.IsItemHovered() then imgui.SetTooltip('Made for CatsEyeXI'); end
-            lx = 124;
+            lx = 106;
         end
 
-        imgui.SetCursorPos({ lx, 11 });
-        title_text('YUNA', 1.6, C.text);
-        imgui.SameLine(0, 6);
-        title_text('GEAROPT', 1.6, C.gold);
-        imgui.SameLine(0, 14);
-        imgui.SetCursorPosY(20);
-        imgui.TextColored(C.gold_dim, 'SET BUILDER');
-        imgui.SameLine(0, 10);
-        imgui.TextColored(C.muted, 'LegacyAC  /  LuAshitacast  /  GearSwap');
-        imgui.SetCursorPos({ lx, 44 });
-        imgui.TextColored(C.muted, string.format('%s   |   %d pieces   %d augmented   |   scanned %s', player_name(), #owned,
+        imgui.SetCursorPos({ lx, 12 });
+        title_text('YUNA', 1.5, C.text);
+        imgui.SameLine(0, 5);
+        title_text('GEAROPT', 1.5, C.gold);
+        imgui.SetCursorPos({ lx, 42 });
+        imgui.SetWindowFontScale(0.9);
+        imgui.TextColored(C.muted, string.format('%s      %d pieces      %d augmented      scanned %s', player_name(), #owned,
             ui.augmented, ui.last_scan));
         if not bis.done then
-            imgui.SameLine();
-            imgui.TextColored(C.gold_dim, string.format('   |   building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
+            imgui.SameLine(0, 0);
+            imgui.TextColored(C.gold_dim, string.format('      building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
+        end
+        imgui.SetWindowFontScale(1.0);
+
+        -- LOCKSTYLE: gold like VIEW BIS SET, next to the scan info; solid gold while you're in it
+        for i, d in ipairs(ui.sets) do
+            if d.lockstyle then
+                local in_look = i == ui.set_idx;
+                local label = 'LOCKSTYLE  ' .. JOBS[ui.job];
+                imgui.SameLine(0, 18);
+                imgui.SetCursorPosY(37);
+                if not in_look then
+                    imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.12 });
+                    imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.22 });
+                    imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
+                    imgui.PushStyleColor(ImGuiCol_Text, C.gold);
+                end
+                if accent_button(label .. '##ygo_look', { btn_w(label), 26 }, in_look) and not in_look then
+                    ui.set_idx, ui.dirty = i, true;
+                end
+                if not in_look then imgui.PopStyleColor(4); end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Pick the look you want for ' .. JOBS[ui.job] .. ' (or IMPORT EQUIPPED).\nIt locks on by itself after login and every job change.');
+                end
+            end
         end
 
         local wwidth = imgui.GetWindowWidth();
@@ -3146,7 +3265,8 @@ local function draw_header()
 end
 
 local function draw_sidebar()
-    imgui.PushStyleColor(ImGuiCol_ChildBg, { 0.075, 0.080, 0.105, 1 });
+    imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
+    imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
     if imgui.BeginChild('ygo_side', { 236, -60 }, true) then
         caption('JOB');
         for i, abbr in ipairs(JOBS) do
@@ -3156,7 +3276,8 @@ local function draw_sidebar()
         end
 
         imgui.Spacing();
-        caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets));
+        -- (Lockstyle isn't a gear set: its button is in the header, next to the scan info)
+        caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 1));
         for _, cat in ipairs(CATEGORY_ORDER) do
             local first = true;
             local last_skill = nil;
@@ -3188,6 +3309,7 @@ local function draw_sidebar()
         end
     end
     imgui.EndChild();
+    imgui.PopStyleVar();
     imgui.PopStyleColor();
 end
 
@@ -3209,12 +3331,25 @@ local function draw_set_header()
     imgui.TextColored(C.gold_dim, d.name);
     gold_line(imgui.GetWindowDrawList(), hx, hy + 26, hx + imgui.GetWindowWidth() * 0.6, 0.45);
 
-    imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
-    if accent_button((ui.show_bis and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 24 }, ui.show_bis) then
-        ui.show_bis = not ui.show_bis;
-    end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip(ui.show_bis and 'Back to your own set.' or 'Show the Best in Slot set for this job and set,\nincluding pieces you do not own yet.');
+    -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
+    if d.lockstyle then
+        ui.show_bis = false;
+    else
+        imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
+        local showing = ui.show_bis;            -- the click below flips show_bis; push/pop follow what was drawn
+        if not showing then
+            imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.12 });
+            imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.22 });
+            imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
+            imgui.PushStyleColor(ImGuiCol_Text, C.gold);
+        end
+        if accent_button((showing and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 26 }, showing) then
+            ui.show_bis = not ui.show_bis;
+        end
+        if not showing then imgui.PopStyleColor(4); end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(ui.show_bis and 'Back to your own set.' or 'Show the Best in Slot set for this job and set,\nincluding pieces you do not own yet.');
+        end
     end
 
     if d.kind == 'ws' and d.ws then
@@ -3256,6 +3391,16 @@ local function draw_picker(def)
     imgui.SameLine();
     imgui.TextColored(C.muted, '  choose a piece');
     imgui.Separator();
+    -- Search box: type part of a name to filter the list (cleared every time the menu opens)
+    ui.search = ui.search or { '' };
+    imgui.TextColored(C.gold_dim, 'Search');
+    imgui.SameLine();
+    imgui.PushItemWidth(-1);
+    if imgui.IsWindowAppearing() then ui.search[1] = ''; imgui.SetKeyboardFocusHere(); end
+    imgui.InputText('##pick_search_' .. def.key, ui.search, 64);
+    imgui.PopItemWidth();
+    local filter = (ui.search[1] or ''):lower();
+    imgui.Separator();
     if imgui.Selectable('Auto  (let the optimizer choose)', pins[def.key] == nil) then set_pin(def.key, nil); imgui.CloseCurrentPopup(); end
     if imgui.Selectable('Leave empty  (no swap)', pins[def.key] == false) then set_pin(def.key, false); imgui.CloseCurrentPopup(); end
     imgui.Separator();
@@ -3270,8 +3415,15 @@ local function draw_picker(def)
         imgui.Separator();
     end
     local list = ui.full[def.key] or {};
+    if filter ~= '' then
+        local shown = {};
+        for _, c in ipairs(list) do
+            if c.item.name:lower():find(filter, 1, true) then table.insert(shown, c); end
+        end
+        list = shown;
+    end
     if #list == 0 then
-        imgui.TextColored(C.muted, 'No wearable piece for this slot.');
+        imgui.TextColored(C.muted, filter ~= '' and 'No piece matches your search.' or 'No wearable piece for this slot.');
     else
         local h = math.min(#list * 26 + 8, 340);
         if imgui.BeginChild('pick_list_' .. def.key, { 470, h }, false) then
@@ -3327,7 +3479,7 @@ local function draw_bis_card(def)
     slot_icon(b and b.item, b and TIER_ORANGE or C.muted);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
-    imgui.TextColored(C.gold_dim, def.label:upper());
+    imgui.TextColored(C.muted, def.label:upper());
     imgui.SameLine();
     imgui.TextColored(TIER_ORANGE, 'BiS');
     if b then imgui.TextColored(have and C.green or C.muted, have and 'owned' or 'not owned'); end
@@ -3360,7 +3512,7 @@ local function draw_card(def, max_score)
     slot_icon(c and c.item, col);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
-    imgui.TextColored(C.gold_dim, def.label:upper());
+    imgui.TextColored(C.muted, def.label:upper());
     -- Tags go on the bag line, which has room for them (next to the slot name they ran into the arrow)
     if c then imgui.TextColored(EQUIP_BAGS[c.item.where] and C.muted or C.red, c.item.where); end
     if pin ~= nil then
@@ -3383,7 +3535,7 @@ local function draw_card(def, max_score)
         if text_w(chips) * 0.85 > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
         imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips);
         imgui.PushStyleColor(ImGuiCol_PlotHistogram, col);
-        imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 3 }, '');
+        imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 2 }, '');
         imgui.PopStyleColor();
         tier_frame(col, r ~= nil and r >= 0.95);
     else
@@ -3492,6 +3644,37 @@ local function copy_current_set()
     msg('Set "' .. ui.desc.name .. '" copied to clipboard.');
 end
 
+-- Import what you're wearing into the open set: every slot the set uses gets your equipped piece as its pick
+-- (an empty slot stays empty). Saved like any other pick, so exports and the lockstyle use it.
+function actions.import_equipped()
+    if ui.desc == nil or ui.desc.info then return; end
+    scan();                                                    -- so pieces you just got are known
+    local count = 0;
+    local ok, err = pcall(function()
+        local inv = AshitaCore:GetMemoryManager():GetInventory();
+        local res = AshitaCore:GetResourceManager();
+        for _, def in ipairs(active_slots(ui.desc)) do
+            local pick = false;
+            local e = inv:GetEquippedItem(EQUIP_ID[def.key]);
+            local idx = e and bit.band(e.Index, 0x00FF) or 0;
+            if idx ~= 0 then
+                local cid = bit.rshift(bit.band(e.Index, 0xFF00), 8);
+                local it = inv:GetContainerItem(cid, idx);
+                local r = (it ~= nil and it.Id ~= 0 and it.Id ~= 65535) and res:GetItemById(it.Id) or nil;
+                if r then
+                    pick = { name = r.Name[1], where = CONTAINERS[cid] or 'Inventory' };
+                    count = count + 1;
+                end
+            end
+            set_pin(def.key, pick, true);
+        end
+    end);
+    settings.save();
+    if not ok then msg('Import error: ' .. tostring(err)); return; end
+    msg(string.format('Imported %d equipped pieces into %s %s.', count, JOBS[ui.job], ui.desc.label));
+    if ui.desc.lockstyle and ui.job == main_job() then look.apply(ui.job, false); end
+end
+
 -- "Before you export" window: recommends a backup and lists exactly which files will be replaced
 local function draw_export_confirm()
     local id = 'Before you export###ygo_export';
@@ -3522,9 +3705,9 @@ local function draw_export_confirm()
     imgui.Spacing();
     local b1, b2, b3 = 'BACK UP & EXPORT', 'EXPORT WITHOUT BACKUP', 'CANCEL';
     local function finish() ui.pending_export = nil; imgui.CloseCurrentPopup(); end
-    if accent_button(b1 .. '##ygo_bk', { btn_w(b1), 32 }, true) then backup_targets(kind); e.run(); finish(); end
+    if accent_button(b1 .. '##ygo_bk', { btn_w(b1), 32 }, true) then backup_targets(kind); e.run(); actions.reload_after_export(kind); finish(); end
     imgui.SameLine(0, 8);
-    if imgui.Button(b2 .. '##ygo_nobk', { btn_w(b2), 32 }) then e.run(); finish(); end
+    if imgui.Button(b2 .. '##ygo_nobk', { btn_w(b2), 32 }) then e.run(); actions.reload_after_export(kind); finish(); end
     imgui.SameLine(0, 8);
     if ghost_button(b3 .. '##ygo_cancel', { btn_w(b3), 32 }) then finish(); end
     imgui.EndPopup();
@@ -3536,37 +3719,60 @@ local function draw_footer()
     local _, y = imgui.GetCursorScreenPos();
     local w = imgui.GetWindowWidth();
     y = y + 4;
-    dl:AddRectFilled({ wx + 10, y }, { wx + w - 10, y + 48 }, u32({ 0.085, 0.092, 0.125, 1 }), 10);
-    gold_line(dl, wx + 10, y, wx + w * 0.75, 0.6);
+    gold_line(dl, wx + 16, y, wx + w - 16);
     imgui.SetCursorPosY(imgui.GetCursorPosY() + 11);
     imgui.SetCursorPosX(imgui.GetCursorPosX() + 8);
-    if imgui.Button('Rescan', { 80, 34 }) then msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented)); end
+    if imgui.Button('Rescan', { btn_w('Rescan'), 34 }) then msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented)); end
     imgui.SameLine();
-    if imgui.Button('Copy set', { 90, 34 }) then copy_current_set(); end
+    if imgui.Button('Copy set', { btn_w('Copy set'), 34 }) then copy_current_set(); end
     imgui.SameLine();
-    if imgui.Button('EQUIP IN GAME', { 130, 34 }) then equip_current_set(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Puts this set on your character right now (/equip),\nso you can see it. Weapons in the set reset TP.'); end
+    if ui.desc and ui.desc.lockstyle then
+        if imgui.Button('APPLY LOCKSTYLE', { btn_w('APPLY LOCKSTYLE'), 34 }) then
+            if ui.job == main_job() then look.apply(ui.job, false);
+            else msg('Change to ' .. JOBS[ui.job] .. ' to lock this look on (it goes on by itself when you do).'); end
+        end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Locks this look on your character (/ygo lockstyle).\nIt also goes back on by itself after login and every job change.'); end
+    else
+        if imgui.Button('EQUIP IN GAME', { btn_w('EQUIP IN GAME'), 34 }) then equip_current_set(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Puts this set on your character right now (/equip),\nso you can see it. Weapons in the set reset TP.'); end
+    end
+    imgui.SameLine();
+    if imgui.Button('IMPORT EQUIPPED', { btn_w('IMPORT EQUIPPED'), 34 }) then actions.import_equipped(); end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Puts the gear you are wearing right now into this set (' .. (ui.desc and ui.desc.label or '') .. ').\n'
+            .. 'Each slot the set uses gets your equipped piece; an empty slot stays empty.\nReset picks undoes it.');
+    end
     local pins = ui.pins[ui.ctx] or {};
     if next(pins) ~= nil then
         imgui.SameLine();
-        if imgui.Button('Reset picks', { 100, 34 }) then ui.pins[ui.ctx] = {}; ui.dirty = true; end
+        if imgui.Button('Reset picks', { btn_w('Reset picks'), 34 }) then ui.pins[ui.ctx] = nil; ui.dirty = true; settings.save(); end
     end
     local l1, l2, l3 = 'EXPORT XML', 'EXPORT LAC', 'EXPORT GEARSWAP';
     local w1, w2, w3 = btn_w(l1), btn_w(l2), btn_w(l3);
     imgui.SameLine(imgui.GetWindowWidth() - (w1 + w2 + w3 + 16 + 14));
-    if accent_button(l1, { w1, 34 }, true) then ask_export('xml'); end
+    -- Exports: gold text on a soft gold tint, a little brighter on hover (three solid gold blocks were too loud)
+    local function export_button(label, size)
+        imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.10 });
+        imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.20 });
+        imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.30 });
+        imgui.PushStyleColor(ImGuiCol_Text, C.gold);
+        local clicked = imgui.Button(label, size);
+        imgui.PopStyleColor(4);
+        return clicked;
+    end
+    if export_button(l1, { w1, 34 }) then ask_export('xml'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '.xml'); end
     imgui.SameLine(0, 8);
-    if accent_button(l2, { w2, 34 }, true) then ask_export('lac'); end
+    if export_button(l2, { w2, 34 }) then ask_export('lac'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
     imgui.SameLine(0, 8);
-    if accent_button(l3, { w3, 34 }, true) then ask_export('gs'); end
+    if export_button(l3, { w3, 34 }) then ask_export('gs'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower): every ' .. JOBS[ui.job] .. ' set + rules\n-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
 end
 
 local function draw_full()
-    imgui.SetNextWindowSize({ 1120, 860 }, ImGuiCond_FirstUseEver);
-    imgui.SetNextWindowSizeConstraints({ 980, 600 }, { 4000, 4000 });
+    imgui.SetNextWindowSize({ 1180, 860 }, ImGuiCond_FirstUseEver);
+    imgui.SetNextWindowSizeConstraints({ 1120, 600 }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
         draw_header();
         imgui.Spacing();
@@ -3622,8 +3828,14 @@ local function draw_lazy()
         local ws_label = (ui.desc and ui.desc.kind == 'ws') and ui.desc.label:gsub('^WS %- ', '') or 'Weaponskill...';
         imgui.PushItemWidth(-1);
         if imgui.BeginCombo('##lws', ws_label) then
+            -- Search box for the weaponskill list (cleared every time it opens)
+            ui.ws_search = ui.ws_search or { '' };
+            if imgui.IsWindowAppearing() then ui.ws_search[1] = ''; imgui.SetKeyboardFocusHere(); end
+            imgui.InputText('##lws_search', ui.ws_search, 64);
+            local wf = (ui.ws_search[1] or ''):lower();
+            imgui.Separator();
             for i, d in ipairs(ui.sets) do
-                if d.kind == 'ws' then
+                if d.kind == 'ws' and (wf == '' or d.label:lower():find(wf, 1, true)) then
                     if imgui.Selectable(d.label:gsub('^WS %- ', '') .. '##lw' .. i, i == ui.set_idx) then ui.set_idx, ui.dirty = i, true; end
                 end
             end
@@ -3743,12 +3955,16 @@ end
 -- Events
 ----------------------------------------------------------------------------------------------------
 settings.register('settings', 'ygo_settings_update', function(e)
-    if e ~= nil then s = e; ui.dirty = true; end
+    if e ~= nil then
+        s = e;
+        s.picks = s.picks or T{};
+        ui.pins, ui.dirty = s.picks, true;
+    end
 end);
 
 ashita.events.register('load', 'ygo_load', function() load_data(); check_for_update(false); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
-ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); draw_ui(); end);
+ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); look.watch(); draw_ui(); end);
 
 -- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
 -- starts on you the addon locks the PhalanxRcv set on with /la set for a few seconds. Only for jobs whose
@@ -3837,6 +4053,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         ask_export('xml');            -- same confirmation window as the buttons
     elseif sub == 'warp' then
         do_warp();
+    elseif sub == 'lockstyle' or sub == 'ls' then
+        look.apply(main_job(), false);
     elseif sub == 'lac' then
         if #owned == 0 then scan(); end
         ui.job, ui.dirty, ui.open[1] = main_job(), true, true;
