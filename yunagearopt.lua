@@ -1320,10 +1320,17 @@ local function equip_set(name)
     return function(out, ind) table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name))); end;
 end
 
+-- data.ja_sets / data.spell_sets entries are { name, set } or just 'Name' when the set has the same name
+local function name_set_pair(p)
+    if type(p) == 'table' then return p; end
+    return { p, p };
+end
+
 -- Spells with their own midcast set (data.spell_sets), limited to the sets this export contains
 local function spell_set_list(have)
     local list = {};
-    for _, p in ipairs(data.spell_sets or {}) do
+    for _, e in ipairs(data.spell_sets or {}) do
+        local p = name_set_pair(e);
         if have[p[2]] then table.insert(list, p); end
     end
     return list;
@@ -1341,7 +1348,8 @@ local function ja_list(built)
     local present = {};
     for _, b in ipairs(built) do present[b.desc.name] = true; end
     local list = {};
-    for _, p in ipairs(data.ja_sets or {}) do
+    for _, e in ipairs(data.ja_sets or {}) do
+        local p = name_set_pair(e);
         if present[p[2]] then table.insert(list, p); end
     end
     return list;
