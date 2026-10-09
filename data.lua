@@ -531,7 +531,9 @@ return {
         { sets = { 'Songs_Debuff' }, jobs = { 'BRD' }, items = { 'Apex Sune-Ate' } },
         { sets = { 'PhantomRoll' },  jobs = { 'COR' }, items = { 'Apex Haidate' } },
         -- SCNM legs augmented "Refresh +1" (stronger Refresh spell): worn when casting Refresh / Battery Charge
-        { sets = { 'RefreshSpell' }, jobs = { 'RDM' }, items = { 'Apogee Tonban', 'Egeking' } },
+        { sets = { 'RefreshSpell' }, jobs = { 'RDM' }, items = { 'Apogee Tonban' } },
+        -- RDM Phalanx (self-cast): Phalanx-received feet + Egeking
+        { sets = { 'Phalanx' }, jobs = { 'RDM' }, items = { 'Wise Pigaches +1', 'Egeking' } },
         { sets = { 'RefreshSpell' }, jobs = { 'RUN' }, items = { 'Pinnacle Cuisses' } },
         { sets = { 'BatteryCharge' }, jobs = { 'BLU' }, items = { 'Apogee Tonban' } },
         -- Fotia only helps every hit on fTP-replicating weaponskills; on CatsEyeXI those are only these four
@@ -762,7 +764,7 @@ return {
         -- WHM -na spells and Erase: Healing gear, plus Yagrush in the main hand when you own it ("-na spells: area of effect")
         NaSpells      = { label = '-na spells / Erase (Yagrush)', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
         Enhancing     = { label = 'Enhancing magic skill', weapons = true, weights = { enhancing = 5, enhdur = 2, cmp = 0.5, sird = 0.5, mnd = 0.3 } },
-        -- Casting Refresh / Refresh II: your Enhancing pieces + Refresh+ (SCNM legs; RDM also Egeking)
+        -- Casting Refresh / Refresh II: your Enhancing pieces + Refresh+ (SCNM legs)
         RefreshSpell  = { label = 'Refresh (spell)', weapons = true, weights = { enhancing = 5, enhdur = 2, cmp = 0.5, sird = 0.5, mnd = 0.3, refreshpot = 20 } },
         -- stoneskin = extra damage absorbed (Stone Gorget +30); 1 point is worth about 1 MND in the Stoneskin formula
         Stoneskin     = { label = 'Stoneskin (MND)', weapons = true, weights = { mnd = 4, enhancing = 1.5, stoneskin = 4 } },
@@ -889,7 +891,7 @@ return {
         SIR        = { label = 'Spell interruption (midcast base)', weights = { sird = 6, hp = 0.05, dt = -3, pdt = -3, mdt = -2, enmity = 1 } },
         Flash      = { label = 'Flash', weights = { enmity = 6, hp = 0.05, sird = 1, dt = -2, pdt = -2 } },
         Reprisal   = { label = 'Reprisal', weights = { enmity = 4, sird = 3, hp = 0.08, dt = -2, pdt = -2 } },
-        Phalanx    = { label = 'Phalanx (your own cast)', weights = { phalanx = 10, phalanxrcv = 10, enhancing = 1.5, sird = 1 } },
+        Phalanx    = { label = 'Phalanx (your own cast)', weapons = true, weights = { phalanx = 10, phalanxrcv = 10, enhancing = 1.5, sird = 1 } },
         -- Only the Phalanx-received pieces, worn on top of your gear for a few seconds
         PhalanxRcv = { label = 'Phalanx received (cast on you)', weights = { phalanxrcv = 10 } },
         -- Ability pieces, worn on top of the Enmity set when you use the ability
@@ -908,7 +910,7 @@ return {
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Phalanx', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
