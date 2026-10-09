@@ -12,14 +12,17 @@ return {
     [10668] = { acc = 9, att = 9, def = 23, hp = 28, str = 7, waltz = 7 }, -- Etoile Tiara +2
     [10675] = { agi = 7, crit = 3, critdmg = 3, def = 59, dex = 7, enmity = 6 }, -- Asn. Vest +2
     [10676] = { covermp = 30, def = 72, dt = -4, enmity = 7, hp = 42 }, -- Vlr. Surcoat +2
+    [10684] = { bpdelay = 6, crit = 6, def = 49, mp = 28, perp = 3 }, -- Smn. Doublet +2
     [10688] = { acc = 15, att = 17, def = 51, dex = 6, str = 6, vfmacc = 20 }, -- Etoile Casaque +2
     [10695] = { acc = 9, chr = 7, def = 21, enmity = 5, eva = 9, th = 2 }, -- Asn. Armlets +2
     [10696] = { def = 29, enmity = 6, hp = 22, mnd = 8, shieldbash = 12, vit = 8 }, -- Vlr. Gauntlets +2
     [10708] = { acc = 7, agi = 6, att = 7, def = 22, enmity = 4, eva = 7, hp = 21, vit = 6 }, -- Etoile Bangles +2
     [10715] = { acc = 10, def = 44, dex = 5, enmity = 6, str = 5 }, -- Asn. Culottes +2
+    [10724] = { bpdelay = 4, def = 38, mp = 35 }, -- Smn. Spats +2
     [10728] = { acc = 6, chr = 6, def = 36, haste = 4, jig = 35, str = 6 }, -- Etoile Tights +2
     [10735] = { chr = 7, def = 20, dex = 7, enmity = 4, ta = 3 }, -- Asn. Poulaines +2
     [10736] = { def = 25, enmity = 4, hp = 25, mdt = -4, sentinel = 10 }, -- Vlr. Leggings +2
+    [10744] = { bpdelay = 4, def = 18, mp = 35 }, -- Smn. Pigaches +2
     [10748] = { acc = 7, agi = 6, def = 21, dex = 6, eva = 7, hp = 28, stepacc = 15 }, -- Etoile Shoes +2
     [10754] = { agi = 5, marksmanship = 3, sk_dagger = 3 }, -- Moepapa Ring
     [10755] = { sk_gkatana = 3, sk_gsword = 3, str = 5 }, -- Moepapa Annulet
@@ -168,6 +171,7 @@ return {
     [11923] = { acc = 5, def = 30, enmity = 3, hp = 30, mp = 30, pdt = -3 }, -- Tjukurrpa Gauntlets
     [11924] = { def = 25, dex = 5, haste = 3, mp = 25 }, -- Alucinor Mitts
     [11993] = {  }, -- Rogues Torque
+    [12002] = {  }, -- Evokers Torque
     [12006] = {  }, -- Dancers Torque
     [12013] = { acc = 4, def = 31 }, -- Raiders Bonnet
     [12026] = { def = 27, stp = 2 }, -- Charis Tiara
@@ -214,10 +218,12 @@ return {
     [12514] = { def = 23, hp = 13, int = 5 }, -- Rogues Bonnet
     [12515] = { cover = 5, def = 24, enmity = 2, hp = 12, mnd = 3 }, -- Gallant Coronet
     [12519] = { def = 16, hp = 12, mnd = 5 }, -- Drachen Armet
+    [12520] = { def = 15, int = 3, mp = 20, summoning = 5 }, -- Evokers Horn
     [12564] = { bdt = -9, def = 47, hp = 12 }, -- Dragon Mail
     [12617] = { agi = 2, def = 43, regen = 1, str = -2, throwing = 10 }, -- War Shinobi Gi
     [12618] = { def = 43, enmity = 4, int = 3, sird = 10 }, -- Yasha Samue
     [12643] = { def = 44, hp = 20, str = 3 }, -- Rogues Vest
+    [12650] = { def = 35, mnd = 3, mp = 15 }, -- Evokers Doublet
     [12690] = { agi = 15, def = 26, hp = 50, racc = 10 }, -- Seiryus Kote
     [12692] = { bdt = -4, def = 15, hp = 8 }, -- Dragon Fng. Gnt.
     [12742] = {  }, -- Rune Bangles
@@ -281,6 +287,7 @@ return {
     [13937] = { agi = 5, bdt = -6, def = 25, enmity = 2, sb = 4 }, -- Dragon Cap +1
     [13965] = { def = 16, dex = 4, mp = 12 }, -- Warlocks Gloves
     [13966] = { def = 15, dex = 3, hp = 10 }, -- Rogues Armlets
+    [13975] = { def = 11, mp = 15, vit = 4 }, -- Evokers Bracers
     [13979] = { def = 9 }, -- Silver Bangles
     [13980] = { def = 10 }, -- Silver Bangles +1
     [13981] = { def = 10 }, -- Turtle Bangles
@@ -303,6 +310,8 @@ return {
     [14077] = { def = 26, dex = 5, haste = -7, hp = 10, str = 8 }, -- Hct. Mittens +1
     [14085] = { def = 11, hp = 10, mp = 10 }, -- Serpentes Sabots
     [14094] = { def = 13, dex = 3, hp = 12 }, -- Rogues Poulaines
+    [14095] = { chr = 5, def = 14, hp = 15 }, -- Gallant Leggings
+    [14103] = { agi = 5, def = 10, mp = 15 }, -- Evokers Pigaches
     [14110] = { def = 13, pdt = -2 }, -- Dst. Leggings +1
     [14123] = { chr = 2, def = 20, int = 2 }, -- Zenith Pumps
     [14124] = { chr = 3, def = 21, int = 3 }, -- Zenith Pumps +1
@@ -318,6 +327,7 @@ return {
     [14216] = { def = 28, divine = 15, enmity = -1, mp = 15, vit = 3 }, -- Healers Pantaln.
     [14219] = { agi = 4, def = 32, hp = 15 }, -- Rogues Culottes
     [14227] = { def = 27, hp = 15 }, -- Drachen Brais
+    [14228] = { def = 25, mp = 15 }, -- Evokers Spats
     [14230] = { def = 31, mdt = -3 }, -- Coral Cuisses +1
     [14231] = { bdt = -5, def = 32, hp = 13 }, -- Dragon Cuisses +1
     [14234] = { def = 29, pdt = -3 }, -- Dst. Subligar +1
@@ -359,6 +369,7 @@ return {
     [14483] = { agi = 4, def = 45, hp = 20, racc = 10, vit = 4 }, -- Htr. Jerkin +1
     [14485] = { def = 46, dex = 5, dw = 5, hp = 15, vit = 5 }, -- Nin. Chainmail +1
     [14486] = { att = 7, def = 49, hp = 15, str = 6, vit = 6 }, -- Drn. Mail +1
+    [14487] = { bpdelay = 4, def = 35, hmp = 5, mp = 45 }, -- Evk. Doublet +1
     [14488] = { acc = 15, def = 49, hp = 28, mp = 28, ta = 1 }, -- Homam Corazza
     [14489] = { dark = 5, def = 41, haste = 3, healing = 5, macc = 5 }, -- Nashira Manteel
     [14501] = { def = 45, hhp = 6, regen = 1, vit = 6 }, -- Mel. Cyclas +1
@@ -385,6 +396,7 @@ return {
     [14578] = { def = 38, dex = 2, enmity = -2, hp = 20, str = 2, waltz = 10 }, -- Dancers Casaque
     [14579] = { def = 38, dex = 2, enmity = -2, hp = 20, str = 2, waltz = 10 }, -- Dancers Casaque
     [14580] = { def = 38, int = 1, mnd = 1, mp = 13 }, -- Scholars Gown
+    [14625] = { mp = 25, perp = 1, summoning = 10 }, -- Evokers Ring
     [14627] = { acc = -12, bdt = -1, def = 2, racc = 12 }, -- Dragon Ring +1
     [14632] = { def = 3, dex = -2, mnd = 5, str = 2 }, -- Aqua Ring
     [14642] = { agi = -1, chr = 5, def = 3, dex = -1, hp = 20, int = -1, mnd = -1, mp = -20, str = -1, vit = -1 }, -- Light Ring
@@ -428,7 +440,9 @@ return {
     [14895] = { def = 16, dex = 3, hp = 10 }, -- Rog. Armlets +1
     [14899] = { chr = 7, def = 18, enmity = -1, hp = 14, singing = 10, vit = 7 }, -- Chl. Cuffs +1
     [14901] = { def = 21, dex = 7, enmity = 2, hp = 15, str = 7 }, -- Myn. Kote +1
+    [14904] = { bpdelay = 1, def = 11, mp = 19 }, -- Evk. Bracers +1
     [14905] = { acc = 4, def = 20, enmity = 3, haste = 3, hp = 20, mp = 20 }, -- Homam Manopolas
+    [14906] = { def = 18, enmity = -4, haste = 1, macc = 3, perp = 1 }, -- Nashira Gages
     [14910] = { att = 18, def = 16, sb = 5 }, -- Mel. Gloves +1
     [14913] = { def = 18, enhancing = 15, int = 5, mdb = 2, mp = 23 }, -- Dls. Gloves +1
     [14914] = { chr = 5, def = 17, enmity = 4, hp = 26, th = 1 }, -- Asn. Armlets +1
@@ -439,6 +453,7 @@ return {
     [14935] = { def = 17, eva = 4, int = 5, mab = 2, mnd = 5 }, -- Yigit Gages
     [14940] = { acc = 5, def = 19, racc = 5, ratt = 5 }, -- Pln. Dastanas
     [14951] = { def = 18, hp = 28, mnd = 2, mp = 28, str = 2 }, -- Dragon Kote
+    [14960] = { def = 20 }, -- Evokers Gages
     [14961] = { acc = 10, def = 20, str = 4, vit = 4 }, -- Ares Gauntlets
     [14965] = { agi = 5, att = 10, def = 17, ratt = 10, str = 5 }, -- Skadis Bazubands
     [14969] = { acc = 10, counter = 2, def = 20, eva = 10, sb = 5 }, -- Usukane Gote
@@ -478,6 +493,7 @@ return {
     [15093] = { covermp = 20, def = 55, dex = 3, enmity = 4, hp = 23 }, -- Valor Surcoat
     [15094] = { acc = 10, def = 49, hp = 20, mab = 10, mnd = 4 }, -- Abyss Cuirass
     [15099] = { acc = 12, att = 16, def = 46, racc = 8, ratt = 8 }, -- Koga Chainmail
+    [15101] = { bpdelay = 3, def = 38, mp = 20 }, -- Summoners Dblt.
     [15104] = { def = 16, enfeebling = 15, enmity = -3, mp = 20 }, -- Clerics Mitts
     [15107] = { chr = 5, def = 16, enmity = 3, hp = 7, th = 1 }, -- Assassins Armlets
     [15108] = { def = 22, enmity = 3, hp = 16, shieldbash = 10, vit = 5 }, -- Valor Gauntlets
@@ -485,10 +501,12 @@ return {
     [15114] = { def = 18 }, -- Koga Tekko
     [15115] = { acc = 5, agi = 3, def = 19, hp = 16 }, -- Wyrm Fng.Gnt.
     [15122] = { def = 34, enmity = 4, hp = 19 }, -- Assassins Culottes
+    [15131] = { bpdelay = 2, def = 29, mnd = 3, mp = 20 }, -- Summoners Spats
     [15137] = { chr = 5, def = 15, enmity = 2, hp = 15, ta = 1 }, -- Assassins Pouln.
     [15138] = { def = 19, enmity = 1, hp = 18, mnd = 3, sentinel = 10 }, -- Valor Leggings
     [15139] = { def = 17, enfeebling = 5, mp = 12 }, -- Abyss Sollerets
     [15140] = { def = 14, hp = 13, vit = 4 }, -- Monster Gaiters
+    [15146] = { bpdelay = 2, def = 14, mp = 20, vit = 3 }, -- Summoners Pgch.
     [15159] = { def = 20, enfeebling = 10, eva = 10 }, -- Igqira Tiara
     [15160] = { def = 21, enfeebling = 11, eva = 11 }, -- Genie Tiara
     [15165] = { def = 10 }, -- Shade Tiara
@@ -523,13 +541,16 @@ return {
     [15295] = { def = 3, hhp = 2, hmp = 2, mp = 48 }, -- Hierarch Belt
     [15302] = { agi = 4, def = 6, eva = 10, hp = -40 }, -- Scouters Rope
     [15323] = { curect = 15, def = 14 }, -- Cure Clogs
+    [15325] = { def = 11, enmity = -2, mnd = 2, mp = 20 }, -- Evokers Boots
     [15331] = { def = 15, enmity = -5, haste = 3, mnd = 4, mp = 20 }, -- Blessed Pumps +1
     [15332] = { def = 18, stp = 6, str = 3, wsacc = 3 }, -- Hmn. Sune-ate +1
     [15339] = { att = 8, def = 13, dt = 8, str = 3 }, -- Black Sollerets
     [15350] = { def = 20, fc = 3, hp = -30, int = 3, mnd = 3, mp = 30 }, -- Rostrum Pumps
     [15356] = { agi = 3, def = 15, int = 3, mnd = 3, mp = 16 }, -- Wlk. Boots +1
     [15357] = { def = 15, dex = 3, racc = 5 }, -- Rog. Poulaines +1
+    [15358] = { chr = 5, def = 19, hp = 20 }, -- Glt. Leggings +1
     [15363] = { att = 8, def = 18, enmity = 5, hp = 20, zanshin = 1 }, -- Myn. Sune-ate +1
+    [15366] = { def = 10, mp = 25, perp = 1 }, -- Evk. Pigaches +1
     [15392] = { def = 36, stp = 3, wsacc = 6 }, -- Hachiman Hakama
     [15393] = { def = 33, enmity = -6, haste = 4, mnd = 7, mp = 30 }, -- Bls. Trousers +1
     [15394] = { def = 37, stp = 4, wsacc = 7 }, -- Hmn. Hakama +1
@@ -570,6 +591,7 @@ return {
     [15571] = { agi = 5, def = 32, enmity = -3, hp = 15, mnd = 5 }, -- Htr. Braccae +1
     [15572] = { def = 40, hp = 15, stp = 4, str = 5, vit = 5 }, -- Myn. Haidate +1
     [15574] = { acc = 9, def = 32, hp = 15 }, -- Drn. Brais +1
+    [15575] = { def = 25, enmity = -3, mp = 22 }, -- Evk. Spats +1
     [15576] = { acc = 3, def = 35, fc = 5, haste = 3, hp = 26, mp = 26 }, -- Homam Cosciales
     [15577] = { def = 30, divine = 5, enfeebling = 5, haste = 2, macc = 3 }, -- Nashira Seraweels
     [15580] = { da = 1, def = 40, enmity = 4, str = 6 }, -- War. Cuisses +1
@@ -581,6 +603,7 @@ return {
     [15590] = { def = 33, enmity = -3, hp = 18, racc = 9 }, -- Sct. Braccae +1
     [15591] = { agi = 4, def = 41, enmity = 1, hp = 33 }, -- Sao. Haidate +1
     [15593] = { def = 33, dex = 6, hp = 13 }, -- Wym. Brais +1
+    [15594] = { bpdelay = 2, def = 30, mp = 25 }, -- Smn. Spats +1
     [15595] = { acc = 10, def = 32, enmity = -6, eva = 10, hmp = 1 }, -- Hydra Brais
     [15603] = { agi = 3, def = 24, hp = 22, str = 2 }, -- Sipahi Zerehs
     [15606] = { def = 30, eva = 6, hmp = 2, hp = 25, mp = 25 }, -- Yigit Seraweels
@@ -605,6 +628,7 @@ return {
     [15670] = { chr = 6, def = 16, enmity = 3, hp = 15, ta = 1 }, -- Asn. Poulaines +1
     [15671] = { def = 20, enmity = 2, hp = 18, mnd = 4, sentinel = 10 }, -- Vlr. Leggings +1
     [15675] = { def = 17, enmity = -4, hp = 12, ratt = 12, vit = 5 }, -- Sct. Socks +1
+    [15679] = { bpdelay = 2, def = 15, mp = 25 }, -- Smn. Pigaches +1
     [15695] = { acc = 3, def = 13, dex = 4, racc = 3 }, -- Pln. Crackows
     [15705] = { def = 14, hp = 22, mdb = 4, mp = 22 }, -- Ataractic Solea
     [15711] = { acc = 7, agi = 3, att = 7, def = 20, eva = -7, vit = 3 }, -- Ares Sollerets
@@ -675,6 +699,7 @@ return {
     [16106] = { def = 23, dex = 4, haste = 4, str = 4, vit = 4 }, -- Askar Zucchetto
     [16107] = { agi = 4, att = 3, def = 21, eva = 3, haste = 4, mnd = 4 }, -- Denali Bonnet
     [16108] = { chr = 5, def = 20, enmity = -4, hmp = 2, hp = 20, mnd = 5, mp = 20 }, -- Goliard Chapeau
+    [16114] = { acc = 3, att = 10, def = 36, dex = 5, hp = 17, mp = 17 }, -- Valkyries Helm
     [16115] = { def = 18, enmity = -3, macc = 5, mp = 35, pdt = 3 }, -- Shadow Hat
     [16117] = { def = 40, dt = -5, haste = -5, hp = 30, vit = 4 }, -- Valhalla Helm
     [16128] = { def = 15, hp = -20, mp = 38 }, -- Wivre Hairpin
@@ -694,6 +719,7 @@ return {
     [16246] = { def = 9, hp = 15, mp = 15 }, -- Viator Cape
     [16248] = { acc = 5, chr = 5, def = 5, dex = 5, eva = 5 }, -- Etoile Cape
     [16264] = { def = 5, hmp = 2, mp = 22 }, -- Beak Necklace +1
+    [16267] = { def = 8, enmity = 3, eva = 5, hp = 25 }, -- Ritter Gorget
     [16275] = { acc = 9, dex = 4 }, -- Ancient Torque
     [16297] = {  }, -- Shepherds Chain
     [16302] = { hp = 60 }, -- Bloodbead Gorget
@@ -810,6 +836,7 @@ return {
     [20543] = { att = 5, dex = 3, eva = 5, sk_h2h = 3, stp = 3, str = 3 }, -- Maochinoli
     [20618] = { acc = 8, agi = 4, dex = 4, enmity = 4, eva = 5, hp = 15, ta = 1 }, -- Sandung
     [20632] = { acc = 12, agi = 8, racc = 12 }, -- Turbulence
+    [20643] = { agi = 5 }, -- Oathbreaker
     [20705] = { cure = 15, enmity = 5, mnd = 10 }, -- Brilliance
     [20720] = { acc = 8, enmity = -4, hp = 15, mab = 4, macc = 4, mnd = 4, mp = 15, phalanxrcv = 3, str = 4 }, -- Egeking
     [20740] = { def = 15, dt = -5, enmity = 5, mnd = 3 }, -- Unbreakable
@@ -827,6 +854,7 @@ return {
     [21333] = { racc = 5, ratt = 5 }, -- Bismuth Bullet
     [21347] = { enmity = 1, hp = 25, vit = 2 }, -- Charitoni Sling
     [21379] = { crit = 2, critdmg = 3, dex = 2 }, -- Yetshila +1
+    [21381] = { bpdelay2 = 2, enmity = -4, mnd = 4, mp = 40 }, -- Soothing Sachet
     [21384] = { macc = 1, mnd = 1, mp = 20 }, -- Rimestone
     [21385] = { enmity = 2, hp = 20, str = 4 }, -- Cinderstone
     [21407] = { enmity = -4, hp = 15, mp = 15, string = 8 }, -- Terpander
@@ -849,24 +877,30 @@ return {
     [22500] = {  }, -- Fjoturangon
     [23045] = { crit = 4, def = 28, dex = 5, eva = 12, haste = 5, hp = 18, racc = 10 }, -- Rogues Bonnet +2
     [23046] = { cover = 5, cure = 7, def = 33, dt = -4, enmity = 4, haste = 4, hp = 20, mnd = 8 }, -- Gallant Coronet +2
+    [23054] = { def = 18, hmp = 5, int = 8, mnd = 8, mp = 30, refresh = 1, summoning = 8 }, -- Evokers Horn +2
     [23058] = { chr = 6, crit = 4, def = 23, dex = 6, enmity = -4, haste = 5, hp = 20, samba = 35 }, -- Dancers Tiara +2
     [23059] = { chr = 6, crit = 4, def = 23, dex = 6, enmity = -4, haste = 5, hp = 20, samba = 35 }, -- Dancers Tiara +2
     [23081] = { acc = 34, agi = 24, att = 62, chr = 21, def = 113, dex = 32, eva = 54, haste = 8, hp = 76, int = 20, macc = 27, mdb = 3, meva = 63, mnd = 20, mp = 33, str = 28, vit = 20, waltz = 13 }, -- Horos Tiara +2
     [23103] = { acc = 51, agi = 34, att = 61, chr = 16, def = 121, dex = 33, eva = 99, haste = 8, hp = 61, int = 16, macc = 51, mdb = 6, meva = 89, mnd = 16, stp = 9, str = 26, vit = 22, wsd = 8 }, -- Maculele Tiara +2
     [23112] = { acc = 12, def = 50, dw = 5, hp = 25, str = 8, th = 1 }, -- Rogues Vest +2
+    [23121] = { bpdelay = 5, def = 38, hmp = 8, mp = 50 }, -- Evokers Doublet +2
     [23125] = { def = 45, dex = 7, enmity = -4, hp = 30, str = 7, waltz = 20 }, -- Dancers Casaque +2
     [23126] = { def = 45, dex = 7, enmity = -4, hp = 30, str = 7, waltz = 20 }, -- Dancers Casaque +2
     [23148] = { acc = 40, agi = 33, att = 71, chr = 28, def = 143, dex = 34, eva = 59, haste = 4, hp = 69, int = 28, macc = 30, mdb = 7, meva = 74, mnd = 28, mp = 54, pdt = -5, str = 29, ta = 3, vfmacc = 39, vit = 29 }, -- Horos Casaque +2
     [23170] = { acc = 54, agi = 43, att = 54, chr = 27, def = 154, dex = 43, dt = -13, dw = 11, eva = 105, haste = 4, hp = 83, int = 26, macc = 54, mdb = 9, meva = 99, mnd = 26, sb = 13, str = 35, vit = 29 }, -- Macu. Casaque +2
     [23179] = { def = 20, dex = 5, haste = 4, hp = 15, th = 1 }, -- Rogues Armlets +2
+    [23188] = { bpdelay = 2, def = 14, mp = 23 }, -- Evokers Bracers +2
     [23192] = { agi = 6, att = 8, def = 20, dex = 6, dw = 5, haste = 4, hp = 22, stepacc = 2 }, -- Dancers Bangles +2
     [23193] = { agi = 6, att = 8, def = 20, dex = 6, dw = 5, haste = 4, hp = 22, stepacc = 2 }, -- Dancers Bangles +2
     [23215] = { acc = 33, agi = 19, att = 59, chr = 31, counter = 3, def = 101, dex = 40, enmity = 8, eva = 45, haste = 5, hp = 75, int = 17, macc = 28, mdb = 3, meva = 47, mnd = 35, str = 16, vit = 37 }, -- Horos Bangles +2
     [23237] = { acc = 52, agi = 22, att = 52, chr = 23, def = 111, dex = 48, dt = -10, eva = 86, haste = 5, hp = 47, int = 18, macc = 52, mdb = 5, meva = 73, mnd = 36, scb = 12, str = 22, vit = 35 }, -- Macu. Bangles +2
     [23246] = { agi = 6, def = 38, dex = 4, hp = 20, racc = 10, ratt = 10 }, -- Rogues Culottes +2
+    [23255] = { def = 29, enmity = -4, haste = 3, mp = 28 }, -- Evokers Spats +2
     [23259] = { acc = 10, att = 10, chr = 7, def = 32, dex = 13, enmity = -2, hp = 20, str = 13, vit = 7 }, -- Dancers Tights +2
     [23260] = { acc = 10, att = 10, chr = 7, def = 32, dex = 13, enmity = -2, hp = 20, str = 13, vit = 7 }, -- Dancers Tights +2
     [23313] = { da = 3, def = 18, dex = 5, haste = 4, racc = 8 }, -- Rogues Poulaines +2
+    [23314] = { acc = 4, bdt = -6, chr = 7, def = 22, hp = 25, mdb = 3 }, -- Gallant Leggings +2
+    [23322] = { def = 14, mp = 30, perp = 2 }, -- Evokers Pigaches +2
     [23326] = { agi = 5, att = 8, da = 4, def = 20, eva = 8, haste = 4, hp = 20, jig = 30, str = 5 }, -- Dancers Toe Shoes +2
     [23327] = { agi = 5, att = 8, da = 4, def = 20, eva = 8, haste = 4, hp = 20, jig = 30, str = 5 }, -- Dancers Toe Shoes +2
     [23349] = { acc = 32, agi = 42, att = 46, chr = 35, def = 81, dex = 29, eva = 95, haste = 4, hp = 63, macc = 25, mdb = 6, meva = 79, mnd = 17, stepacc = 21, stp = 6, str = 17, vit = 17 }, -- Horos T. Shoes +2
@@ -1015,12 +1049,16 @@ return {
     [28425] = { def = 4, mab = 4, macc = 4, mnd = 5, mp = 25 }, -- Salire Belt
     [28445] = { chr = 5, def = 5, drain = 5, int = 5, mab = 3, mp = 25 }, -- Charmers Sash
     [28457] = { acc = 5, def = 5, eva = 5, haste = 5 }, -- Bolt Stone
+    [28458] = { bloodboon = 3, mp = 30 }, -- Covenant Belt
     [28459] = { agi = 5, att = 5, haste = 3, ratt = 5, sb = 8 }, -- Subtle Sash
     [28460] = { def = 5, hp = 35, vit = 8 }, -- Beastly Girdle
     [28462] = { att = 7, def = 7, haste = 7, sb = 7, sird = 7 }, -- Enlils Sash
+    [28490] = { acc = 1 }, -- Wilderness Earring
     [28491] = { acc = 2 }, -- Wilder. Earring +1
     [28514] = { enmity = -3, mab = 5 }, -- Adepts Earring
     [28540] = {  }, -- Warp Ring
+    [28542] = { hp = 20, mp = -20 }, -- Rhodium Ring
+    [28543] = { hp = 21, mp = -21 }, -- Rhodium Ring +1
     [28548] = { dex = 2, geomancy = 5, mnd = 5, mp = 40 }, -- Bagua Ring
     [28575] = { fc = 2, int = 5, mp = 25 }, -- Hibernal Ring
     [28577] = { def = 5, enmity = 2, hp = 65, pdt = -2 }, -- Titanium Band

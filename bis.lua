@@ -1340,6 +1340,25 @@ return {
         ['Idle'] = { -- Elegy's Respite (Idle weapon)
             main  = 'Elegy\'s Respite',
         },
+        ['BP_Delay'] = { -- Soothing Sachet (Dragonslaying, Arfarvegr), Covenant Belt
+            ammo  = 'Soothing Sachet',
+            body  = 'Smn. Doublet +1',
+            hands = 'Nashira Gages',
+            waist = 'Covenant Belt',
+            legs  = 'Smn. Spats +1',
+            feet  = 'Smn. Pigaches +1',
+        },
+        ['BloodPact'] = { -- Blood Pact damage
+            ammo  = 'Soothing Sachet',
+            neck  = 'Incanter\'s Torque',
+            ear1  = 'Wilder. Earring +1',
+            ear2  = 'Magnetic Earring',
+            body  = 'Smn. Doublet +1',
+            ring1 = 'Eidolon Ring',
+            ring2 = 'Evoker\'s Ring',
+            back  = 'Astute Cape',
+            feet  = 'Smn. Pigaches +1',
+        },
     },
     WAR = {
         ['DW'] = { main = 'Brilliance', sub = 'Blurred Rod +1' }, -- /dw toggle (your weapons)
@@ -1833,8 +1852,28 @@ return {
         },
     },
     PLD = {
-        ['PDT'] = { -- Inmicus Cuisses: HP+25, DT-2%, Enmity+3
-            legs  = 'Inmicus Cuisses',
+        ['PDT'] = { -- Oathbreaker (Venture), 2x Terra's Earring, Dark Ring (Jelly Ring excluded, see data.lua set_exclude)
+            ammo  = 'Oathbreaker',
+            ear1  = 'Terra\'s Earring',
+            ear2  = 'Terra\'s Earring',
+            body  = 'Kaiser Cuirass',
+            hands = 'Homam Manopolas',
+            ring1 = 'Dark Ring',
+            legs  = 'Inmicus Cuisses',      -- HP+25, DT-2%, Enmity+3
+        },
+        ['MDT'] = { -- Magic defense
+            ammo  = 'Oathbreaker',
+            head  = 'Valkyrie\'s Helm',
+            ear1  = 'Static Earring',
+            ear2  = 'Ethereal Earring',
+            body  = 'Kaiser Cuirass',
+            feet  = 'Glt. Leggings +1',
+        },
+        ['Enmity'] = { -- Odium Ring (Abyssea), 2x Pluto's Earring (Myrmeleo Ring excluded, see data.lua set_exclude)
+            neck  = 'Ritter Gorget',
+            ear1  = 'Pluto\'s Earring',
+            ear2  = 'Pluto\'s Earring',
+            ring1 = 'Odium Ring',
         },
     },
     BLU = {

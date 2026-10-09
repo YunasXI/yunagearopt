@@ -357,6 +357,8 @@ return {
         ["Shaarat'kor"] = { stats = { enmity = 6 } },   -- WAR/PLD/DRK/RUN
         ["Tellus Pendulum"] = { stats = { mp = 30, int = 4, mab = 2 } },   -- WHM/BLM/SMN/SCH/GEO
         ["Manaflow Sash"] = { stats = { enmity = -6, haste = 6 } },   -- WHM/BLM/SMN/SCH/GEO
+        -- Dragonslaying (bg-wiki: CatsEyeXI_Content/Dragonslaying, Arfarvegr drop): top upgrade tier
+        ["Soothing Sachet"] = { stats = { petacc = 5, petatk = 5, petdt = -3 } },   -- SMN
     },
 
     -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
@@ -452,6 +454,7 @@ return {
     set_exclude = {
         NIN = { TP = { 'Shukuyu Ring' } },
         THF = { TP = { 'Shukuyu Ring' } },
+        PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" } },
     },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
@@ -736,7 +739,7 @@ return {
         BlueMagic     = { label = 'Blue magic skill', weights = { blue = 5, str = 0.5, dex = 0.5, mab = 1 } },
         Geomancy      = { label = 'Geomancy', weapons = true, weights = { geomancy = 5, handbell = 4, cmp = 0.5 } },
         BP_Delay      = { label = 'Blood Pact delay', caps = { bpdelay = 15, bpdelay2 = 15 }, weapons = true, weights = { bpdelay = 10, bpdelay2 = 10, summoning = 1 } },
-        BloodPact     = { label = 'Blood Pact damage', weapons = true, weights = { bpdmg = 8, summoning = 3, bloodboon = 1 } },
+        BloodPact     = { label = 'Blood Pact damage', weapons = true, weights = { bpdmg = 8, summoning = 3, bloodboon = 1, petatk = 1, petacc = 1 } },
         -- Utility
         Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3 } },
         TH          = { label = 'Treasure Hunter', weights = { th = 50, acc = 0.5, stp = 1 } },

@@ -137,7 +137,7 @@ M.LABELS = {
     singing = 'Singing', string = 'String', wind = 'Wind', blue = 'Blue Magic', geomancy = 'Geomancy', handbell = 'Handbell',
     hmp = 'MP Heal', hhp = 'HP Heal', th = 'Treasure Hunter', snapshot = 'Snapshot', rapid = 'Rapid Shot',
     recycle = 'Recycle', waltz = 'Waltz%', perp = 'Perpetuation-', bpdelay = 'BP Delay-', bpdelay2 = 'BP Delay II-',
-    bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
+    bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', petacc = 'Pet Acc', petatk = 'Pet Atk', petdt = 'Pet DT%', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
     sk_dagger = 'Dagger Skill', sk_sword = 'Sword Skill', sk_gsword = 'G.Sword Skill', sk_axe = 'Axe Skill', sk_gaxe = 'G.Axe Skill',
     sk_scythe = 'Scythe Skill', sk_polearm = 'Polearm Skill', sk_katana = 'Katana Skill', sk_gkatana = 'G.Katana Skill',
     sk_club = 'Club Skill', sk_staff = 'Staff Skill', sk_h2h = 'H2H Skill',
