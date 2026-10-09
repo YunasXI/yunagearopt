@@ -754,7 +754,7 @@ local function build_sets(job_id)
                     id = id, name = def.name or id, label = def.label or id, kind = def.kind or 'other',
                     base_weights = def.weights, caps = def.caps or {},
                     weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
-                    fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, ws_only = def.ws_only,
+                    fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
                     info = def.info,
                 };
                 local pref = {};
@@ -1662,6 +1662,11 @@ local function build_full_xml(job_id)
         if have.Sublimation then
             emit_chain(o, i, { { cond = attr('buffactive', 'Sublimation: Activated'), body = equip_set('Sublimation') } }, nil);
         end
+        for _, b in ipairs(built) do                     -- buff sets that apply engaged or not (THF Trick Attack)
+            if b.desc.engaged_buff and b.desc.buff_any then
+                emit_chain(o, i, { { cond = attr('buffactive', b.desc.engaged_buff), body = equip_set(b.desc.name) } }, nil);
+            end
+        end
         if have.Movement then
             table.insert(o, i .. '<!-- Running: movement speed gear -->');
             emit_chain(o, i, { { cond = attr('p_ismoving', 'true'), body = equip_set('Movement') } }, nil);
@@ -2015,7 +2020,7 @@ local function build_gearswap(job_id)
     add('    -- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
     add('    engaged_buffs = {');
     for _, b in ipairs(built) do
-        if b.desc.engaged_buff then add(string.format('        { buff = %q, set = %q },', b.desc.engaged_buff, b.desc.name)); end
+        if b.desc.engaged_buff then add(string.format('        { buff = %q, set = %q, always = %s },', b.desc.engaged_buff, b.desc.name, tostring(b.desc.buff_any == true))); end
     end
     add('    }');
     add('');
@@ -2144,6 +2149,9 @@ function idle_gear()
         else eq('Idle')
         end
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
+        for _, eb in ipairs(engaged_buffs) do
+            if eb.always and buffactive[eb.buff] then eq(eb.set) end
+        end
         if Moving then eq('Movement') end
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
@@ -2449,7 +2457,7 @@ local function build_lac(job_id)
     add('-- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
     add('local engaged_buffs = {');
     for _, b in ipairs(built) do
-        if b.desc.engaged_buff then add(string.format('    { buff = %q, set = %q },', b.desc.engaged_buff, b.desc.name)); end
+        if b.desc.engaged_buff then add(string.format('    { buff = %q, set = %q, always = %s },', b.desc.engaged_buff, b.desc.name, tostring(b.desc.buff_any == true))); end
     end
     add('};');
     add('');
@@ -2672,6 +2680,9 @@ profile.HandleDefault = function()
         else eq('Idle');
         end
         if buff('Sublimation: Activated') then eq('Sublimation'); end
+        for _, eb in ipairs(engaged_buffs) do
+            if eb.always and buff(eb.buff) then eq(eb.set); end
+        end
         if player.IsMoving and sets['Movement'] then eq('Movement'); end
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
@@ -3072,7 +3083,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
-    TrickAttack = 'Abilities',
+    TrickAttack = 'Abilities', Flee = 'Abilities',
     Lockstyle = 'Lockstyle',
 };
 local function category(desc)

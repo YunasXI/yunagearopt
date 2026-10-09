@@ -71,6 +71,7 @@ return {
         { 'Violent Flourish', 'ViolentFlourish' },
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
+        { 'Trick Attack', 'TrickAttack' }, 'Flee',
     },
     -- Jobs whose Precast set (haste / fast cast) also covers Utsusemi while it is being cast
     utsusemi_precast = { DRG = true },
@@ -805,7 +806,11 @@ return {
                           } },
         -- Worn on top of your TP set while the Counterstance buff is active (pieces from bis.lua)
         -- THF: only the Trick Attack piece (hands), worn on top of your TP gear while Trick Attack is up
-        TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack', weights = { taagi = 10 } },
+        -- (also put on the moment you use Trick Attack, and kept on engaged or not while the buff is up)
+        TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack', buff_any = true, weights = { taagi = 10 } },
+        -- THF Flee: Rog. Poulaines +1 (Flee duration +15s) worn when you use Flee; plain Rogue's Poulaines if you lack the +1
+        Flee        = { label = 'Flee (duration)', weights = {}, fixed = { feet = 'Rog. Poulaines +1' },
+                        fallback = { feet = "Rogue's Poulaines" } },
         Counterstance = { label = 'Counterstance (buff active)', engaged_buff = 'Counterstance',
                           weights = { counter = 10, vit = 0.5, hp = 0.02, acc = 0.5, pdt = -3, dt = -3 } },
         -- MNK Chakra: your BiS pieces. If you don't own Genmei Kabuto, Genbu's Kabuto is used instead.
@@ -888,7 +893,7 @@ return {
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
