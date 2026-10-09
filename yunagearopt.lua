@@ -174,9 +174,18 @@ local C = {
 -- State
 ----------------------------------------------------------------------------------------------------
 local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{},
-                    picks = T{} };   -- your slot picks per 'JOB|set', kept between sessions
+                    picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
+                    weapon_mode = 1 };   -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
+
+-- Weapons are always swapped, except while subbing NIN or DNC: then the job's dual-wield pair (picked in the
+-- "/NIN and /DNC weapons" row) goes on instead, or the weapons are left alone if none is picked.
+-- (weapon_mode 1 = this behaviour; the old AUTO / ON / OFF choice and "Swap weapons" checkbox are gone.)
+function actions.fix_weapon_mode()
+    s.weapon_mode, s.weapons = 1, true;
+end
+actions.fix_weapon_mode();
 
 local S, data, AUG = nil, nil, {};
 local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
@@ -1411,7 +1420,17 @@ local function set_xml_lines(out, ind, name, assign)
 end
 
 local function equip_set(name)
-    return function(out, ind) table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name))); end;
+    return function(out, ind)
+        table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name)));
+        -- The set's weapons only when the subjob isn't NIN/DNC (dual wield: the pair or your own weapons)
+        if actions.wsplit and actions.wsplit[name] then
+            table.insert(out, string.format('%s<if p_subjob="%s"><equip set="%s_Weapons" /></if>', ind,
+                xml_escape('!NIN&!DNC'), xml_escape(name)));
+            if actions.wpair then
+                table.insert(out, string.format('%s<else><equip set="DualWieldWeapons" /></else>', ind));
+            end
+        end
+    end;
 end
 
 -- data.ja_sets / data.spell_sets entries are { name, set } or just 'Name' when the set has the same name
@@ -1575,9 +1594,32 @@ local function build_full_xml(job_id)
     settings.save();
     add('');
     add('    <sets>');
+    -- Weapons: a set's main/sub go in "<set>_Weapons", put on only when the subjob isn't NIN/DNC (equip_set);
+    -- with /NIN or /DNC the job's dual-wield pair (DualWieldWeapons) goes on instead, if you picked one
+    actions.wsplit = {};
+    actions.wpair = nil;
+    local pair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    if pair then
+        local a = {};
+        for k, v in pairs(pair) do a[k] = { item = { name = v } }; end
+        add('        <!-- Dual-wield weapons: worn instead of a set\'s weapons while subbing NIN or DNC -->');
+        set_xml_lines(out, '        ', 'DualWieldWeapons', a);
+        actions.wpair = true;
+    end
     for _, b in ipairs(built) do
         add(string.format('        <!-- %s -->', xml_escape(b.desc.label)));
-        set_xml_lines(out, '        ', b.desc.name, b.assign);
+        local a = b.assign;
+        if s.weapon_mode == 1 and b.desc.id ~= 'DW' and (a.main or a.sub) then
+            local rest, wpn = {}, {};
+            for k, v in pairs(a) do
+                if k == 'main' or k == 'sub' then wpn[k] = v; else rest[k] = v; end
+            end
+            set_xml_lines(out, '        ', b.desc.name, rest);
+            set_xml_lines(out, '        ', b.desc.name .. '_Weapons', wpn);
+            actions.wsplit[b.desc.name] = true;
+        else
+            set_xml_lines(out, '        ', b.desc.name, b.assign);
+        end
     end
     add('    </sets>');
     add('');
@@ -1858,6 +1900,7 @@ local function build_full_xml(job_id)
     end
     for _, o in pairs(obis) do if not EQUIP_BAGS[o.where] then stored[o.name .. ' (' .. o.where .. ')'] = true; end end
 
+    actions.wsplit, actions.wpair = nil, nil;
     return table.concat(out, '\n') .. '\n', #built, stored;
 end
 
@@ -2071,6 +2114,11 @@ local function build_gearswap(job_id)
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
+    add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
+    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1));
+    local gpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    add('    dw_pair = ' .. (gpair and string.format('{ main = %q, sub = %q }', gs_name(gpair.main or ''), gs_name(gpair.sub or '')) or 'nil')
+        .. '   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
     local prc = data.phalanx_received;
     local function id_set(ids)
@@ -2113,8 +2161,22 @@ local function matches(name, list)
 end
 
 local function eq(name)
-    if sets[name] then equip(sets[name]) return true end
-    return false
+    local set = sets[name]
+    if not set then return false end
+    -- With /NIN or /DNC (dual wield): your dual-wield pair instead of the set's weapons, or your weapons stay
+    if weapon_auto and name ~= 'DW' and (player.sub_job == 'NIN' or player.sub_job == 'DNC') then
+        local copy, had = {}, false
+        for k, v in pairs(set) do
+            if k ~= 'main' and k ~= 'sub' then copy[k] = v else had = true end
+        end
+        if had and dw_pair then
+            if dw_pair.main ~= '' then copy.main = dw_pair.main end
+            if dw_pair.sub ~= '' then copy.sub = dw_pair.sub end
+        end
+        set = copy
+    end
+    equip(set)
+    return true
 end
 
 local function obi(element)
@@ -2501,6 +2563,11 @@ local function build_lac(job_id)
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
+    add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
+    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1) .. ';');
+    local lpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    add('local dw_pair = ' .. (lpair and string.format('{ Main = %q, Sub = %q }', lpair.main or '', lpair.sub or '') or 'nil')
+        .. ';   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
     local prc = data.phalanx_received;
     local function id_set(ids)
@@ -2526,8 +2593,25 @@ local function matches(name, list)
 end
 
 local function eq(name)
-    if sets[name] then gFunc.EquipSet(sets[name]); return true; end
-    return false;
+    local set = sets[name];
+    if set == nil then return false; end
+    -- With /NIN or /DNC (dual wield): your dual-wield pair instead of the set's weapons, or your weapons stay
+    if weapon_auto and name ~= 'DW' then
+        local sj = gData.GetPlayer().SubJob;
+        if sj == 'NIN' or sj == 'DNC' then
+            local copy, had = {}, false;
+            for k, v in pairs(set) do
+                if k ~= 'Main' and k ~= 'Sub' then copy[k] = v; else had = true; end
+            end
+            if had and dw_pair then
+                if dw_pair.Main ~= '' then copy.Main = dw_pair.Main; end
+                if dw_pair.Sub ~= '' then copy.Sub = dw_pair.Sub; end
+            end
+            set = copy;
+        end
+    end
+    gFunc.EquipSet(set);
+    return true;
 end
 
 local function obi(element)
@@ -3088,7 +3172,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
-    TrickAttack = 'Abilities', Flee = 'Abilities',
+    TrickAttack = 'Abilities', Flee = 'Abilities', NaSpells = 'Magic',
     Lockstyle = 'Lockstyle',
 };
 local function category(desc)
@@ -3504,11 +3588,6 @@ local function draw_set_header()
     imgui.Spacing();
     local ign = { s.ignore_level };
     if imgui.Checkbox('Ignore level', ign) then s.ignore_level, ui.dirty = ign[1], true; end
-    if d.weapons then
-        imgui.SameLine(0, 16);
-        local wp = { s.weapons };
-        if imgui.Checkbox('Swap weapons', wp) then s.weapons, ui.dirty = wp[1], true; end
-    end
     if d.kind == 'tp' then
         imgui.TextColored(C.muted, 'Dual Wield');
         imgui.SameLine();
@@ -3733,6 +3812,80 @@ local function draw_totals()
     imgui.PopStyleColor();
 end
 
+-- The job's dual-wield pair, used instead of a set's weapons while subbing NIN or DNC.
+-- Picked once per job (saved like other picks, key 'JOB|DWPAIR').
+function actions.dw_pair(abbr)
+    local p = ui.pins[abbr .. '|DWPAIR'];
+    if type(p) ~= 'table' then return nil; end
+    local pair = {};
+    for _, k in ipairs({ 'main', 'sub' }) do
+        if type(p[k]) == 'table' and p[k].name then pair[k] = p[k].name; end
+    end
+    return next(pair) and pair or nil;
+end
+
+function actions.draw_dw_pair()
+    local d = ui.desc;
+    if s.weapon_mode ~= 1 or d == nil or not d.weapons or d.lockstyle or d.info or ui.show_bis then return; end
+    local abbr, key = JOBS[ui.job], JOBS[ui.job] .. '|DWPAIR';
+    local pair = ui.pins[key] or {};
+    imgui.TextColored(C.muted, '/NIN and /DNC weapons');
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('While your subjob is NIN or DNC, these go on wherever a set has weapons\n'
+            .. '(instead of the staff etc.). Picked once for ' .. abbr .. ', the same in every set.\n'
+            .. 'Leave them empty and your weapons are left alone with /NIN or /DNC.');
+    end
+    for _, slot in ipairs({ { k = 'main', label = 'DW MAIN', mask = 0x0001 }, { k = 'sub', label = 'DW SUB', mask = 0x0002 } }) do
+        imgui.SameLine(0, 12);
+        local cur = type(pair[slot.k]) == 'table' and pair[slot.k].name or nil;
+        imgui.TextColored(C.gold_dim, slot.label);
+        imgui.SameLine(0, 6);
+        if imgui.Button((cur or '(none)') .. '##dwp_' .. slot.k, { 190, 24 }) then
+            ui.dw_search = { '' };
+            imgui.OpenPopup('dwpick_' .. slot.k);
+        end
+        if imgui.BeginPopup('dwpick_' .. slot.k) then
+            imgui.SetWindowFontScale(0.85);
+            imgui.TextColored(C.gold, slot.label .. '  (/NIN and /DNC)');
+            imgui.Separator();
+            imgui.TextColored(C.gold_dim, 'Search');
+            imgui.SameLine();
+            imgui.PushItemWidth(-1);
+            if imgui.IsWindowAppearing() then imgui.SetKeyboardFocusHere(); end
+            ui.dw_search = ui.dw_search or { '' };
+            imgui.InputText('##dwp_search_' .. slot.k, ui.dw_search, 64);
+            imgui.PopItemWidth();
+            local filter = (ui.dw_search[1] or ''):lower();
+            imgui.Separator();
+            if imgui.Selectable('None  (leave weapons alone with /NIN or /DNC)', cur == nil) then
+                pair[slot.k] = nil; ui.pins[key] = pair; settings.save(); imgui.CloseCurrentPopup();
+            end
+            imgui.Separator();
+            local list, lvl = {}, job_level(ui.job);
+            for _, it in ipairs(owned) do
+                if bit.band(it.slots, slot.mask) ~= 0 and can_wear(it, ui.job, lvl, false)
+                        and (filter == '' or it.name:lower():find(filter, 1, true)) then
+                    table.insert(list, it);
+                end
+            end
+            table.sort(list, function(a, b) return a.name < b.name; end);
+            if imgui.BeginChild('dwp_list_' .. slot.k, { 420, math.min(#list * 24 + 8, 300) }, false) then
+                imgui.SetWindowFontScale(0.85);
+                for i, it in ipairs(list) do
+                    if imgui.Selectable(string.format('%-26s   %s##dwi%d', it.name, it.where, i), cur == it.name) then
+                        pair[slot.k] = { name = it.name, where = it.where };
+                        ui.pins[key] = pair; settings.save(); imgui.CloseCurrentPopup();
+                    end
+                    if imgui.IsItemHovered() then item_tooltip(it); end
+                end
+            end
+            imgui.EndChild();
+            imgui.EndPopup();
+        end
+    end
+    imgui.Spacing();
+end
+
 local function draw_content()
     if imgui.BeginChild('ygo_content', { 0, -60 }, false) then
         if ui.desc == nil then
@@ -3760,6 +3913,7 @@ local function draw_content()
                 local active, by_key = {}, {};
                 for _, def in ipairs(SLOTS) do by_key[def.key] = def; end
                 for _, def in ipairs(active_slots(ui.desc, ui.show_bis)) do active[def.key] = def; end
+                actions.draw_dw_pair();
                 if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
                     for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();
@@ -4134,6 +4288,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
     if e ~= nil then
         s = e;
         s.picks = actions.plain(s.picks or {});
+        actions.fix_weapon_mode();
         ui.pins, ui.dirty = s.picks, true;
     end
 end);

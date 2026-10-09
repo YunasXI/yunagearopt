@@ -80,6 +80,7 @@ return {
     spell_sets = {
         'Flash', 'Reprisal', { 'Phalanx*', 'Phalanx' },
         -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
+        { 'Poisona|Paralyna|Blindna|Silena|Stona|Viruna|Cursna|Erase', 'NaSpells' },
         { 'Spectral Floe', 'SpectralFloe' }, { 'Battery Charge', 'BatteryCharge' },
         { 'Foot Kick|Power Attack|Sprout Smack|Wild Oats|Queasyshroom|Battle Dance|Head Butt|Feather Storm|Helldive|'
           .. 'Bludgeon|Claw Cyclone|Screwdriver|Grand Slam|Smite of Rage|Pinecone Bomb|Jet Stream|Uppercut|Terror Touch|'
@@ -531,6 +532,8 @@ return {
         { ws = 'single', items = { "Combatant's Torque" } },
         -- NIN / THF TP: Ares's Ring (Shukuyu Ring is excluded there, see set_exclude)
         { sets = { 'TP' }, jobs = { 'NIN', 'THF' }, items = { "Ares's Ring" } },
+        -- WHM: Yagrush for -na spells and Erase (makes them area of effect)
+        { sets = { 'NaSpells' }, jobs = { 'WHM' }, items = { 'Yagrush' } },
         -- NIN weaponskill ammo (every other NIN set keeps Yoru Shuriken): DEX weaponskills / STR weaponskills
         { ws_stat = 'dex', jobs = { 'NIN' }, items = { 'Yetshila +1' } },
         { ws_stat = 'str', jobs = { 'NIN' }, items = { 'Cinderstone' } },
@@ -748,6 +751,8 @@ return {
         Cure          = { label = 'Cure potency', caps = { cure = 50 }, weapons = true,
                           weights = { cure = 12, mnd = 3, vit = 1, healing = 0.8, cmp = 0.5, enmity = -1, sird = 0.5 } },
         Healing       = { label = 'Healing magic skill', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
+        -- WHM -na spells and Erase: Healing gear, plus Yagrush in the main hand when you own it ("-na spells: area of effect")
+        NaSpells      = { label = '-na spells / Erase (Yagrush)', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
         Enhancing     = { label = 'Enhancing magic skill', weapons = true, weights = { enhancing = 5, enhdur = 2, cmp = 0.5, sird = 0.5, mnd = 0.3 } },
         -- stoneskin = extra damage absorbed (Stone Gorget +30); 1 point is worth about 1 MND in the Stoneskin formula
         Stoneskin     = { label = 'Stoneskin (MND)', weapons = true, weights = { mnd = 4, enhancing = 1.5, stoneskin = 4 } },
@@ -891,7 +896,7 @@ return {
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
-        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
