@@ -383,6 +383,10 @@ return {
         ["Soothing Sachet"] = { stats = { petacc = 5, petatk = 5, petdt = -3 } },   -- SMN
         -- Augment shown in game by the player (Scorpion harness +1: "Regen"+1, Phys. dmg. taken -3%)
         ["Scp. Harness +1"] = { stats = { regen = 1, pdt = -3 } },   -- THF and others
+        -- SCNM legs, augmented: Refresh +1
+        ["Apogee Tonban"] = { stats = { refresh = 1 } },      -- WHM/BLM/RDM/SMN/BLU/SCH/GEO
+        ["Pinnacle Cuisses"] = { stats = { refresh = 1 } },   -- WAR/PLD/DRK/BST/DRG/SAM/RUN
+        ["Apex Haidate"] = { stats = { refresh = 1 } },       -- MNK/THF/BRD/RNG/NIN/COR/PUP/DNC
     },
 
     -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
@@ -526,6 +530,10 @@ return {
         { sets = { 'Songs_Buff' },   jobs = { 'BRD' }, items = { 'Apex Haidate' } },
         { sets = { 'Songs_Debuff' }, jobs = { 'BRD' }, items = { 'Apex Sune-Ate' } },
         { sets = { 'PhantomRoll' },  jobs = { 'COR' }, items = { 'Apex Haidate' } },
+        -- SCNM legs augmented with Refresh +1, worn in the Refresh idle set (/refresh) of each family's MP jobs
+        { sets = { 'Refresh' }, jobs = { 'WHM', 'BLM', 'RDM', 'SMN', 'BLU', 'SCH', 'GEO' }, items = { 'Apogee Tonban' } },
+        { sets = { 'Refresh' }, jobs = { 'PLD', 'DRK', 'RUN' }, items = { 'Pinnacle Cuisses' } },
+        { sets = { 'Refresh' }, jobs = { 'BRD' }, items = { 'Apex Haidate' } },
         -- Fotia only helps every hit on fTP-replicating weaponskills; on CatsEyeXI those are only these four
         -- (bg-wiki: CatsEyeXI_Systems/Weaponskills). Elsewhere it is scored by its stats like any neck.
         { ws_names = { 'Resolution', 'Stardiver', 'Blade: Shun', 'Last Stand' }, items = { 'Fotia Gorget' } },
@@ -896,28 +904,28 @@ return {
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
-        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        WHM = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BLM = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        RDM = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
-        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
+        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'Refresh', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
-        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
+        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'Refresh', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BRD = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
-        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        SMN = { 'Idle', 'Refresh', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
-        SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        SCH = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        GEO = { 'Idle', 'Refresh', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'Refresh', 'PDT', 'MDT', 'Enhancing', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
     },
 
     -- Weapon types whose weaponskills get a set in each job's XML (skill names as in the list below).
