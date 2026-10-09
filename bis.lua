@@ -2258,8 +2258,10 @@ return {
         },
     },
     NIN = {
-        ['TP'] = { -- Relic +1 legs / feet (full Dynamis augments)
-            legs  = 'Kog. Hakama +1',
+        ['TP'] = { -- Jokushu legs, Relic +1 feet (full Dynamis augments), one Rajas + one Ares's ring
+            ring1 = 'Rajas Ring',
+            ring2 = 'Ares\'s Ring',
+            legs  = 'Jokushu Haidate',
             feet  = 'Kog. Kyahan +1',
         },
         ['TP_Hybrid'] = { -- Relic +1 legs / feet (full Dynamis augments)
