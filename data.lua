@@ -800,6 +800,11 @@ return {
                               back  = 'Cerb. Mantle +1',
                           } },
         -- Worn on top of your TP set while the Counterstance buff is active (pieces from bis.lua)
+        -- THF: worn on top of your TP gear while the buff is up, so the gear is on when the next hit lands
+        SneakAttack = { label = 'Sneak Attack (buff active)', engaged_buff = 'Sneak Attack',
+                        weights = { dex = 3, sadex = 3, critdmg = 4, sacrit = 2, crit = 0.5, att = 0.5, acc = 0.8 } },
+        TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack',
+                        weights = { agi = 3, taagi = 3, critdmg = 4, tacrit = 2, crit = 0.5, att = 0.5, acc = 0.8 } },
         Counterstance = { label = 'Counterstance (buff active)', engaged_buff = 'Counterstance',
                           weights = { counter = 10, vit = 0.5, hp = 0.02, acc = 0.5, pdt = -3, dt = -3 } },
         -- MNK Chakra: your BiS pieces. If you don't own Genmei Kabuto, Genbu's Kabuto is used instead.
@@ -882,7 +887,7 @@ return {
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'SneakAttack', 'TrickAttack', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },

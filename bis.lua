@@ -23,6 +23,21 @@ return {
             legs  = 'Prince\'s Slops',
             feet  = 'Serpentes Sabots',
         },
+        ['Nuke_MB'] = { -- BLM Magic Burst BiS
+            ammo  = 'Witchstone',
+            head  = 'Zenith Crown +1',
+            neck  = 'Moepapa Pendant',
+            ear1  = 'Novio Earring',
+            ear2  = 'Static Earring',
+            body  = 'Genie Weskit',
+            hands = 'Zenith Mitts +1',
+            ring1 = 'Shiva Ring +1',
+            ring2 = 'Hibernal Ring',
+            back  = 'Searing Cape',
+            waist = 'Resonance Sash',
+            legs  = 'Valkyrie\'s Trews',
+            feet  = 'Src. Sabots +1',
+        },
     },
     BRD = {
         ['Cure'] = { -- from Cure
@@ -1723,6 +1738,9 @@ return {
         },
     },
     THF = {
+        ['TrickAttack'] = { -- Rog. Armlets +1: Trick Attack +15% AGI (worn while Trick Attack is up)
+            hands = 'Rog. Armlets +1',
+        },
         ['TP'] = { -- THF TP BiS
             ammo  = 'Oneiros Cluster',
             head  = 'Homam Zucchetto',

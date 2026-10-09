@@ -48,7 +48,7 @@ return {
     [11082] = { acc = 8, att = 8, def = 32, haste = 6, stp = 7 }, -- Charis Tiara +2
     [11089] = { def = 64, dex = 10, haste = 5, sk_dagger = 5 }, -- Raiders Vest +2
     [11102] = { chr = 12, def = 61, dex = 12, dw = 10, sb = 10 }, -- Charis Casaque +2
-    [11109] = { acc = 12, att = 16, def = 28, dex = 8, str = 8 }, -- Raid. Armlets +2
+    [11109] = { acc = 12, att = 16, def = 28, dex = 8, sadex = 12, str = 8 }, -- Raid. Armlets +2
     [11122] = { acc = 8, agi = 9, def = 25, dex = 9, scb = 10 }, -- Charis Bangles +2
     [11129] = { crit = 4, def = 48, dex = 7, haste = 5 }, -- Raid. Culottes +2
     [11142] = { def = 45, eva = 15, haste = 5, sk_dagger = 5 }, -- Charis Tights +2
@@ -58,7 +58,7 @@ return {
     [11182] = { acc = 3, att = 3, def = 30, haste = 5, stp = 4 }, -- Charis Tiara +1
     [11189] = { def = 61, dex = 7, haste = 4, sk_dagger = 3 }, -- Raiders Vest +1
     [11202] = { chr = 8, def = 58, dex = 8, dw = 5, sb = 7 }, -- Charis Casaque +1
-    [11209] = { acc = 8, att = 10, def = 26, dex = 6, str = 6 }, -- Raid. Armlets +1
+    [11209] = { acc = 8, att = 10, def = 26, dex = 6, sadex = 10, str = 6 }, -- Raid. Armlets +1
     [11222] = { acc = 5, agi = 6, def = 23, dex = 6, scb = 5 }, -- Charis Bangles +1
     [11229] = { def = 46, dex = 5, haste = 4 }, -- Raid. Culottes +1
     [11242] = { def = 43, eva = 10, haste = 4 }, -- Charis Tights +1
@@ -440,7 +440,7 @@ return {
     [14888] = { chr = 6, cure = 3, def = 15, enhancing = 4, healing = 4, mnd = 6 }, -- Augurs Gloves
     [14891] = { boost = 55, def = 15, hp = 14, sb = 4, str = 6 }, -- Tpl. Gloves +1
     [14892] = { def = 14, enmity = -4, healing = 15, mnd = 7, mp = 15, str = 7 }, -- Hlr. Mitts +1
-    [14895] = { def = 16, dex = 3, hp = 10 }, -- Rog. Armlets +1
+    [14895] = { def = 16, dex = 3, hp = 10, taagi = 15 }, -- Rog. Armlets +1
     [14899] = { chr = 7, def = 18, enmity = -1, hp = 14, singing = 10, vit = 7 }, -- Chl. Cuffs +1
     [14901] = { def = 21, dex = 7, enmity = 2, hp = 15, str = 7 }, -- Myn. Kote +1
     [14904] = { bpdelay = 1, def = 11, mp = 19 }, -- Evk. Bracers +1
@@ -814,7 +814,7 @@ return {
     [18987] = {  }, -- Death Penalty
     [18991] = { berserk = 5 }, -- Conqueror
     [18993] = { macc = 10 }, -- Yagrush
-    [18996] = { th = 1 }, -- Vajra
+    [18996] = { sacrit = 10, tacrit = 10, th = 1 }, -- Vajra
     [18997] = { enmity = 10, enmloss = 11, pdt = -10 }, -- Burtgang
     [19022] = { hp = 20, str = 3 }, -- Axe Grip
     [19027] = { crit = 3 }, -- Claymore Grip
@@ -891,7 +891,7 @@ return {
     [23126] = { def = 45, dex = 7, enmity = -4, hp = 30, str = 7, waltz = 20 }, -- Dancers Casaque +2
     [23148] = { acc = 40, agi = 33, att = 71, chr = 28, def = 143, dex = 34, eva = 59, haste = 4, hp = 69, int = 28, macc = 30, mdb = 7, meva = 74, mnd = 28, mp = 54, pdt = -5, str = 29, ta = 3, vfmacc = 39, vit = 29 }, -- Horos Casaque +2
     [23170] = { acc = 54, agi = 43, att = 54, chr = 27, def = 154, dex = 43, dt = -13, dw = 11, eva = 105, haste = 4, hp = 83, int = 26, macc = 54, mdb = 9, meva = 99, mnd = 26, sb = 13, str = 35, vit = 29 }, -- Macu. Casaque +2
-    [23179] = { def = 20, dex = 5, haste = 4, hp = 15, th = 1 }, -- Rogues Armlets +2
+    [23179] = { def = 20, dex = 5, haste = 4, hp = 15, taagi = 18, th = 1 }, -- Rogues Armlets +2
     [23188] = { bpdelay = 2, def = 14, mp = 23 }, -- Evokers Bracers +2
     [23192] = { agi = 6, att = 8, def = 20, dex = 6, dw = 5, haste = 4, hp = 22, stepacc = 2 }, -- Dancers Bangles +2
     [23193] = { agi = 6, att = 8, def = 20, dex = 6, dw = 5, haste = 4, hp = 22, stepacc = 2 }, -- Dancers Bangles +2

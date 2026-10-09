@@ -3069,6 +3069,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
+    SneakAttack = 'Abilities', TrickAttack = 'Abilities',
     Lockstyle = 'Lockstyle',
 };
 local function category(desc)
