@@ -848,6 +848,7 @@ local function build_sets(job_id)
     -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
     table.insert(list, { id = 'Lockstyle', name = 'Lockstyle', label = 'Lockstyle (your look)', kind = 'lockstyle',
                          base_weights = {}, caps = {}, weapons = true, range = 'any', fixed = {}, lockstyle = true });
+    for _, e in ipairs(list) do e.abbr = abbr; end
     return list;
 end
 
@@ -970,6 +971,11 @@ local function active_slots(desc, bis_only)
         if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both' or desc.range == 'keep'); end
         if def.key == 'ammo' and desc.range ~= nil and desc.range ~= 'both' then use = false; end
         if def.key == 'ammo' and desc.no_ammo then use = false; end
+        -- A weapon you picked yourself (arrow on the Main / Sub / Range card) is used in any job, melee jobs too
+        if not use and not bis_only and (def.weapon or def.ranged) and desc.abbr then
+            local pick = (ui.pins[desc.abbr .. '|' .. desc.id] or {})[def.key];
+            if type(pick) == 'table' and pick.name then use = true; end
+        end
         if use then table.insert(list, def); end
     end
     return list;
@@ -1598,7 +1604,8 @@ local function build_full_xml(job_id)
     -- with /NIN or /DNC the job's dual-wield pair (DualWieldWeapons) goes on instead, if you picked one
     actions.wsplit = {};
     actions.wpair = nil;
-    local pair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    local mage = in_list(data.weapon_jobs, abbr);
+    local pair = (s.weapon_mode == 1 and mage) and actions.dw_pair(abbr) or nil;
     if pair then
         local a = {};
         for k, v in pairs(pair) do a[k] = { item = { name = v } }; end
@@ -1609,7 +1616,7 @@ local function build_full_xml(job_id)
     for _, b in ipairs(built) do
         add(string.format('        <!-- %s -->', xml_escape(b.desc.label)));
         local a = b.assign;
-        if s.weapon_mode == 1 and b.desc.id ~= 'DW' and (a.main or a.sub) then
+        if s.weapon_mode == 1 and mage and b.desc.id ~= 'DW' and (a.main or a.sub) then
             local rest, wpn = {}, {};
             for k, v in pairs(a) do
                 if k == 'main' or k == 'sub' then wpn[k] = v; else rest[k] = v; end
@@ -2122,8 +2129,8 @@ local function build_gearswap(job_id)
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
     add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1));
-    local gpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)));
+    local gpair = (s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) and actions.dw_pair(abbr) or nil;
     add('    dw_pair = ' .. (gpair and string.format('{ main = %q, sub = %q }', gs_name(gpair.main or ''), gs_name(gpair.sub or '')) or 'nil')
         .. '   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
@@ -2571,8 +2578,8 @@ local function build_lac(job_id)
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
     add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1) .. ';');
-    local lpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) .. ';');
+    local lpair = (s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) and actions.dw_pair(abbr) or nil;
     add('local dw_pair = ' .. (lpair and string.format('{ Main = %q, Sub = %q }', lpair.main or '', lpair.sub or '') or 'nil')
         .. ';   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
@@ -3638,7 +3645,17 @@ local function draw_picker(def)
         imgui.TextColored(have and C.green or C.muted, have and '(owned)' or '(not owned)');
         imgui.Separator();
     end
-    local list = ui.full[def.key] or {};
+    local list = ui.full[def.key];
+    if list == nil then                       -- a "not swapped" weapon slot: every weapon you own that fits it
+        list = {};
+        local lvl = job_level(ui.job);
+        for idx, it in ipairs(owned) do
+            if bit.band(it.slots, def.mask) ~= 0 and can_wear(it, ui.job, lvl, false) then
+                table.insert(list, { idx = idx, item = it, score = 0 });
+            end
+        end
+        table.sort(list, function(a, b) return a.item.name < b.item.name; end);
+    end
     if filter ~= '' then
         local shown = {};
         for _, c in ipairs(list) do
@@ -3783,6 +3800,13 @@ local function draw_unused(def)
     imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.6 }, def.label:upper());
     imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.6 }, 'not swapped');
     imgui.EndGroup();
+    -- Weapon slots: pick a weapon for this set with the arrow (outside the group, like the normal cards)
+    if (def.weapon or def.ranged) and not ui.show_bis and ui.desc and not ui.desc.info then
+        imgui.SameLine(imgui.GetWindowWidth() - 34);
+        if imgui.ArrowButton('##arrow_' .. def.key, ImGuiDir_Down) then imgui.OpenPopup('pick_' .. def.key); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Choose a weapon for this set\n(Auto = not swapped)'); end
+        draw_picker(def);
+    end
     imgui.EndChild();
     imgui.PopStyleColor(2);
 end
@@ -3834,6 +3858,7 @@ end
 function actions.draw_dw_pair()
     local d = ui.desc;
     if s.weapon_mode ~= 1 or d == nil or not d.weapons or d.lockstyle or d.info or ui.show_bis then return; end
+    if not in_list(data.weapon_jobs, JOBS[ui.job]) then return; end      -- mage jobs only (WHM, BLM, SCH...)
     local abbr, key = JOBS[ui.job], JOBS[ui.job] .. '|DWPAIR';
     local pair = ui.pins[key] or {};
     imgui.TextColored(C.muted, '/NIN and /DNC weapons');
