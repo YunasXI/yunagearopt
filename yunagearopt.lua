@@ -2907,7 +2907,10 @@ function look.apply(job_id, quiet)
             end
         end
         packet[0x04 + 1] = count;
-        if count > 0 then AshitaCore:GetPacketManager():AddOutgoingPacket(0x53, packet); end
+        if count > 0 then
+            AshitaCore:GetPacketManager():AddOutgoingPacket(0x53, packet);
+            look.on = true;                                    -- ours: keep it through zoning (look.outgoing)
+        end
     end);
     if not ok then msg('Lockstyle error: ' .. tostring(err)); return; end
     if count == 0 then
@@ -2931,14 +2934,30 @@ function look.watch()
     end
 end
 
--- The server drops the lockstyle when you zone: put it back once you're in the new zone. Tried twice
--- (a slow zone-in can swallow the first one); sending it again while it's already on changes nothing.
+-- Zoning: the server keeps the lockstyle, but the game client doesn't know we set it, so right after every zone
+-- it sends "lockstyle off" (0x53 mode 0). For 10 seconds after a zone-in that message is turned into
+-- "keep it on" (mode 1), like LuAshitacast does, so the look never drops. Off by your own /lockstyle off = stays off.
 function look.zoned()
-    for _, delay in ipairs({ 8, 16 }) do
-        after(delay, function()
-            local j = player_call(function(p) return p:GetMainJob(); end, 0);
-            if type(j) == 'number' and j >= 1 and j <= #JOBS and next(look.picks(j)) ~= nil then look.apply(j, true); end
-        end);
+    look.zone_until = os.clock() + 10;
+    -- Fallback in case the server dropped it anyway: put it back once you're in (only while our lockstyle is on)
+    after(8, function()
+        local j = player_call(function(p) return p:GetMainJob(); end, 0);
+        if look.on and type(j) == 'number' and j >= 1 and j <= #JOBS and next(look.picks(j)) ~= nil then look.apply(j, true); end
+    end);
+end
+
+-- The client's own lockstyle messages (not ours: those are injected)
+function look.outgoing(e)
+    if e.id ~= 0x53 or e.injected then return; end
+    local mode = e.data:byte(0x05 + 1);
+    if mode == 0 then
+        if look.on and look.zone_until and os.clock() < look.zone_until then
+            ashita.bits.pack_be(e.data_modified_raw, 1, 5, 0, 8);    -- "off" after zoning -> "keep it on"
+        else
+            look.on = false;                                          -- you turned it off yourself
+        end
+    elseif mode == 3 or mode == 4 then
+        look.on = false;                                              -- you set a lockstyle yourself: the client knows it
     end
 end
 
@@ -4035,6 +4054,10 @@ end
 ashita.events.register('packet_in', 'ygo_phalanx', function(e)
     if e.id == 0x28 then pcall(phalanx_for_legacyac, e);
     elseif e.id == 0x0A then pcall(look.zoned); end           -- 0x0A = you entered a zone
+end);
+
+ashita.events.register('packet_out', 'ygo_lockstyle_out', function(e)
+    if e.id == 0x53 then pcall(look.outgoing, e); end
 end);
 
 ashita.events.register('command', 'ygo_command', function(e)
