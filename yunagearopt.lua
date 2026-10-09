@@ -1963,15 +1963,22 @@ local function export_full()
     if okA then table.insert(saved, 'addons\\yunagearopt\\legacyac\\' .. fname); end
     local install = '';
     pcall(function() install = AshitaCore:GetInstallPath(); end);
+    local failed = nil;
     if install ~= '' then
+        -- LegacyAC reads only from config\LegacyAC: create it first (it doesn't exist if LegacyAC was never used)
         local dir = install:gsub('[\\/]+$', '') .. '\\config\\LegacyAC\\';
+        ensure_dir(dir);
         local ok, bak = write_export(dir, fname, xml);
-        if ok then table.insert(saved, 'config\\LegacyAC\\' .. fname); end
+        if ok then table.insert(saved, 'config\\LegacyAC\\' .. fname); else failed = dir; end
         if bak then table.insert(backups, 'config\\LegacyAC\\' .. bak); end
     end
 
     msg(string.format('%s XML exported: %d sets (also copied to clipboard).', abbr, count));
     for _, p in ipairs(saved) do msg('  Saved: ' .. p); end
+    if failed then
+        msg('  Could not save into ' .. failed .. ' - LegacyAC reads only from there.');
+        msg('  Copy ' .. fname .. ' from addons\\yunagearopt\\legacyac\\ into that folder, then type /la load');
+    end
     for _, b in ipairs(backups) do msg('  Your hand-made ' .. fname .. ' was kept as: ' .. b); end
     local list = {};
     for k in pairs(stored) do table.insert(list, k); end
