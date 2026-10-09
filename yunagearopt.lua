@@ -873,10 +873,11 @@ end
 
 -- data.set_exclude: an item never used in one job's set (e.g. no Shukuyu Ring in NIN TP)
 local function set_excluded(job_id, desc, name)
-    local list = (((data.set_exclude or {})[JOBS[job_id]] or {})[desc.id]);
-    if list == nil then return false; end
-    for _, n in ipairs(list) do
-        if name_key(n) == name_key(name) then return true; end
+    local by_set = (data.set_exclude or {})[JOBS[job_id]] or {};
+    for _, list in ipairs({ by_set[desc.id] or {}, by_set['*'] or {} }) do   -- '*' = every set of the job
+        for _, n in ipairs(list) do
+            if name_key(n) == name_key(name) then return true; end
+        end
     end
     return false;
 end
@@ -3069,7 +3070,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
-    SneakAttack = 'Abilities', TrickAttack = 'Abilities',
+    TrickAttack = 'Abilities',
     Lockstyle = 'Lockstyle',
 };
 local function category(desc)

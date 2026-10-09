@@ -379,6 +379,8 @@ return {
         ["Manaflow Sash"] = { stats = { enmity = -6, haste = 6 } },   -- WHM/BLM/SMN/SCH/GEO
         -- Dragonslaying (bg-wiki: CatsEyeXI_Content/Dragonslaying, Arfarvegr drop): top upgrade tier
         ["Soothing Sachet"] = { stats = { petacc = 5, petatk = 5, petdt = -3 } },   -- SMN
+        -- Augment shown in game by the player (Scorpion harness +1: "Regen"+1, Phys. dmg. taken -3%)
+        ["Scp. Harness +1"] = { stats = { regen = 1, pdt = -3 } },   -- THF and others
     },
 
     -- Adept Reforging (CatsEyeXI, bg-wiki: CatsEyeXI_Systems/Adept_Reforging): each piece's FULL augment
@@ -473,7 +475,8 @@ return {
     -- Items never used in one job's set (your own set and Best in Slot): job = { set id = { items } }
     set_exclude = {
         NIN = { TP = { 'Shukuyu Ring' } },
-        THF = { TP = { 'Shukuyu Ring' } },
+        THF = { TP = { 'Shukuyu Ring' }, Idle = { 'Jelly Ring', "Assassin's Cape" }, PDT = { 'Jelly Ring', "Assassin's Cape" },
+                ['*'] = { 'White Tathlum' } },   -- '*' = every THF set
         PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" }, Idle = { "Minerva's Ring" } },
     },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
@@ -766,7 +769,8 @@ return {
         BloodPact     = { label = 'Blood Pact damage', weapons = true, weights = { bpdmg = 8, summoning = 3, bloodboon = 1, petatk = 1, petacc = 1 } },
         -- Utility
         Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3, enmloss = 1 } },
-        TH          = { label = 'Treasure Hunter', weights = { th = 50, acc = 0.5, stp = 1 } },
+        -- Only the Treasure Hunter pieces: worn on top of TP gear with /th, every other slot keeps your TP piece
+        TH          = { label = 'Treasure Hunter (only TH pieces)', weights = { th = 50 } },
         Waltz       = { label = 'Waltz potency', weights = { waltz = 10, chr = 1, vit = 1, waltzdelay = 3 } },
         -- DNC abilities (worn when you use them)
         Steps           = { label = 'Steps (accuracy)', weights = { stepacc = 3, acc = 2, stepfinish = 15, dex = 0.3 } },
@@ -800,11 +804,8 @@ return {
                               back  = 'Cerb. Mantle +1',
                           } },
         -- Worn on top of your TP set while the Counterstance buff is active (pieces from bis.lua)
-        -- THF: worn on top of your TP gear while the buff is up, so the gear is on when the next hit lands
-        SneakAttack = { label = 'Sneak Attack (buff active)', engaged_buff = 'Sneak Attack',
-                        weights = { dex = 3, sadex = 3, critdmg = 4, sacrit = 2, crit = 0.5, att = 0.5, acc = 0.8 } },
-        TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack',
-                        weights = { agi = 3, taagi = 3, critdmg = 4, tacrit = 2, crit = 0.5, att = 0.5, acc = 0.8 } },
+        -- THF: only the Trick Attack piece (hands), worn on top of your TP gear while Trick Attack is up
+        TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack', weights = { taagi = 10 } },
         Counterstance = { label = 'Counterstance (buff active)', engaged_buff = 'Counterstance',
                           weights = { counter = 10, vit = 0.5, hp = 0.02, acc = 0.5, pdt = -3, dt = -3 } },
         -- MNK Chakra: your BiS pieces. If you don't own Genmei Kabuto, Genbu's Kabuto is used instead.
@@ -887,7 +888,7 @@ return {
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'SneakAttack', 'TrickAttack', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },

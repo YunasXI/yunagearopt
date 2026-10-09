@@ -1741,6 +1741,22 @@ return {
         ['TrickAttack'] = { -- Rog. Armlets +1: Trick Attack +15% AGI (worn while Trick Attack is up)
             hands = 'Rog. Armlets +1',
         },
+        ['Idle'] = { -- Jelly Ring / Assassin's Cape excluded (data.lua set_exclude)
+            ammo  = 'Cinderstone',
+            ear1  = 'Terra\'s Earring',
+            ear2  = 'Terra\'s Earring',
+            body  = 'Scp. Harness +1',
+            ring1 = 'Dark Ring',
+            back  = 'Umbral Cape',
+        },
+        ['PDT'] = { -- Jelly Ring / Assassin's Cape excluded (data.lua set_exclude)
+            ammo  = 'Cinderstone',
+            ear1  = 'Terra\'s Earring',
+            ear2  = 'Terra\'s Earring',
+            body  = 'Scp. Harness +1',
+            ring1 = 'Dark Ring',
+            back  = 'Umbral Cape',
+        },
         ['TP'] = { -- THF TP BiS
             ammo  = 'Oneiros Cluster',
             head  = 'Homam Zucchetto',
@@ -1756,8 +1772,7 @@ return {
             legs  = 'Asn. Culottes +1',
             feet  = 'Rog. Poulaines +1',
         },
-        ['TP_Hybrid'] = { -- THF TP Hybrid (DT) BiS
-            ammo  = 'White Tathlum',
+        ['TP_Hybrid'] = { -- THF TP Hybrid (DT) BiS (no White Tathlum: excluded for every THF set)
             head  = 'Homam Zucchetto',
             neck  = 'Bloodbead Gorget',
             ear1  = 'Brutal Earring +1',
