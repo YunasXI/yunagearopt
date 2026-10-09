@@ -133,6 +133,7 @@ return {
     [11586] = { att = 8, counter = 1 }, -- Backlash Torque
     [11587] = { def = 2 }, -- Nyx Gorget
     [11591] = { da = 2, str = 3 }, -- Ravagers Gorget
+    [11595] = { enmloss = 5, refresh = 1 }, -- Creed Collar
     [11603] = { dw = 3, sb = 5 }, -- Charis Necklace
     [11628] = { att = 3, str = 6 }, -- Strigoi Ring
     [11629] = { acc = 3, dex = 6 }, -- Zilant Ring
@@ -141,6 +142,7 @@ return {
     [11632] = { macc = 1, mnd = 6 }, -- Karka Ring
     [11633] = { int = 6, mab = 1 }, -- Galdr Ring
     [11634] = { chr = 6, enmity = -2 }, -- Veela Ring
+    [11642] = { dex = -4, stp = 4, str = -4 }, -- Hoard Ring
     [11643] = { def = 10, enmity = 4 }, -- Odium Ring
     [11644] = { acc = 2, def = 4, hp = 15, racc = 13 }, -- Ydalir Ring
     [11645] = { acc = 5, def = 5, hp = 18, racc = 14 }, -- Ydalir Ring +1
@@ -160,6 +162,7 @@ return {
     [11693] = { enmity = 3, hmp = 3, mp = 20 }, -- Plutos Earring
     [11708] = { eva = 3, ta = 1 }, -- Raiders Earring
     [11721] = { sb = 3 }, -- Charis Earring
+    [11730] = { dt = -3 }, -- Nierenschutz
     [11736] = { chr = 3, def = 8, dex = 3, ta = 1 }, -- Raiders Belt
     [11738] = { def = 6, songct = 3 }, -- Aoidos Belt
     [11766] = { acc = 7, da = 1, def = 5, mnd = 7, str = 7 }, -- Visionary Obi +1
@@ -812,7 +815,7 @@ return {
     [18991] = { berserk = 5 }, -- Conqueror
     [18993] = { macc = 10 }, -- Yagrush
     [18996] = { th = 1 }, -- Vajra
-    [18997] = { enmity = 10, pdt = -10 }, -- Burtgang
+    [18997] = { enmity = 10, enmloss = 11, pdt = -10 }, -- Burtgang
     [19022] = { hp = 20, str = 3 }, -- Axe Grip
     [19027] = { crit = 3 }, -- Claymore Grip
     [19028] = { mp = 23, sird = 5 }, -- Magic Strap

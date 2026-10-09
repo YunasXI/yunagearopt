@@ -337,6 +337,7 @@ local function load_data()
     for name, keys in pairs(d.stat_remove or {}) do ui.stat_remove[name:lower()] = keys; end
     ui.covers = {};
     for name, slots in pairs(d.covers or {}) do ui.covers[cover_key(name)] = slots; end
+    ui.no_stack = nil;                                         -- rebuilt from d.no_stack on first use
     ui.dirty = true;
     return true;
 end
@@ -573,6 +574,16 @@ local BIS_LAST_ID, BIS_PER_FRAME = 65534, 2500;
 -- "Combatant's Torque" == "Combatant Torque", "Cerb. Mantle +1" == "cerb mantle +1"
 local function name_key(n)
     return (n or ''):lower():gsub("'s%f[%W]", ''):gsub('[^%w%+]', '');
+end
+
+-- data.lua no_stack: "Brutal Earring" and "Brutal Earring +1" share one family key; nil for every other item
+function actions.stack_family(name)
+    if ui.no_stack == nil then
+        ui.no_stack = {};
+        for _, n in ipairs((data and data.no_stack) or {}) do ui.no_stack[name_key(n)] = true; end
+    end
+    local base = name_key(((name or ''):gsub('%s*%+%d+$', '')));
+    return ui.no_stack[base] and base or nil;
 end
 
 -- Only items you've provided can be BiS: your XML reference sets (bis.lua), the preferred / fixed /
@@ -1147,6 +1158,36 @@ local function optimize(job_id, desc, pins, pool)
         end
     end
 
+    -- Normal + HQ versions that don't work together (data.lua no_stack, e.g. Brutal Earring + Brutal Earring +1):
+    -- keep the better one (a slot you picked by hand wins), the other slot takes its next best piece
+    local fam = actions.stack_family;
+    do
+        local keep = {};
+        for _, def in ipairs(slots) do
+            local c = assign[def.key];
+            local f = c and fam(c.item.name);
+            if f then
+                local k = keep[f];
+                if k == nil or (locked[def.key] and not locked[k]) or (not locked[k] and c.score > assign[k].score) then keep[f] = def.key; end
+            end
+        end
+        for _, def in ipairs(slots) do
+            local c = assign[def.key];
+            local f = c and fam(c.item.name);
+            if f and keep[f] ~= def.key and not locked[def.key] then
+                used[c.idx] = nil; assign[def.key] = nil;
+                for _, alt in ipairs(cands[def.key]) do
+                    local af = fam(alt.item.name);
+                    if not used[alt.idx] and (af == nil or keep[af] == nil) then
+                        assign[def.key], used[alt.idx] = alt, true;
+                        if af then keep[af] = def.key; end
+                        break;
+                    end
+                end
+            end
+        end
+    end
+
     -- BiS mode: your own copy and the game-data copy of an item are the same piece
     if pure then
         local seen = {};
@@ -1180,6 +1221,12 @@ local function optimize(job_id, desc, pins, pool)
                         local ck = name_key(c.item.name);
                         for k2, other in pairs(assign) do
                             if k2 ~= def.key and other and name_key(other.item.name) == ck then valid = false; end
+                        end
+                    end
+                    if valid and c and fam(c.item.name) then         -- never swap in the other half of a no_stack pair
+                        local cf = fam(c.item.name);
+                        for k2, other in pairs(assign) do
+                            if k2 ~= def.key and other and fam(other.item.name) == cf then valid = false; end
                         end
                     end
                     if valid and def.key == 'sub' and c then valid = sub_ok(assign.main, c, dw); end
@@ -1291,9 +1338,17 @@ local function bis_for(job_id, desc)
         -- A piece you listed can't also be filled in automatically in another slot (no ring or earring twice)
         do
             local listed = {};
-            for slot, c in pairs(assign) do if c.curated then listed[name_key(c.item.name)] = slot; end end
+            -- (an item's no_stack partner counts as the same piece: a listed Brutal Earring +1 blocks a plain one)
             for slot, c in pairs(assign) do
-                local at = listed[name_key(c.item.name)];
+                if c.curated then
+                    listed[name_key(c.item.name)] = slot;
+                    local f = actions.stack_family(c.item.name);
+                    if f then listed['family:' .. f] = slot; end
+                end
+            end
+            for slot, c in pairs(assign) do
+                local f = actions.stack_family(c.item.name);
+                local at = listed[name_key(c.item.name)] or (f and listed['family:' .. f]);
                 if not c.curated and at and at ~= slot then assign[slot] = nil; end
             end
         end
@@ -1414,17 +1469,14 @@ local function attr(name, value) return string.format('%s="%s"', name, xml_escap
 
 -- Obi block: equips the matching elemental obi on weather, day or storm buff
 local function owned_obis()
+    -- name exactly as the piece you own spells it (the server writes "Hachirin-no-obi"), so every export can equip it
     local have = {};
-    for _, item in ipairs(owned) do have[item.name:lower()] = item.where; end
+    for _, item in ipairs(owned) do have[item.name:lower()] = { where = item.where, name = item.name }; end
     local result = {};
     for element, o in pairs(data.obis or {}) do
-        local where = have[o.obi:lower()];
-        local name = o.obi;
-        if where == nil and data.obi_all then
-            where = have[data.obi_all:lower()];
-            name = data.obi_all;
-        end
-        if where then result[element] = { name = name, storm = o.storm, where = where }; end
+        local mine = have[o.obi:lower()];
+        if mine == nil and data.obi_all then mine = have[data.obi_all:lower()]; end   -- Hachirin-no-Obi: every element
+        if mine then result[element] = { name = mine.name, storm = o.storm, where = mine.where }; end
     end
     return result;
 end
@@ -1497,6 +1549,7 @@ local function build_full_xml(job_id)
     add(string.format('    <!-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own. -->',
         addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('    <!-- Commands: /pdt /mdt /hybrid toggle defensive modes, /mb toggles magic burst, /th toggles Treasure Hunter. -->');
+    if abbr == 'PUP' then add('    <!-- PUP: while the automaton is out you wear its gear; /petranged switches tank / ranged gear. -->'); end
     add('    <!-- /warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring. -->');
     add('    <!-- Any set can also be forced with: /la set SetName 60 -->');
     local prc = data.phalanx_received;
@@ -1551,6 +1604,7 @@ local function build_full_xml(job_id)
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
+    if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
     -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
     add('        <cmd input="/warp">');
     add('            <gearlock length="25" />');
@@ -1574,6 +1628,16 @@ local function build_full_xml(job_id)
     if have.MDT then table.insert(idle_branches, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
     if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
+    -- PUP: automaton out -> its gear (tank, or ranged while /petranged is on)
+    if have.PetTank or have.PetRanged then
+        table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = function(o, i)
+            if have.PetTank and have.PetRanged then
+                emit_chain(o, i, { { cond = 'advanced="$PetRanged=on"', body = equip_set('PetRanged') } }, equip_set('PetTank'));
+            else
+                equip_set(have.PetTank and 'PetTank' or 'PetRanged')(o, i);
+            end
+        end });
+    end
     -- A set tied to a buff (Counterstance) is worn on top of your engaged gear for as long as the buff is up
     local function buff_overlays(o, i)
         for _, b in ipairs(built) do
@@ -1912,6 +1976,7 @@ local function build_gearswap(job_id)
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- Put this file in Windower/addons/GearSwap/data/ as ' .. player_name() .. '_' .. abbr .. '.lua');
     add('-- Commands: //gs c pdt | //gs c mdt | //gs c hybrid | //gs c mb | //gs c th | /warp');
+    if abbr == 'PUP' then add('-- PUP: while the automaton is out you wear its gear; //gs c petranged switches tank / ranged gear'); end
     add('');
     add('function get_sets()');
     add('    sets = {}');
@@ -2016,6 +2081,7 @@ local function build_gearswap(job_id)
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
+    add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
     for _, b in ipairs(built) do
         if b.desc.lockstyle then
             add('');
@@ -2070,6 +2136,8 @@ function idle_gear()
         elseif Mode == 'mdt' and eq('MDT') then
         elseif RefreshOn and eq('Refresh') then
         elseif pet.isvalid and eq('Idle_Avatar') then
+        elseif pet.isvalid and PetRangedOn and eq('PetRanged') then
+        elseif pet.isvalid and eq('PetTank') then
         else eq('Idle')
         end
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
@@ -2264,6 +2332,9 @@ function self_command(command)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn
         add_to_chat(158, 'Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'))
+    elseif c == 'petranged' then
+        PetRangedOn = not PetRangedOn
+        add_to_chat(158, 'Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'))
     elseif c == 'dw' then
         DWOn = not DWOn
         add_to_chat(158, 'Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'))
@@ -2315,6 +2386,7 @@ local function build_lac(job_id)
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- LuAshitacast profile. Location: Ashita/config/addons/luashitacast/' .. player_name() .. '_' .. player_server_id() .. '/' .. abbr .. '.lua');
     add('-- Commands: /lac fwd pdt | /lac fwd mdt | /lac fwd hybrid | /lac fwd mb | /lac fwd th | /warp');
+    if abbr == 'PUP' then add('-- PUP: while the automaton is out you wear its gear; /lac fwd petranged switches tank / ranged gear'); end
     add('');
     add('local profile = {};');
     add('');
@@ -2428,6 +2500,7 @@ local function build_lac(job_id)
     add('');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
+local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
 
 local function matches(name, list)
     for _, p in ipairs(list or {}) do
@@ -2549,6 +2622,9 @@ profile.HandleCommand = function(args)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn;
         gFunc.Message('Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'));
+    elseif c == 'petranged' then
+        PetRangedOn = not PetRangedOn;
+        gFunc.Message('Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'));
     elseif c == 'dw' then
         DWOn = not DWOn;
         gFunc.Message('Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'));
@@ -2588,6 +2664,8 @@ profile.HandleDefault = function()
         elseif Mode == 'mdt' and eq('MDT') then
         elseif RefreshOn and eq('Refresh') then
         elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
+        elseif gData.GetPet() ~= nil and PetRangedOn and eq('PetRanged') then
+        elseif gData.GetPet() ~= nil and eq('PetTank') then
         else eq('Idle');
         end
         if buff('Sublimation: Activated') then eq('Sublimation'); end
@@ -3715,6 +3793,44 @@ function actions.import_equipped()
     if ui.desc.lockstyle and ui.job == main_job() then look.apply(ui.job, false); end
 end
 
+-- /ygo augcheck: every augmented piece you own and what the addon reads from it, so a missing or misread
+-- augment can be found and fixed. Chat shows the problems; the full list goes to augment_check.txt.
+function actions.augment_report()
+    local n = scan();
+    local lines, problems, augmented = {}, {}, 0;
+    table.insert(lines, string.format('YunaGearOpt %s augment check for %s, %s (%d pieces scanned)', addon.version, player_name(),
+        os.date('%Y-%m-%d %H:%M'), n));
+    table.insert(lines, 'Each line: item [bag] -> augment stats the addon reads | UNKNOWN = augment ids it does not recognise yet');
+    table.insert(lines, '');
+    local list = {};
+    for _, it in ipairs(owned) do
+        if it.augmented or #it.unknown > 0 then table.insert(list, it); end
+    end
+    table.sort(list, function(a, b) return a.name < b.name; end);
+    for _, it in ipairs(list) do
+        augmented = augmented + 1;
+        local parts = {};
+        for k, v in pairs(it.aug or {}) do table.insert(parts, label_of(k) .. ' ' .. fmt_num(v)); end
+        table.sort(parts);
+        local line = string.format('%s [%s] -> %s', it.name, it.where, #parts > 0 and table.concat(parts, ', ') or '(none read)');
+        if #it.unknown > 0 then
+            local ids = {};
+            for _, id in ipairs(it.unknown) do table.insert(ids, tostring(id)); end
+            line = line .. ' | UNKNOWN: ' .. table.concat(ids, ', ');
+            table.insert(problems, it.name .. ' (unknown augment ' .. table.concat(ids, ', ') .. ')');
+        end
+        table.insert(lines, line);
+    end
+    local path = base_path() .. 'augment_check.txt';
+    local ok = write_file(path, table.concat(lines, '\n') .. '\n');
+    msg(string.format('Augment check: %d augmented pieces, %d with augments the addon does not recognise.', augmented, #problems));
+    for i, p in ipairs(problems) do
+        if i > 10 then msg(string.format('  ...and %d more (see the file)', #problems - 10)); break; end
+        msg('  ' .. p);
+    end
+    if ok then msg('  Full list saved to addons\\yunagearopt\\augment_check.txt - send it to Yunas if anything looks wrong.'); end
+end
+
 -- "Before you export" window: recommends a backup and lists exactly which files will be replaced
 local function draw_export_confirm()
     local id = 'Before you export###ygo_export';
@@ -4100,6 +4216,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         do_warp();
     elseif sub == 'lockstyle' or sub == 'ls' then
         look.apply(main_job(), false);
+    elseif sub == 'augcheck' or sub == 'augments' then
+        actions.augment_report();
     elseif sub == 'lac' then
         if #owned == 0 then scan(); end
         ui.job, ui.dirty, ui.open[1] = main_job(), true, true;

@@ -78,6 +78,26 @@ return {
     -- Spells that wear their own midcast set, checked before the usual magic-skill rules: { name (* = wildcard), set }
     spell_sets = {
         'Flash', 'Reprisal', { 'Phalanx*', 'Phalanx' },
+        -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
+        { 'Spectral Floe', 'SpectralFloe' }, { 'Battery Charge', 'BatteryCharge' },
+        { 'Foot Kick|Power Attack|Sprout Smack|Wild Oats|Queasyshroom|Battle Dance|Head Butt|Feather Storm|Helldive|'
+          .. 'Bludgeon|Claw Cyclone|Screwdriver|Grand Slam|Smite of Rage|Pinecone Bomb|Jet Stream|Uppercut|Terror Touch|'
+          .. 'Mandibular Bite|Sickle Slash|Dimensional Death|Spiral Spin|Death Scissors|Seedspray|Body Slam|Hydro Shot|'
+          .. 'Frenetic Rip|Spinal Cleave|Hysteric Barrage|Asuran Claws|Cannonball|Disseverment|Ram Charge|Vertical Cleave|'
+          .. 'Goblin Rush|Vanity Dive|Whirl of Rage|Benthic Typhoon|Quad. Continuum|Empty Thrash|Delta Thrust|Heavy Strike|'
+          .. 'Quadrastrike|Tourbillion|Amorphic Spikes|Barbed Crescent|Bilgestorm|Bloodrake|Glutinous Dart|Paralyzing Triad|'
+          .. 'Thrashing Assault|Sinker Drill|Sweeping Gouge|Saurian Slide|Sub-zero Smash|Tail Slap|Frypan', 'BluPhys' },
+        { 'Cursed Sphere|Blastbomb|Bomb Toss|Death Ray|Magic Hammer|Ice Break|Maelstrom|Corrosive Ooze|Firespit|'
+          .. 'Regurgitation|Eyes On Me|Mysterious Light|Blitzstrahl|Acrid Stream|Leafstorm|Thermal Pulse|Charged Whisker|'
+          .. 'Blazing Bound|Gates of Hades|Thunderbolt|Droning Whirlwind|Rending Deluge|Tem. Upheaval|Embalming Earth|'
+          .. 'Foul Waters|Searing Tempest|Anvil Lightning|Entomb|Scouring Spate|Silent Storm|Tenebral Crush|Water Bomb|'
+          .. 'Molting Plumage|Nectarous Deluge|Diffusion Ray|Rail Cannon|Uproot|Crashing Thunder|Polar Roar|Subduction|'
+          .. 'Palling Salvo|Blinding Fulgor|Mind Blast|Sandspin|Dark Orb|Evryone. Grudge', 'BluMag' },
+        { 'Sheep Song|Soporific|Blank Gaze|Chaotic Eye|Geist Wall|Jettatura|Sound Blast|Awful Eye|Stinking Gas|'
+          .. 'Frightful Roar|Cold Wave|Light of Penance|Feather Tickle|Yawn|Filamented Hold|Infrasonics|Lowing|Venom Shell|'
+          .. 'Mortal Ray|Dream Flower|Auroral Drape|Actinic Burst|Reaving Wind|Blistering Roar|Bad Breath|Cimicine Discharge|'
+          .. 'Demoralizing Roar|Sudden Lunge|Cruel Joke|Absolute Terror|Temporal Shift|Blood Drain|Blood Saber|MP Drainkiss|'
+          .. 'Digest|Osmosis', 'BluDebuff' },
     },
     -- Set put on first for every spell / every job ability, before that spell's or ability's own set (tanks)
     midcast_base = { PLD = 'SIR' },
@@ -454,9 +474,13 @@ return {
     set_exclude = {
         NIN = { TP = { 'Shukuyu Ring' } },
         THF = { TP = { 'Shukuyu Ring' } },
-        PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" } },
+        PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" }, Idle = { "Minerva's Ring" } },
     },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
+
+    -- Items whose normal and HQ (+1) versions don't work together: never both in one set, the better one stays
+    -- (players reported Brutal Earring + Brutal Earring +1 don't stack)
+    no_stack = { 'Brutal Earring' },
 
     -- Preferred gear: always used in these sets when you own it (and the job can wear it).
     --   sets = set ids, jobs = limit to these jobs (optional),
@@ -741,7 +765,7 @@ return {
         BP_Delay      = { label = 'Blood Pact delay', caps = { bpdelay = 15, bpdelay2 = 15 }, weapons = true, weights = { bpdelay = 10, bpdelay2 = 10, summoning = 1 } },
         BloodPact     = { label = 'Blood Pact damage', weapons = true, weights = { bpdmg = 8, summoning = 3, bloodboon = 1, petatk = 1, petacc = 1 } },
         -- Utility
-        Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3 } },
+        Enmity      = { label = 'Enmity', caps = DEF, weights = { enmity = 6, hp = 0.05, dt = -2, pdt = -2, curercv = 0.3, enmloss = 1 } },
         TH          = { label = 'Treasure Hunter', weights = { th = 50, acc = 0.5, stp = 1 } },
         Waltz       = { label = 'Waltz potency', weights = { waltz = 10, chr = 1, vit = 1, waltzdelay = 3 } },
         -- DNC abilities (worn when you use them)
