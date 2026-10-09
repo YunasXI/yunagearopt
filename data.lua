@@ -627,7 +627,8 @@ return {
         ['Kupo Suit'] = { 'Movement' },
     },
 
-    -- Body pieces that also take up other slots (CatsEyeXI 'rslot'). The exports write those slots as
+    -- Body pieces that also take up or hide other slots (CatsEyeXI 'rslot' + 'rslotlook': gear in a hidden slot never
+    -- registers as worn, so a gear-swap addon re-equips it nonstop). The exports write those slots as
     -- 'displaced' / empty, so a profile never equips something there and knocks the piece back off
     -- (Kupo Suit in Movement over the Idle legs kept swapping on and off while running).
     covers = {
@@ -666,16 +667,16 @@ return {
         ['White Cloak +1'] = { 'head' },
         ['Wikyo Cloak'] = { 'head' },
         -- covers legs
-        ['Behemoth Suit'] = { 'legs' },
-        ['Behemoth Suit +1'] = { 'legs' },
-        ['Korrigan Suit'] = { 'legs' },
-        ['Kupo Suit'] = { 'legs' },
-        ['Mandra. Suit'] = { 'legs' },
-        ['Mandra. Suit +1'] = { 'legs' },
-        ['Onca Suit'] = { 'legs' },
+        ['Behemoth Suit'] = { 'hands', 'legs', 'feet' },
+        ['Behemoth Suit +1'] = { 'hands', 'legs', 'feet' },
+        ['Korrigan Suit'] = { 'hands', 'legs', 'feet' },
+        ['Kupo Suit'] = { 'hands', 'legs', 'feet' },   -- blocks legs, also hides hands/feet: gear there never registers
+        ['Mandra. Suit'] = { 'hands', 'legs', 'feet' },
+        ['Mandra. Suit +1'] = { 'hands', 'legs', 'feet' },
+        ['Onca Suit'] = { 'hands', 'legs', 'feet' },
         ['Overalls'] = { 'legs' },
-        ['Wyrmking Suit'] = { 'legs' },
-        ['Wyrmking Suit +1'] = { 'legs' },
+        ['Wyrmking Suit'] = { 'hands', 'legs', 'feet' },
+        ['Wyrmking Suit +1'] = { 'hands', 'legs', 'feet' },
         -- covers hands
         ['Argent Coat'] = { 'hands' },
         ['Benedight Coat'] = { 'hands' },
@@ -683,10 +684,10 @@ return {
         ['Decennial Coat +1'] = { 'hands' },
         ['Esthetes Coat'] = { 'hands' },
         -- covers hands, feet
-        ['Chocobo Suit'] = { 'hands', 'feet' },
-        ['Chocobo Suit +1'] = { 'hands', 'feet' },
-        ['G. Moogle Suit'] = { 'hands', 'feet' },
-        ['Goblin Suit'] = { 'hands', 'feet' },
+        ['Chocobo Suit'] = { 'hands', 'legs', 'feet' },
+        ['Chocobo Suit +1'] = { 'hands', 'legs', 'feet' },
+        ['G. Moogle Suit'] = { 'hands', 'legs', 'feet' },
+        ['Goblin Suit'] = { 'hands', 'legs', 'feet' },
         -- covers head, hands
         ['Botulus Suit'] = { 'head', 'hands' },
         ['Botulus Suit +1'] = { 'head', 'hands' },
