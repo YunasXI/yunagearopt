@@ -763,6 +763,8 @@ local function build_sets(job_id)
                 if next(pref) then entry.pref_slots = pref; end
                 if def.ranged then attach_ranged(entry, def.ranged == 'job' and job_ranged_skill() or def.ranged); end
                 if def.ranged == 'job' and abbr == 'RNG' then entry.label = entry.label .. ' (bow)'; end
+                -- Shooting sets without a listed ranged weapon (THF): the ammo slot holds what you shoot, never swap it
+                if def.ranged and entry.range ~= 'both' then entry.no_ammo = true; end
                 table.insert(list, entry);
             end
         end

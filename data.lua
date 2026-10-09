@@ -475,7 +475,7 @@ return {
     -- Items never used in one job's set (your own set and Best in Slot): job = { set id = { items } }
     set_exclude = {
         NIN = { TP = { 'Shukuyu Ring' } },
-        THF = { TP = { 'Shukuyu Ring' }, Idle = { 'Jelly Ring', "Assassin's Cape" }, PDT = { 'Jelly Ring', "Assassin's Cape" },
+        THF = { TP = { 'Shukuyu Ring' }, Idle = { 'Jelly Ring', 'Succoring Ring', "Assassin's Cape" }, PDT = { 'Jelly Ring', 'Succoring Ring', "Assassin's Cape" },
                 ['*'] = { 'White Tathlum' } },   -- '*' = every THF set
         PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" }, Idle = { "Minerva's Ring" } },
     },

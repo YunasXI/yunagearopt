@@ -1741,20 +1741,22 @@ return {
         ['TrickAttack'] = { -- Rog. Armlets +1: Trick Attack +15% AGI (worn while Trick Attack is up)
             hands = 'Rog. Armlets +1',
         },
-        ['Idle'] = { -- Jelly Ring / Assassin's Cape excluded (data.lua set_exclude)
+        ['Idle'] = { -- Jelly Ring / Succoring Ring / Assassin's Cape excluded (data.lua set_exclude)
             ammo  = 'Cinderstone',
             ear1  = 'Terra\'s Earring',
             ear2  = 'Terra\'s Earring',
             body  = 'Scp. Harness +1',
             ring1 = 'Dark Ring',
+            ring2 = 'Defending Ring +1',
             back  = 'Umbral Cape',
         },
-        ['PDT'] = { -- Jelly Ring / Assassin's Cape excluded (data.lua set_exclude)
+        ['PDT'] = { -- Jelly Ring / Succoring Ring / Assassin's Cape excluded (data.lua set_exclude)
             ammo  = 'Cinderstone',
             ear1  = 'Terra\'s Earring',
             ear2  = 'Terra\'s Earring',
             body  = 'Scp. Harness +1',
             ring1 = 'Dark Ring',
+            ring2 = 'Defending Ring +1',
             back  = 'Umbral Cape',
         },
         ['TP'] = { -- THF TP BiS
