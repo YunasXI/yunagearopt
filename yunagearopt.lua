@@ -2931,6 +2931,17 @@ function look.watch()
     end
 end
 
+-- The server drops the lockstyle when you zone: put it back once you're in the new zone. Tried twice
+-- (a slow zone-in can swallow the first one); sending it again while it's already on changes nothing.
+function look.zoned()
+    for _, delay in ipairs({ 8, 16 }) do
+        after(delay, function()
+            local j = player_call(function(p) return p:GetMainJob(); end, 0);
+            if type(j) == 'number' and j >= 1 and j <= #JOBS and next(look.picks(j)) ~= nil then look.apply(j, true); end
+        end);
+    end
+end
+
 
 ----------------------------------------------------------------------------------------------------
 -- UI: theme & helpers
@@ -4022,7 +4033,8 @@ local function phalanx_for_legacyac(e)
 end
 
 ashita.events.register('packet_in', 'ygo_phalanx', function(e)
-    if e.id == 0x28 then pcall(phalanx_for_legacyac, e); end
+    if e.id == 0x28 then pcall(phalanx_for_legacyac, e);
+    elseif e.id == 0x0A then pcall(look.zoned); end           -- 0x0A = you entered a zone
 end);
 
 ashita.events.register('command', 'ygo_command', function(e)
