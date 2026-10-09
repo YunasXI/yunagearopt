@@ -119,6 +119,16 @@ local look = { job = nil, checked = 0,
 -- Button actions defined further down (same 200-name limit)
 local actions = {};
 
+-- Saved picks come back from the settings file as Ashita T{} tables, whose built-in functions answer for
+-- missing keys: picks.range (no Range pick) returned table.range, a function, and crashed the addon.
+-- Strip that down to plain tables, all the way in (job|set -> slot -> { name, where }).
+function actions.plain(t)
+    if type(t) ~= 'table' then return t; end
+    setmetatable(t, nil);
+    for _, v in pairs(t) do actions.plain(v); end
+    return t;
+end
+
 -- Weapon skills (FFXI skill ids)
 local TWO_HANDED = { [4] = true, [6] = true, [7] = true, [8] = true, [10] = true, [12] = true };
 local SKILL_H2H, INSTRUMENTS = 1, { [41] = true, [42] = true };
@@ -166,7 +176,7 @@ local C = {
 local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{},
                     picks = T{} };   -- your slot picks per 'JOB|set', kept between sessions
 local s = settings.load(defaults);
-s.picks = s.picks or T{};
+s.picks = actions.plain(s.picks or {});
 
 local S, data, AUG = nil, nil, {};
 local BIS_REF = {};   -- bis.lua: curated Best in Slot sets per job
@@ -3987,7 +3997,7 @@ end
 settings.register('settings', 'ygo_settings_update', function(e)
     if e ~= nil then
         s = e;
-        s.picks = s.picks or T{};
+        s.picks = actions.plain(s.picks or {});
         ui.pins, ui.dirty = s.picks, true;
     end
 end);
