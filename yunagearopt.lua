@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.5';   -- the release workflow sets this to the release number
+addon.version = '1.1.6';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3714,21 +3714,34 @@ local function draw_sidebar()
                     local sel = i == ui.set_idx;
                     local sx, sy = imgui.GetCursorScreenPos();
                     if sel then imgui.PushStyleColor(ImGuiCol_Text, C.gold); end
-                    if imgui.Selectable('   ' .. label .. '##set' .. i, sel) then
+                    -- the row stops short of the right edge: the red x sits there
+                    local ww = imgui.GetWindowWidth();
+                    if imgui.Selectable('   ' .. label .. '##set' .. i, sel, 0, { ww - 58, 0 }) then
                         ui.set_idx, ui.dirty = i, true;
-                    end
-                    if imgui.IsItemHovered() then imgui.SetTooltip('Right-click to remove this set from ' .. JOBS[ui.job]); end
-                    if imgui.BeginPopupContextItem('setctx' .. i) then
-                        if imgui.Selectable('Remove "' .. label .. '" from ' .. JOBS[ui.job]) then
-                            actions.remove_set(JOBS[ui.job], d.id);
-                            ui.set_idx, ui.dirty = 1, true;
-                            msg(string.format('%s: removed the %s set (it is left out of exports too). "Restore removed sets" puts it back.', JOBS[ui.job], d.label));
-                        end
-                        imgui.EndPopup();
                     end
                     if sel then
                         imgui.PopStyleColor();
                         imgui.GetWindowDrawList():AddRectFilled({ sx, sy + 1 }, { sx + 3, sy + imgui.GetTextLineHeight() - 1 }, u32(C.gold), 1);
+                    end
+                    -- red x: removes the set from this job (and from its exports); "Restore removed sets" puts it back
+                    -- drawn by hand: a square the height of the row, the x's two strokes centred in it
+                    imgui.SameLine(ww - 48);
+                    local bx, by = imgui.GetCursorScreenPos();
+                    local bh = imgui.GetTextLineHeight();
+                    local bw = bh + 4;
+                    local clicked = imgui.InvisibleButton('##rmset' .. i, { bw, bh });
+                    local hov = imgui.IsItemHovered();
+                    local dl = imgui.GetWindowDrawList();
+                    if hov then dl:AddRectFilled({ bx, by }, { bx + bw, by + bh }, u32({ C.red[1], C.red[2], C.red[3], 0.28 }), 3); end
+                    local cx, cy, r = bx + bw / 2, by + bh / 2, bh * 0.26;
+                    local col = u32({ C.red[1], C.red[2], C.red[3], hov and 1 or 0.85 });
+                    dl:AddLine({ cx - r, cy - r }, { cx + r, cy + r }, col, 2);
+                    dl:AddLine({ cx - r, cy + r }, { cx + r, cy - r }, col, 2);
+                    if hov then imgui.SetTooltip('Remove ' .. label .. ' from ' .. JOBS[ui.job] .. ' (and from its exports)'); end
+                    if clicked then
+                        actions.remove_set(JOBS[ui.job], d.id);
+                        ui.set_idx, ui.dirty = 1, true;
+                        msg(string.format('%s: removed the %s set (it is left out of exports too). "Restore removed sets" puts it back.', JOBS[ui.job], d.label));
                     end
                 end
             end
