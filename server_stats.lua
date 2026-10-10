@@ -866,6 +866,7 @@ return {
     [21278] = { agi = 6, enmity = -4, hp = 15, mab = 5, macc = 5, mp = 15, racc = 8, rapid = 5, stp = 5 }, -- Deathlocke
     [21333] = { racc = 5, ratt = 5 }, -- Bismuth Bullet
     [21347] = { enmity = 1, hp = 25, vit = 2 }, -- Charitoni Sling
+    [21372] = { enmity = -4, handbell = 15, int = 4, mp = 25 }, -- Dunna
     [21379] = { crit = 2, critdmg = 3, dex = 2 }, -- Yetshila +1
     [21381] = { bpdelay2 = 2, enmity = -4, mnd = 4, mp = 40 }, -- Soothing Sachet
     [21384] = { macc = 1, mnd = 1, mp = 20 }, -- Rimestone

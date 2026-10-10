@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.7';   -- the release workflow sets this to the release number
+addon.version = '1.1.8';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -680,6 +680,17 @@ function actions.jug_literal(jugs)
     return '{ ' .. table.concat(parts, ', ') .. ' }';
 end
 
+-- Weaponskills that wear another set of the job (data.ws_to_set): { id, name, set } when the export has that set
+function actions.ws_moved(abbr, have)
+    local out = {};
+    for name, set in pairs((data.ws_to_set or {})[abbr] or {}) do
+        for _, ws in ipairs(data.weaponskills or {}) do
+            if ws.name == name and have[set] then table.insert(out, { id = ws.id, name = name, set = set }); end
+        end
+    end
+    return out;
+end
+
 -- The job's set ids: data.jobs' list (removed ones are dropped in build_sets). Sets from other jobs can't be
 -- added any more (s.set_added from 1.1.4 is ignored): their rules may not fit the job.
 function actions.job_set_ids(abbr)
@@ -698,7 +709,7 @@ function actions.slash_cmds(have)
     local c = { 'idle' };
     if have.PDT then table.insert(c, 'pdt'); end
     if have.MDT then table.insert(c, 'mdt'); end
-    if have.TP_Hybrid then table.insert(c, 'hybrid'); end
+    if have.TP_Hybrid and not have.__nohybrid then table.insert(c, 'hybrid'); end   -- PLD: TP_Hybrid is its engaged set anyway
     if have.Nuke_MB then table.insert(c, 'mb'); end
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
@@ -787,7 +798,8 @@ local function build_sets(job_id)
             local weapons = (data.job_weapons or {})[abbr];
             for _, ws in ipairs(data.weaponskills) do
                 local weapon_ok = weapons == nil or (ws.skill and in_list(weapons, SKILL_NAMES[ws.skill]));
-                if not in_list(ws.jobs, '*') and in_list(ws.jobs, abbr) and weapon_ok then
+                local moved = ((data.ws_to_set or {})[abbr] or {})[ws.name];   -- worn in another set (PLD Atonement)
+                if not in_list(ws.jobs, '*') and in_list(ws.jobs, abbr) and weapon_ok and not moved then
                     local entry = { id = 'ws:' .. ws.name, name = xml_set_name(ws.name), label = 'WS - ' .. ws.name,
                                     kind = 'ws', ws = ws, range = range_for('ws', 'ws:' .. ws.name) };
                     if ws.skill == 25 or ws.skill == 26 or ws.skill == 27 then attach_ranged(entry, SKILL_NAMES[ws.skill]); end
@@ -799,8 +811,8 @@ local function build_sets(job_id)
             if def then
                 local in_wset = in_list((data.weapon_sets or {})[abbr], id);
                 local entry = {
-                    id = id, name = def.name or id, label = def.label or id, kind = def.kind or 'other',
-                    base_weights = def.weights, caps = def.caps or {},
+                    id = id, name = def.name or id, label = ((data.job_labels or {})[abbr] or {})[id] or def.label or id, kind = def.kind or 'other',
+                    base_weights = (def.weights_by_job and def.weights_by_job[abbr]) or def.weights, caps = def.caps or {},
                     weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
                     info = def.info,
@@ -891,6 +903,9 @@ local function build_sets(job_id)
             end
         end
     end
+    -- "/NIN /DNC Weapons": the two weapons worn whenever you sub NIN or DNC (picked by hand, never automatic)
+    table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
+                         base_weights = {}, caps = {}, weapons = true, fixed = {} });
     -- Sets you removed from this job (sidebar: right-click a set) leave the list and every export
     if #(s.set_removed[abbr] or {}) > 0 then
         local kept = {};
@@ -1006,7 +1021,7 @@ end
 -- Otherwise it shows every slot: the listed pieces plus empty slots you can fill with the dropdown.
 local function active_slots(desc, bis_only)
     local list = {};
-    if desc.info then return list; end                     -- an info panel (e.g. attachments) has no gear slots
+    if desc.info or desc.dwpair then return list; end      -- an info panel / the weapon pair: no gear cards
     if desc.lockstyle then                                 -- only the slots you can see: weapons + armor, no BiS
         if bis_only then return list; end
         for _, def in ipairs(SLOTS) do
@@ -1024,8 +1039,13 @@ local function active_slots(desc, bis_only)
         local use = true;
         if def.weapon then use = desc.weapons and s.weapons; end
         if def.ranged then use = (desc.range == 'instrument' or desc.range == 'any' or desc.range == 'both' or desc.range == 'keep'); end
+        -- Best in Slot view: the job's kept range piece (GEO Dunna, BRD Gjallarhorn) shows even when you don't own it yet
+        if def.ranged and bis_only and desc.bis_range then use = true; end
         if def.key == 'ammo' and desc.range ~= nil and desc.range ~= 'both' then use = false; end
         if def.key == 'ammo' and desc.no_ammo then use = false; end
+        if def.key == 'ammo' and bis_only and desc.bis_ammo then use = true; end         -- NIN: Yoru Shuriken, owned or not
+        -- ...and any slot the job's BiS reference set lists (COR / WAR weapons), so everyone sees the full BiS
+        if not use and bis_only and desc.abbr and ((BIS_REF[desc.abbr] or {})[desc.id] or {})[def.key] then use = true; end
         -- A weapon you picked yourself (arrow on the Main / Sub / Range card) is used in any job, melee jobs too
         if not use and not bis_only and (def.weapon or def.ranged) and desc.abbr then
             local pick = (ui.pins[desc.abbr .. '|' .. desc.id] or {})[def.key];
@@ -1501,11 +1521,11 @@ local function name_set_pair(p)
 end
 
 -- Spells with their own midcast set (data.spell_sets), limited to the sets this export contains
-local function spell_set_list(have)
+local function spell_set_list(have, abbr)
     local list = {};
     for _, e in ipairs(data.spell_sets or {}) do
         local p = name_set_pair(e);
-        if have[p[2]] then table.insert(list, p); end
+        if have[p[2]] and (type(e) ~= 'table' or e.jobs == nil or in_list(e.jobs, abbr)) then table.insert(list, p); end
     end
     return list;
 end
@@ -1627,6 +1647,7 @@ local function build_full_xml(job_id)
     local obis = owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local out = {};
     local function add(line) table.insert(out, line); end
 
@@ -1662,7 +1683,7 @@ local function build_full_xml(job_id)
     actions.wsplit = {};
     actions.wpair = nil;
     local mage = in_list(data.weapon_jobs, abbr);
-    local pair = (s.weapon_mode == 1 and mage) and actions.dw_pair(abbr) or nil;
+    local pair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
     if pair then
         local a = {};
         for k, v in pairs(pair) do a[k] = { item = { name = v } }; end
@@ -1714,7 +1735,7 @@ local function build_full_xml(job_id)
     end
     if have.PDT then toggle('/pdt', 'Mode', 'pdt', 'PDT mode'); end
     if have.MDT then toggle('/mdt', 'Mode', 'mdt', 'MDT mode'); end
-    if have.TP_Hybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
+    if have.TP_Hybrid and not have.__nohybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
@@ -1754,11 +1775,21 @@ local function build_full_xml(job_id)
     local engaged = {};
     if have.PDT then table.insert(engaged, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(engaged, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
-    if have.TP_Hybrid then table.insert(engaged, { cond = 'advanced="$Mode=hybrid"', body = equip_set('TP_Hybrid') }); end
+    if have.TP_Hybrid and not have.__nohybrid then table.insert(engaged, { cond = 'advanced="$Mode=hybrid"', body = equip_set('TP_Hybrid') }); end
     local tp_body = have.TP and function(o, i)
         equip_set('TP')(o, i);
         if have.TH then emit_chain(o, i, { { cond = 'advanced="$TH=on"', body = equip_set('TH') } }, nil); end
     end or (have.Idle and equip_set('Idle'));
+    -- PLD: tanks in TP_Hybrid ("TP - Engaged"); with /NIN or /DNC it wears TP ("TP - Offense") and the weapon pair
+    if (data.engaged_dw or {})[abbr] and have.TP_Hybrid then
+        local offense = tp_body;
+        tp_body = function(o, i)
+            emit_chain(o, i, { { cond = attr('p_subjob', 'NIN|DNC'), body = function(o2, i2)
+                if offense then offense(o2, i2); end
+                if actions.wpair then table.insert(o2, i2 .. '<equip set="DualWieldWeapons" />'); end
+            end } }, equip_set('TP_Hybrid'));
+        end;
+    end
     local idle_branches = {};
     if have.PDT then table.insert(idle_branches, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(idle_branches, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
@@ -1814,6 +1845,10 @@ local function build_full_xml(job_id)
     if have.DW then
         add('        <!-- /dw ON: your dual-wield weapons on top of whatever set is active -->');
         emit_chain(out, '        ', { { cond = 'advanced="$DW=on"', body = equip_set('DW') } }, nil);
+    end
+    if actions.wpair then
+        add('        <!-- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps) -->');
+        emit_chain(out, '        ', { { cond = attr('p_subjob', 'NIN|DNC'), body = equip_set('DualWieldWeapons') } }, nil);
     end
     add('    </idlegear>');
     add('');
@@ -1876,7 +1911,7 @@ local function build_full_xml(job_id)
     if have.BlueMagic then table.insert(m, { cond = attr('ad_skill', 'bluemagic'), body = equip_set('BlueMagic') }); end
     if have.Geomancy then table.insert(m, { cond = attr('ad_skill', 'geomancy'), body = equip_set('Geomancy') }); end
     -- Spells with their own set (Flash, Reprisal, Phalanx) come before the magic-skill rules
-    for i, p in ipairs(spell_set_list(have)) do
+    for i, p in ipairs(spell_set_list(have, abbr)) do
         table.insert(m, i, { cond = attr('ad_name', p[1]), body = equip_set(p[2]) });
     end
     local base_mid = job_base(data.midcast_base, abbr, have);
@@ -1899,6 +1934,10 @@ local function build_full_xml(job_id)
             table.insert(ws_b, { cond = cond, body = equip_set(b.desc.name) });
             ws_b[#ws_b].comment = b.desc.ws.name;
         end
+    end
+    for _, m in ipairs(actions.ws_moved(abbr, have)) do           -- PLD: Atonement in the Enmity set
+        table.insert(ws_b, { cond = attr('ad_id', m.id), body = equip_set(m.set) });
+        ws_b[#ws_b].comment = m.name;
     end
     if #ws_b > 0 or has_default then
         add('    <weaponskill>');
@@ -2130,6 +2169,7 @@ local function build_gearswap(job_id)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
 
@@ -2164,6 +2204,9 @@ local function build_gearswap(job_id)
         if b.desc.kind == 'ws' and b.desc.ws and b.desc.ws.id then
             add(string.format('        [%d] = %q, -- %s', b.desc.ws.id, b.desc.name, b.desc.ws.name));
         end
+    end
+    for _, m in ipairs(actions.ws_moved(abbr, have)) do
+        add(string.format('        [%d] = %q, -- %s', m.id, m.set, m.name));
     end
     add('    }');
     add('');
@@ -2212,7 +2255,7 @@ local function build_gearswap(job_id)
     add('');
     add('    -- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
     add('    spell_sets = {');
-    for _, p in ipairs(spell_set_list(have)) do
+    for _, p in ipairs(spell_set_list(have, abbr)) do
         add(string.format('        { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
     end
     add('    }');
@@ -2220,8 +2263,10 @@ local function build_gearswap(job_id)
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
     add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)));
-    local gpair = (s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) and actions.dw_pair(abbr) or nil;
+    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and (in_list(data.weapon_jobs, abbr) or actions.dw_pair(abbr) ~= nil)));
+    add('    -- PLD: engaged in TP_Hybrid (TP - Engaged); with /NIN or /DNC in TP (TP - Offense) with the weapon pair');
+    add('    engaged_dw = ' .. tostring((data.engaged_dw or {})[abbr] == true and have.TP_Hybrid == true));
+    local gpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
     add('    dw_pair = ' .. (gpair and string.format('{ main = %q, sub = %q }', gs_name(gpair.main or ''), gs_name(gpair.sub or '')) or 'nil')
         .. '   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
@@ -2307,6 +2352,7 @@ function idle_gear()
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
+        elseif engaged_dw and player.sub_job ~= 'NIN' and player.sub_job ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle')
         end
         if TH then eq('TH') end
@@ -2332,6 +2378,8 @@ function idle_gear()
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
     if DWOn then eq('DW') end
+    -- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps)
+    if dw_pair and (player.sub_job == 'NIN' or player.sub_job == 'DNC') then equip(dw_pair) end
     if phalanx_set and os.clock() < phalanx_until then eq(phalanx_set) end
 end
 
@@ -2578,6 +2626,7 @@ local function build_lac(job_id)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
 
@@ -2614,6 +2663,9 @@ local function build_lac(job_id)
         if b.desc.kind == 'ws' and b.desc.ws and b.desc.ws.id then
             add(string.format('    [%d] = %q, -- %s', b.desc.ws.id, b.desc.name, b.desc.ws.name));
         end
+    end
+    for _, m in ipairs(actions.ws_moved(abbr, have)) do
+        add(string.format('    [%d] = %q, -- %s', m.id, m.set, m.name));
     end
     add('};');
     add('');
@@ -2677,7 +2729,7 @@ local function build_lac(job_id)
     add('');
     add('-- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
     add('local spell_sets = {');
-    for _, p in ipairs(spell_set_list(have)) do
+    for _, p in ipairs(spell_set_list(have, abbr)) do
         add(string.format('    { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
     end
     add('};');
@@ -2685,8 +2737,10 @@ local function build_lac(job_id)
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
     add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) .. ';');
-    local lpair = (s.weapon_mode == 1 and in_list(data.weapon_jobs, abbr)) and actions.dw_pair(abbr) or nil;
+    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and (in_list(data.weapon_jobs, abbr) or actions.dw_pair(abbr) ~= nil)) .. ';');
+    local lpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
+    add('-- PLD: engaged in TP_Hybrid (TP - Engaged); with /NIN or /DNC in TP (TP - Offense) with the weapon pair');
+    add('local engaged_dw = ' .. tostring((data.engaged_dw or {})[abbr] == true and have.TP_Hybrid == true) .. ';');
     add('local dw_pair = ' .. (lpair and string.format('{ Main = %q, Sub = %q }', lpair.main or '', lpair.sub or '') or 'nil')
         .. ';   -- worn instead of a set\'s weapons with /NIN or /DNC');
     add('');
@@ -2885,6 +2939,7 @@ profile.HandleDefault = function()
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
+        elseif engaged_dw and player.SubJob ~= 'NIN' and player.SubJob ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle');
         end
         if TH then eq('TH'); end
@@ -2910,6 +2965,9 @@ profile.HandleDefault = function()
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
     if DWOn then eq('DW'); end
+    -- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps)
+    local sj = gData.GetPlayer().SubJob;
+    if dw_pair and (sj == 'NIN' or sj == 'DNC') then gFunc.EquipSet(dw_pair); end
     if phalanx_set and os.clock() < phalanx_until then eq(phalanx_set); end
 end
 
@@ -3301,8 +3359,8 @@ local CATEGORY_OF = {
     Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
     Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities', Focus = 'Abilities',
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
-    Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
-    Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
+    DWPAIR = 'Melee', Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
+    Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle', Idle_Luopan = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
@@ -3724,7 +3782,7 @@ local function draw_set_header()
     gold_line(imgui.GetWindowDrawList(), hx, hy + 26, hx + imgui.GetWindowWidth() * 0.6, 0.45);
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
-    if d.lockstyle then
+    if d.lockstyle or d.dwpair then
         ui.show_bis = false;
     else
         imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
@@ -4013,8 +4071,7 @@ end
 
 function actions.draw_dw_pair()
     local d = ui.desc;
-    if s.weapon_mode ~= 1 or d == nil or not d.weapons or d.lockstyle or d.info or ui.show_bis then return; end
-    if not in_list(data.weapon_jobs, JOBS[ui.job]) then return; end      -- mage jobs only (WHM, BLM, SCH...)
+    if d == nil or not d.dwpair then return; end                  -- only on the "/NIN /DNC Weapons" entry
     local abbr, key = JOBS[ui.job], JOBS[ui.job] .. '|DWPAIR';
     local pair = ui.pins[key] or {};
     imgui.TextColored(C.muted, '/NIN and /DNC weapons');
@@ -4093,6 +4150,15 @@ local function draw_content()
                 imgui.EndChild();
                 imgui.PopStyleColor();
                 imgui.TextColored(C.muted, 'Attachments are chosen in the automaton menu. They are not gear, so they are not exported.');
+            elseif ui.desc.dwpair then
+                caption('WEAPONS WHILE YOU SUB NIN OR DNC');
+                imgui.PushTextWrapPos(imgui.GetCursorPosX() + 640);
+                imgui.TextColored(C.text, 'Pick the two weapons you fight with when your subjob is NIN or DNC. While you sub NIN or DNC '
+                    .. 'they go on and stay on in every set, so changing sets never costs you TP.');
+                imgui.TextColored(C.muted, 'Leave both empty and nothing changes. Re-export after picking them.');
+                imgui.PopTextWrapPos();
+                imgui.Spacing();
+                actions.draw_dw_pair();
             else
                 local max_score = 0;
                 for _, c in pairs(ui.result or {}) do max_score = math.max(max_score, c.score); end

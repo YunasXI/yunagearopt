@@ -85,7 +85,7 @@ return {
 
     -- Spells that wear their own midcast set, checked before the usual magic-skill rules: { name (* = wildcard), set }
     spell_sets = {
-        'Flash', 'Reprisal', { 'Phalanx*', 'Phalanx' },
+        { 'Flash', 'Enmity', jobs = { 'PLD' } }, { 'Reprisal', 'Enmity', jobs = { 'PLD' } }, { 'Phalanx*', 'Phalanx' },
         -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
         { 'Poisona|Paralyna|Blindna|Silena|Stona|Viruna|Cursna|Erase', 'NaSpells' },
         { 'Refresh|Refresh II|Refresh III', 'RefreshSpell' },
@@ -112,6 +112,16 @@ return {
     -- Set put on first for every spell / every job ability, before that spell's or ability's own set (tanks)
     midcast_base = { PLD = 'SIR' },
     ability_base = { PLD = 'Enmity' },
+
+    -- Set names shown for one job only (the export set name stays the same)
+    job_labels = {
+        PLD = { TP = 'TP - Offense /NIN /DNC', TP_Hybrid = 'TP - Engaged', Enmity = 'Enmity (Provoke, Flash, Reprisal, Atonement, abilities)' },
+    },
+    -- Jobs that tank engaged in TP_Hybrid ("TP - Engaged") and only wear TP ("TP - Offense") with /NIN or /DNC,
+    -- together with the two weapons picked in the "/NIN and /DNC weapons" row of that set
+    engaged_dw = { PLD = true },
+    -- Weaponskills that wear another set of the job instead of their own (PLD: Atonement's damage comes from enmity)
+    ws_to_set = { PLD = { Atonement = 'Enmity' } },
     -- Phalanx cast on you by someone else: wear the PhalanxRcv set for a few seconds (from phalanx.lua):
     -- Phalanx II (107) aimed at you, or Phalanx (106) cast by a party member
     phalanx_received = { set = 'PhalanxRcv', single = { 107 }, party = { 106 }, single_time = 5, party_time = 8 },
@@ -518,7 +528,8 @@ return {
         NIN = { TP = { 'Shukuyu Ring' } },
         THF = { TP = { 'Shukuyu Ring' }, Idle = { 'Jelly Ring', 'Succoring Ring', "Assassin's Cape" }, PDT = { 'Jelly Ring', 'Succoring Ring', "Assassin's Cape" },
                 ['*'] = { 'White Tathlum' } },   -- '*' = every THF set
-        PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" }, Idle = { "Minerva's Ring" } },
+        PLD = { PDT = { 'Jelly Ring' }, Enmity = { 'Myrmeleo Ring', "Terra's Earring" }, Idle = { "Minerva's Ring" },
+                Cure = { "Naji's Loop", 'Pythia Sash +1', 'Oneiros Cappa' } },   -- a PLD cures with Enmity+, not Enmity-
     },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
@@ -537,6 +548,12 @@ return {
         { sets = { 'Nuke', 'Nuke_MB' }, jobs = { 'BLM', 'RDM', 'SCH', 'GEO', 'BLU' }, items = { 'Moepapa Pendant' } },
         { sets = { 'Boost' }, jobs = { 'MNK' }, items = { 'Tpl. Gloves +1' } },
         { sets = { 'Meditate' },    jobs = { 'WAR', 'PLD', 'DRK', 'BST', 'DRG', 'SAM', 'RUN' }, items = { 'Pinnacle Dastanas' } },
+        -- PLD: Shield Bash (Knightly Earring: Shield Bash +10), Rampart, and the Cure set (Enmity+ / HP / DT, not Enmity-)
+        { sets = { 'ShieldBash' }, jobs = { 'PLD' }, items = { 'Knightly Earring' } },
+        { sets = { 'Rampart' }, jobs = { 'PLD' }, items = { 'Pinnacle Sabatons' } },
+        { sets = { 'Cure' }, jobs = { 'PLD' }, items = { 'Kaiser Schaller', 'Ritter Gorget', 'Hospitaler Earring', "Pluto's Earring",
+                                                          'Inmicus Cuisses', 'Askar Gambieras', 'Cerb. Mantle +1', 'Homam Manopolas',
+                                                          'Odium Ring', 'Defending Ring +1' } },
         -- PLD: King's Cuisses raise Phalanx received (no stat for it in the server data, so it's forced)
         { sets = { 'PhalanxRcv', 'Phalanx' }, jobs = { 'PLD' }, items = { "King's Cuisses" } },
         -- SAM: bow in the range slot (swapping range doesn't reset TP). "TP Bonus" has no number in
@@ -649,6 +666,7 @@ return {
     -- Jobs that keep ONE item in the range slot in every set (swapping it resets TP). The first one you own
     -- is used; if you own none, your best instrument for songs. The first name is shown as Best in Slot.
     keep_range = {
+        GEO = { 'Dunna' },   -- the bell stays in the range slot (Handbell skill +15 for Geomancy)
         BRD = { 'Gjallarhorn' },
     },
     -- Jobs that keep ONE ammo in every set except weaponskills (NIN: the shuriken). Weaponskills choose their own
@@ -802,6 +820,9 @@ return {
         -- Defensive / idle
         Idle        = { label = 'Idle', caps = DEF, weapons = true,
                         weights = { refresh = 30, regen = 12, dt = -6, pdt = -5, mdt = -3, mdb = 1, hp = 0.02, mp = 0.02 } },
+        -- GEO: idle while a luopan is out (exported as Idle_Avatar, so the "pet is out" rules use it)
+        Idle_Luopan = { label = 'Idle - Luopan out', name = 'Idle_Avatar', caps = DEF, weapons = true,
+                        weights = { refresh = 25, regen = 8, geomancy = 1, handbell = 1, dt = -5, pdt = -4, mdt = -3, hp = 0.02, mp = 0.02 } },
         Idle_Avatar = { label = 'Idle - Avatar out', caps = DEF, weapons = true,
                         weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2 } },
         Resting     = { label = 'Resting (MP)', weapons = true, weights = { hmp = 10, hhp = 2, refresh = 3 } },
@@ -816,7 +837,9 @@ return {
         Precast_Song = { label = 'Precast - Songs', caps = { fc = 80, songct = 50 }, weapons = true, weights = { fc = 10, songct = 8 } },
         -- Midcast
         Cure          = { label = 'Cure potency', caps = { cure = 50 }, weapons = true,
-                          weights = { cure = 12, mnd = 3, vit = 1, healing = 0.8, cmp = 0.5, enmity = -1, sird = 0.5 } },
+                          weights = { cure = 12, mnd = 3, vit = 1, healing = 0.8, cmp = 0.5, enmity = -1, sird = 0.5 },
+                          -- PLD cures to hold hate: Enmity+, HP and DT count, spell interruption too
+                          weights_by_job = { PLD = { cure = 10, enmity = 4, hp = 0.05, mnd = 1, vit = 1, sird = 2, dt = -2, pdt = -2 } } },
         Healing       = { label = 'Healing magic skill', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
         -- WHM -na spells and Erase: Healing gear, plus Yagrush in the main hand when you own it ("-na spells: area of effect")
         NaSpells      = { label = '-na spells / Erase (Yagrush)', weapons = true, weights = { healing = 5, cmp = 0.5, sird = 1 } },
@@ -956,8 +979,6 @@ return {
                } },
         -- PLD spells and abilities (sets from a PLD LuAshitacast profile)
         SIR        = { label = 'Spell interruption (midcast base)', weights = { sird = 6, hp = 0.05, dt = -3, pdt = -3, mdt = -2, enmity = 1 } },
-        Flash      = { label = 'Flash', weights = { enmity = 6, hp = 0.05, sird = 1, dt = -2, pdt = -2 } },
-        Reprisal   = { label = 'Reprisal', weights = { enmity = 4, sird = 3, hp = 0.08, dt = -2, pdt = -2 } },
         Phalanx    = { label = 'Phalanx (your own cast)', weapons = true, weights = { phalanx = 10, phalanxrcv = 10, enhancing = 1.5, sird = 1 } },
         -- Only the Phalanx-received pieces, worn on top of your gear for a few seconds
         PhalanxRcv = { label = 'Phalanx received (cast on you)', weights = { phalanxrcv = 10 } },
@@ -979,7 +1000,7 @@ return {
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Phalanx', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
-        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR', 'Flash', 'Reprisal',
+        PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
@@ -995,7 +1016,8 @@ return {
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        GEO = { 'Idle', 'Resting', 'Precast', 'Geomancy', 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'Cure', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        GEO = { 'Idle', 'Idle_Luopan', 'Resting', 'TP', 'WS', 'Precast', 'Precast_Cure', 'Geomancy', 'Cure', 'Enhancing', 'Stoneskin',
+                'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'RefreshSpell', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
     },
 
