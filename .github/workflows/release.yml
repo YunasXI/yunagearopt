@@ -54,8 +54,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v="${{ steps.version.outputs.version }}"
-          args=(--title "v$v" --target "$GITHUB_SHA" --generate-notes)
-          if [ "${{ steps.version.outputs.previous }}" != "0.0.0" ]; then
-            args+=(--notes-start-tag "${{ steps.version.outputs.previous }}")
-          fi
-          gh release create "$v" "dist/yunagearopt-$v.zip" "${args[@]}"
+          prev="${{ steps.version.outputs.previous }}"
+          # The notes are the commit titles since the last release: the addon shows them in its update pop-up
+          if [ "$prev" != "0.0.0" ]; then notes=$(git log --no-merges --format='- %s' "$prev"..HEAD); fi
+          notes=${notes:-"- Maintenance build"}
+          gh release create "$v" "dist/yunagearopt-$v.zip" --title "v$v" --target "$GITHUB_SHA" --notes "$notes"

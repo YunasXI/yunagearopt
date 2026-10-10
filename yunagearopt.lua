@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.3';   -- the release workflow sets this to the release number
+addon.version = '1.1.4';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -173,7 +173,7 @@ local C = {
 ----------------------------------------------------------------------------------------------------
 -- State
 ----------------------------------------------------------------------------------------------------
-local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{},
+local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', latest_notes = '', skip_version = '', xml_phalanx = '', excluded = T{},
                     picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1 };   -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
@@ -260,8 +260,11 @@ local function check_for_update(force)
             });
             http.TIMEOUT = old_timeout;
             if ok and res and tonumber(code) == 200 then
-                local tag = table.concat(chunks):match('"tag_name"%s*:%s*"([^"]+)"');
+                local text = table.concat(chunks);
+                local tag = text:match('"tag_name"%s*:%s*"([^"]+)"');
                 if tag then
+                    local okj, obj = pcall(function() return require('json').decode(text); end);
+                    s.latest_notes = (okj and type(obj) == 'table' and type(obj.body) == 'string') and obj.body or '';
                     s.latest_version, s.update_checked = tag, now;
                     settings.save();
                 end
@@ -271,7 +274,7 @@ local function check_for_update(force)
     update.latest = s.latest_version ~= '' and s.latest_version or nil;
     update.newer = is_newer(update.latest, addon.version);
     if update.newer then
-        msg(string.format('New version %s is available (you have %s). Click UPDATE in the window or type /ygo update.',
+        msg(string.format('New version %s is available (you have %s). Click Update now in the pop-up, or type /ygo update.',
             update.latest, addon.version));
     elseif force then
         msg(update.latest and string.format('You are up to date (version %s).', addon.version)
@@ -3569,10 +3572,10 @@ local function draw_header()
             imgui.PushStyleColor(ImGuiCol_ButtonHovered, C.green);
             imgui.PushStyleColor(ImGuiCol_ButtonActive, C.green);
             imgui.PushStyleColor(ImGuiCol_Text, C.dark);
-            if imgui.Button(label .. '##ygo_update', { bw, 30 }) then ashita.misc.open_url(RELEASES_URL); end
+            if imgui.Button(label .. '##ygo_update', { bw, 30 }) then update.dismissed = false; end
             imgui.PopStyleColor(4);
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(string.format('A new version is out: %s (you have %s).' .. '\n' .. 'Click to open the download page on GitHub.',
+                imgui.SetTooltip(string.format('A new version is out: %s (you have %s).' .. '\n' .. 'Click to see what changed and update.',
                     update.latest, addon.version));
             end
         end
@@ -4012,9 +4015,7 @@ function actions.draw_dw_pair()
     local pair = ui.pins[key] or {};
     imgui.TextColored(C.muted, '/NIN and /DNC weapons');
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('While your subjob is NIN or DNC, these go on wherever a set has weapons\n'
-            .. '(instead of the staff etc.). Picked once for ' .. abbr .. ', the same in every set.\n'
-            .. 'Leave them empty and your weapons are left alone with /NIN or /DNC.');
+        imgui.SetTooltip('These weapons are locked if your sub is /NIN or /DNC to prevent TP Loss.');
     end
     for _, slot in ipairs({ { k = 'main', label = 'DW MAIN', mask = 0x0001 }, { k = 'sub', label = 'DW SUB', mask = 0x0002 } }) do
         imgui.SameLine(0, 12);
@@ -4478,6 +4479,134 @@ local function draw_notice()
     imgui.PopStyleColor();
 end
 
+-- One-click update: download every .lua of the new release from GitHub, check each one compiles, keep the old
+-- files in update_backup\, put the new ones in place and reload the addon. Settings, picks and exports live
+-- elsewhere (config\addons\yunagearopt, the export folders), so they're kept.
+function actions.install_update()
+    local tag = update.latest;
+    if tag == nil then return; end
+    local g = io.open(addon.path .. '/.git/HEAD', 'r');
+    if g then
+        g:close();
+        update.status, update.status_ok = 'This copy is a git clone: update it with git (git pull).', false;
+        return;
+    end
+    local ok, err = pcall(function()
+        local http, ltn12 = require('socket.http'), require('socket.ltn12');
+        local function get(url)
+            local chunks, old = {}, http.TIMEOUT;
+            http.TIMEOUT = 15;
+            local okr, res, code = pcall(http.request, { url = url, headers = { ['User-Agent'] = 'yunagearopt' },
+                sink = ltn12.sink.table(chunks) });
+            http.TIMEOUT = old;
+            if not (okr and res and tonumber(code) == 200) then
+                error('could not download ' .. url:match('[^/]+$') .. ' (' .. tostring(okr and code or res) .. ')');
+            end
+            return table.concat(chunks);
+        end
+        local listing = get('https://api.github.com/repos/' .. REPO .. '/contents?ref=' .. tag);
+        local files, seen = {}, {};
+        for name in listing:gmatch('"name"%s*:%s*"([%w_%-]+%.lua)"') do
+            if not seen[name] then seen[name] = true; table.insert(files, { name = name }); end
+        end
+        if not seen['yunagearopt.lua'] then error('the release has no yunagearopt.lua'); end
+        for _, f in ipairs(files) do
+            f.body = get('https://raw.githubusercontent.com/' .. REPO .. '/' .. tag .. '/' .. f.name);
+            if f.name == 'yunagearopt.lua' then
+                -- the same version stamp the release zip gets
+                f.body = f.body:gsub("\naddon%.version%s*=%s*'[^']*';", "\naddon.version = '" .. tag .. "';", 1);
+                if not f.body:find("addon.name", 1, true) then error('yunagearopt.lua looks wrong'); end
+            end
+            local fn, perr = loadstring(f.body, f.name);
+            if fn == nil then error(f.name .. ' does not compile: ' .. tostring(perr)); end
+        end
+        -- Everything downloaded and checked: keep the old files, then put the new ones in place
+        local dir = addon.path:gsub('[\\/]+$', '') .. '/';
+        ensure_dir(dir .. 'update_backup/');
+        for _, f in ipairs(files) do
+            local old = io.open(dir .. f.name, 'rb');
+            if old then
+                local body = old:read('*a');
+                old:close();
+                local b = io.open(dir .. 'update_backup/' .. f.name, 'wb');
+                if b then b:write(body); b:close(); end
+            end
+            local out = io.open(dir .. f.name, 'wb');
+            if out == nil then error('could not write ' .. f.name .. ' (is the folder read-only?)'); end
+            out:write(f.body);
+            out:close();
+        end
+        update.installed = #files;
+    end);
+    if ok then
+        update.status, update.status_ok = string.format('Updated to %s (%d files). Reloading...', tag, update.installed), true;
+        msg(string.format('Updated to %s. Reloading the addon; the old files are in addons\\yunagearopt\\update_backup.', tag));
+        AshitaCore:GetChatManager():QueueCommand(1, '/addon reload yunagearopt');
+    else
+        update.status, update.status_ok = 'Update failed: ' .. tostring(err):gsub('^.-:%d+: ', ''), false;
+        msg(update.status .. ' Nothing was changed. You can download it from GitHub instead.');
+    end
+end
+
+function actions.draw_update_popup()
+    if not update.newer or update.dismissed or s.skip_version == update.latest then return; end
+    local nc, nv = push_theme();
+    local cx, cy = 640, 360;
+    pcall(function()
+        local io = imgui.GetIO();
+        cx, cy = io.DisplaySize.x / 2, io.DisplaySize.y / 2;
+    end);
+    imgui.SetNextWindowPos({ cx, cy }, ImGuiCond_Appearing, { 0.5, 0.5 });
+    imgui.PushStyleColor(ImGuiCol_Border, C.gold);
+    if imgui.Begin('YunaGearOpt##update', { true }, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse,
+            ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoScrollbar)) then
+        title_text('YUNA', 1.15, C.text);
+        imgui.SameLine(0, 4);
+        title_text('GEAROPT', 1.15, C.gold);
+        imgui.Spacing();
+        imgui.Separator();
+        imgui.Spacing();
+        title_text('New version ' .. update.latest .. ' is out', 1.15, C.gold);
+        imgui.TextColored(C.muted, 'You have ' .. addon.version .. '.');
+        local notes = (s.latest_notes or ''):gsub('\r', ''):gsub('%*%*Full Changelog%*%*.*$', ''):gsub('%s+$', '');
+        if notes ~= '' then
+            imgui.Spacing();
+            imgui.TextColored(C.text, "What's new");
+            imgui.BeginChild('##ygo_update_notes', { 420, 140 }, true);
+            imgui.PushTextWrapPos(400);
+            imgui.TextColored(C.text, (notes:gsub('%%', '%%%%')));
+            imgui.PopTextWrapPos();
+            imgui.EndChild();
+        end
+        if update.status then
+            imgui.Spacing();
+            imgui.PushTextWrapPos(imgui.GetCursorPosX() + 420);
+            imgui.TextColored(update.status_ok and C.green or C.red, (update.status:gsub('%%', '%%%%')));
+            imgui.PopTextWrapPos();
+        end
+        imgui.Spacing();
+        if accent_button('Update now##ygo_upd_go', { 130, 30 }, true) then actions.install_update(); end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Downloads the new version from GitHub, puts it in place and reloads the addon.\n'
+                .. 'Your settings, picks and exported files are kept; the old files go to update_backup.');
+        end
+        imgui.SameLine(0, 8);
+        if imgui.Button('Later##ygo_upd_later', { 80, 30 }) then update.dismissed = true; end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Ask again next time the addon loads'); end
+        imgui.SameLine(0, 8);
+        if ghost_button('Skip this version##ygo_upd_skip', { btn_w('Skip this version'), 30 }) then
+            s.skip_version = update.latest;
+            settings.save();
+        end
+        imgui.SameLine(0, 8);
+        if ghost_button('GitHub##ygo_upd_page', { btn_w('GitHub'), 30 }) then ashita.misc.open_url(RELEASES_URL); end
+    end
+    imgui.End();
+    imgui.PopStyleColor();
+    imgui.PopStyleVar(nv);
+    imgui.PopStyleColor(nc);
+end
+
 local function draw_ui()
     if not ui.open[1] or data == nil then return; end
     if not bis.done then bis_step(); end
@@ -4506,7 +4635,7 @@ end);
 
 ashita.events.register('load', 'ygo_load', function() load_data(); check_for_update(false); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
-ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); look.watch(); draw_ui(); end);
+ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); look.watch(); draw_ui(); actions.draw_update_popup(); end);
 
 -- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
 -- starts on you the addon locks the PhalanxRcv set on with /la set for a few seconds. Only for jobs whose
@@ -4626,7 +4755,7 @@ ashita.events.register('command', 'ygo_command', function(e)
         equip_current_set();
     elseif sub == 'update' then
         check_for_update(true);
-        if update.newer then ashita.misc.open_url(RELEASES_URL); end
+        update.dismissed = false;                 -- the pop-up shows again (Update now / what changed)
     elseif sub == 'reload' then
         base_cache = {};
         bis_reset();

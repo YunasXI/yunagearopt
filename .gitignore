@@ -21,3 +21,6 @@ Thumbs.db
 desktop.ini
 .DS_Store
 augment_check.txt
+
+# Old files kept by the in-game Update now button
+update_backup/
