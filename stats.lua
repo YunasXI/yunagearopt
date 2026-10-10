@@ -112,6 +112,8 @@ M.MOD = {
     [104] = 'archery', [105] = 'marksmanship', [106] = 'throwing', [346] = 'perp',
     [539] = 'stoneskin',
     -- PLD: Phalanx potency / Phalanx received, and the ability pieces (Valor gear)
+    -- BST: Reward potency, Charm (duration / chance), jug pet level
+    [364] = 'reward', [360] = 'charmtime', [304] = 'tame', [391] = 'charm', [564] = 'jugrange',
     [301] = 'phalanx', [1182] = 'phalanxrcv', [837] = 'sentinel', [385] = 'shieldbash', [92] = 'rampart',
     [967] = 'cover', [965] = 'covermp',
     -- DNC: Step accuracy, Samba / Jig duration, Waltz delay, Violent Flourish accuracy, extra finishing moves
@@ -137,7 +139,7 @@ M.LABELS = {
     singing = 'Singing', string = 'String', wind = 'Wind', blue = 'Blue Magic', geomancy = 'Geomancy', handbell = 'Handbell',
     hmp = 'MP Heal', hhp = 'HP Heal', th = 'Treasure Hunter', snapshot = 'Snapshot', rapid = 'Rapid Shot',
     recycle = 'Recycle', waltz = 'Waltz%', perp = 'Perpetuation-', bpdelay = 'BP Delay-', bpdelay2 = 'BP Delay II-',
-    bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', petacc = 'Pet Acc', petatk = 'Pet Atk', petdt = 'Pet DT%', enmloss = 'Enmity Loss-', refreshpot = 'Refresh+', sadex = 'SA DEX%', taagi = 'TA AGI%', sacrit = 'SA Crit Dmg%', tacrit = 'TA Crit Dmg%', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
+    bpdmg = 'BP Dmg', bloodboon = 'Blood Boon', petacc = 'Pet Acc', petatk = 'Pet Atk', petdt = 'Pet DT%', enmloss = 'Enmity Loss-', refreshpot = 'Refresh+', reward = 'Reward+%', charmtime = 'Charm Time', tame = 'Tame', charm = 'Charm+', jugrange = 'Jug Pet Lv', sadex = 'SA DEX%', taagi = 'TA AGI%', sacrit = 'SA Crit Dmg%', tacrit = 'TA Crit Dmg%', roll = 'Phantom Roll+', rolldur = 'Roll Duration', rolldelay = 'Roll Delay-', rollaoe = 'Roll Area',
     sk_dagger = 'Dagger Skill', sk_sword = 'Sword Skill', sk_gsword = 'G.Sword Skill', sk_axe = 'Axe Skill', sk_gaxe = 'G.Axe Skill',
     sk_scythe = 'Scythe Skill', sk_polearm = 'Polearm Skill', sk_katana = 'Katana Skill', sk_gkatana = 'G.Katana Skill',
     sk_club = 'Club Skill', sk_staff = 'Staff Skill', sk_h2h = 'H2H Skill',

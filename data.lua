@@ -64,6 +64,8 @@ return {
         'Jump', { 'High Jump', 'HighJump' }, 'Angon', { 'Ancient Circle', 'AncientCircle' },
         { 'Spirit Link', 'SpiritLink' },
         { 'Dragon Breaker', 'DragonBreaker' },
+        -- BST
+        'Charm', 'Reward', { 'Call Beast', 'CallBeast' }, { 'Bestial Loyalty', 'CallBeast' },
         -- DNC
         { 'Quickstep', 'Steps' }, { 'Box Step', 'Steps' }, { 'Stutter Step', 'Steps' }, { 'Feather Step', 'Steps' },
         { 'Drain Samba', 'Samba' }, { 'Drain Samba II', 'Samba' }, { 'Drain Samba III', 'Samba' },
@@ -76,6 +78,10 @@ return {
     },
     -- Jobs whose Precast set (haste / fast cast) also covers Utsusemi while it is being cast
     utsusemi_precast = { DRG = true },
+
+    -- BST Reward: the best pet food you own and can use goes in the ammo slot (best first)
+    pet_foods = { 'Pet Food Theta', 'Pet Food Eta', 'Pet Food Zeta', 'Pet Fd. Epsilon', 'Pet Food Delta',
+                  'Pet Fd. Gamma', 'Pet Food Beta', 'Pet Food Alpha' },
 
     -- Spells that wear their own midcast set, checked before the usual magic-skill rules: { name (* = wildcard), set }
     spell_sets = {
@@ -561,6 +567,28 @@ return {
         ['Oneiros Cluster']   = { haste = 1, att = -3 },
         -- Soil Earring = the NQ Terra's Earring
         ['Soil Earring']      = { pdt = -2 },
+        -- BST (CatsEyeXI server mods): Reward+ % (364), Charm duration (360), jug pet level (564)
+        ['Beast Gaiters']     = { reward = 10, charmtime = 2 },
+        ['Bst. Gaiters +1']   = { reward = 11, charmtime = 2 },
+        ['Monster Gaiters']   = { reward = 20, charmtime = 3 },
+        ['Mst. Gaiters +1']   = { reward = 20, charmtime = 3 },
+        ["Zoraal Ja's Axe"]   = { reward = 10 },
+        ['Monster Gloves']    = { jugrange = 1, charmtime = 4 },
+        ['Mst. Gloves +1']    = { jugrange = 1, charmtime = 4 },
+        ['Beast Helm']        = { charmtime = 4 },
+        ['Bst. Helm +1']      = { charmtime = 4 },
+        ['Beast Jackcoat']    = { charmtime = 5 },
+        ['Bst. Jackcoat +1']  = { charmtime = 6 },
+        ['Beast Gloves']      = { charmtime = 3 },
+        ['Bst. Gloves +1']    = { charmtime = 3 },
+        ['Beast Trousers']    = { charmtime = 6 },
+        ['Bst. Trousers +1']  = { charmtime = 6 },
+        ['Monster Helm']      = { charmtime = 5 },
+        ['Mst. Helm +1']      = { charmtime = 5 },
+        ['Monster Jackcoat']  = { charmtime = 6 },
+        ['Mst. Jackcoat +1']  = { charmtime = 7 },
+        ['Monster Trousers']  = { charmtime = 2 },
+        ['Mst. Trousers +1']  = { charmtime = 2 },
         ['Loquac. Earring']   = { mp = 30, fc = 2 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
         ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
@@ -876,6 +904,13 @@ return {
         Angon       = { label = 'Angon', weights = {}, fixed = { ammo = 'Angon' } },
         DragonBreaker = { label = 'Dragon Breaker', weights = {}, fixed = { ammo = 'Fjoturangon' } },
         AncientCircle = { label = 'Ancient Circle', weights = {}, fixed = { legs = 'Drachen Brais' } },
+        -- BST pet sets. Charm: CHR + Charm duration. Reward: MND + Reward+ %, with your best pet food in the ammo slot.
+        -- Call Beast / Bestial Loyalty: jug pet level (Monster Gloves); the jug you chose with /jug goes in the ammo slot.
+        -- Ready: worn while your pet uses a Ready move (CHR, plus any Pet: pieces you pick by hand).
+        Charm         = { label = 'Charm', weights = { chr = 3, charmtime = 1, tame = 5, charm = 5 } },
+        Reward        = { label = 'Reward (pet food)', pet_food = true, weights = { mnd = 1, reward = 4 } },
+        CallBeast     = { label = 'Call Beast / Bestial Loyalty', weights = { jugrange = 10 } },
+        Ready         = { label = 'Ready (pet move)', weights = { chr = 1 } },
         -- Spirit Link: the wyvern is healed by HP drained from your current HP (gear can't raise that mid-fight);
         -- the only CatsEyeXI piece that boosts it is Drachen Armet +1 (+15 HP healed)
         SpiritLink    = { label = 'Spirit Link', weights = {}, fixed = { head = 'Drn. Armet +1' } },
@@ -920,7 +955,7 @@ return {
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
-        BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Charm', 'Reward', 'CallBeast', 'Ready', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },

@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.4';   -- the release workflow sets this to the release number
+addon.version = '1.1.5';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -705,13 +705,45 @@ local function xml_set_name(name)
     return (name:gsub("[^%w_]", ''));
 end
 
--- The job's set ids: data.jobs' list plus the sets you added (removed ones are dropped in build_sets)
-function actions.job_set_ids(abbr)
-    local ids, seen = {}, {};
-    for _, id in ipairs(data.jobs[abbr] or {}) do table.insert(ids, id); seen[id] = true; end
-    for _, id in ipairs(s.set_added[abbr] or {}) do
-        if not seen[id] and data.sets[id] then table.insert(ids, id); seen[id] = true; end
+-- BST: the jug pets you own for this job (ammo-slot items only BST can use), highest level first
+function actions.owned_jugs(job_id)
+    local list, seen, lvl = {}, {}, job_level(job_id);
+    for _, it in ipairs(owned) do
+        if bit.band(it.slots, 0x0008) ~= 0 and it.jobs == bit.lshift(1, job_id) and not seen[it.name]
+            and (s.ignore_level or it.level <= lvl) then
+            seen[it.name] = true;
+            table.insert(list, it);
+        end
     end
+    table.sort(list, function(a, b) if a.level ~= b.level then return a.level > b.level; end return a.name < b.name; end);
+    local names = {};
+    for _, it in ipairs(list) do table.insert(names, it.name); end
+    return names;
+end
+
+-- BST Reward: the best pet food you own and can use (data.pet_foods, best first)
+function actions.best_pet_food(job_id)
+    local lvl = job_level(job_id);
+    for _, n in ipairs(data.pet_foods or {}) do
+        for _, it in ipairs(owned) do
+            if name_key(it.name) == name_key(n) and (s.ignore_level or it.level <= lvl) then return it.name; end
+        end
+    end
+    return nil;
+end
+
+-- The jug list as a Lua table literal for the exports
+function actions.jug_literal(jugs)
+    local parts = {};
+    for _, n in ipairs(jugs) do table.insert(parts, string.format('%q', n)); end
+    return '{ ' .. table.concat(parts, ', ') .. ' }';
+end
+
+-- The job's set ids: data.jobs' list (removed ones are dropped in build_sets). Sets from other jobs can't be
+-- added any more (s.set_added from 1.1.4 is ignored): their rules may not fit the job.
+function actions.job_set_ids(abbr)
+    local ids = {};
+    for _, id in ipairs(data.jobs[abbr] or {}) do table.insert(ids, id); end
     return ids;
 end
 
@@ -731,8 +763,10 @@ function actions.slash_cmds(have)
     if have.Refresh then table.insert(c, 'refresh'); end
     if have.DW then table.insert(c, 'dw'); end
     if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
+    if have.__jugs then table.insert(c, 'jug'); end
     local parts = {};
     for _, x in ipairs(c) do table.insert(parts, x .. ' = true'); end
+    -- (have.__jugs is a flag, not a set: keep it out of the set checks below this point)
     return '{ ' .. table.concat(parts, ', ') .. ' }', c;
 end
 
@@ -838,6 +872,14 @@ local function build_sets(job_id)
                 if def.ranged == 'job' and abbr == 'RNG' then entry.label = entry.label .. ' (bow)'; end
                 -- Shooting sets without a listed ranged weapon (THF): the ammo slot holds what you shoot, never swap it
                 if def.ranged and entry.range ~= 'both' then entry.no_ammo = true; end
+                if def.pet_food then
+                    local food = actions.best_pet_food(job_id);
+                    local fixed = {};
+                    for k, v in pairs(entry.fixed or {}) do fixed[k] = v; end
+                    fixed.ammo = food;
+                    entry.fixed = fixed;
+                    if food == nil then entry.no_ammo = true; end
+                end
                 table.insert(list, entry);
             end
         end
@@ -1642,6 +1684,8 @@ local function build_full_xml(job_id)
 
     local R = data.rules or {};
     local obis = owned_obis();
+    local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
+    have.__jugs = #jugs > 0;
     local out = {};
     local function add(line) table.insert(out, line); end
 
@@ -1710,6 +1754,7 @@ local function build_full_xml(job_id)
     add('        <var name="TH">off</var>');
     if have.Refresh then add('        <var name="Refresh">off</var>'); end
     if have.DW then add('        <var name="DW">off</var>'); end
+    if #jugs > 0 then add('        <var name="Jug">1</var>'); end
     add('    </variables>');
     add('');
     add('    <inputcommands>');
@@ -1734,6 +1779,20 @@ local function build_full_xml(job_id)
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
+    -- BST /jug: the next jug pet you own (used by Call Beast / Bestial Loyalty)
+    if #jugs > 0 then
+        add('        <cmd input="/jug">');
+        local chain = {};
+        for i, n in ipairs(jugs) do
+            local nxt = (i % #jugs) + 1;
+            table.insert(chain, { cond = attr('advanced', '$Jug=' .. i), body = function(o, ind)
+                table.insert(o, string.format('%s<setvar name="Jug" value="%d" />', ind, nxt));
+                table.insert(o, string.format('%s<addtochat color="158">Jug: %s</addtochat>', ind, xml_escape(jugs[nxt])));
+            end });
+        end
+        emit_chain(out, '            ', chain, nil);
+        add('        </cmd>');
+    end
     -- /idle: every mode back to normal (no PDT / MDT / Hybrid / Refresh)
     add('        <cmd input="/idle">');
     add('            <setvar name="Mode" value="normal" />');
@@ -1955,13 +2014,21 @@ local function build_full_xml(job_id)
         table.insert(ja, { cond = attr('ad_name', 'Double-Up'), body = equip_set('PhantomRoll') });
     end
     local base_ja = job_base(data.ability_base, abbr, have);
-    if #ja > 0 or base_ja then
+    if #ja > 0 or base_ja or #jugs > 0 then
         add('    <jobability>');
         if base_ja then
             add('        <!-- Every ability: ' .. base_ja .. ' first, then the ability\'s own pieces on top -->');
             add(string.format('        <equip set="%s" />', base_ja));
         end
         emit_chain(out, '        ', ja, nil);
+        -- BST: the jug you chose with /jug goes in the ammo slot for Call Beast / Bestial Loyalty
+        if #jugs > 0 then
+            add(string.format('        <if %s>', attr('ad_name', 'Call Beast|Bestial Loyalty')));
+            for i, n in ipairs(jugs) do
+                add(string.format('            <if %s><equip><ammo>%s</ammo></equip></if>', attr('advanced', '$Jug=' .. i), xml_escape(n)));
+            end
+            add('        </if>');
+        end
         add('    </jobability>');
         add('');
     end
@@ -1969,9 +2036,10 @@ local function build_full_xml(job_id)
     local pet_b = {};
     if have.BloodPact then table.insert(pet_b, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BloodPact') }); end
     if have.BreathPotency and R.pet_breath then table.insert(pet_b, { cond = attr('ad_name', R.pet_breath), body = equip_set('BreathPotency') }); end
-    if #pet_b > 0 then
+    if #pet_b > 0 or have.Ready then
         add('    <petskill>');
-        emit_chain(out, '        ', pet_b, nil);
+        -- BST: any other pet move (Ready / Sic) wears the Ready set
+        emit_chain(out, '        ', pet_b, have.Ready and equip_set('Ready') or nil);
         add('    </petskill>');
     end
 
@@ -2119,6 +2187,8 @@ local function build_gearswap(job_id)
         end
     end
     local R, obis = data.rules or {}, owned_obis();
+    local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
+    have.__jugs = #jugs > 0;
     local o = {};
     local function add(line) table.insert(o, line); end
 
@@ -2239,6 +2309,8 @@ local function build_gearswap(job_id)
     add('    slash_cmds = ' .. actions.slash_cmds(have));
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
     add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
+    add('    -- BST: your jug pets; /jug picks the one Call Beast / Bestial Loyalty puts in the ammo slot');
+    add('    jugs, JugIdx = ' .. actions.jug_literal(jugs) .. ', 1');
     for _, b in ipairs(built) do
         if b.desc.lockstyle then
             add('');
@@ -2402,6 +2474,9 @@ function precast(spell)
     elseif ja_map[spell.english] then
         eq(ja_map[spell.english])
     end
+    if (spell.english == 'Call Beast' or spell.english == 'Bestial Loyalty') and jugs and jugs[JugIdx] then
+        equip({ ammo = jugs[JugIdx] })
+    end
 end
 
 function midcast(spell)
@@ -2449,7 +2524,8 @@ function aftercast(spell) idle_gear() end
 
 function pet_midcast(spell)
     if spell.type == 'BloodPactRage' or spell.type == 'BloodPactWard' then eq('BloodPact')
-    elseif matches(spell.english, rules.pet_breath) then eq('BreathPotency') end
+    elseif matches(spell.english, rules.pet_breath) then eq('BreathPotency')
+    elseif sets['Ready'] then eq('Ready') end           -- BST: the pet's Ready / Sic move
 end
 
 function pet_aftercast(spell) idle_gear() end
@@ -2509,6 +2585,11 @@ function self_command(command)
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn
         add_to_chat(158, 'Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'))
+    elseif c == 'jug' then
+        if jugs == nil or #jugs == 0 then add_to_chat(167, 'No jug pets in your bags.') return end
+        JugIdx = JugIdx % #jugs + 1
+        add_to_chat(158, 'Jug: ' .. jugs[JugIdx])
+        return
     elseif c == 'dw' then
         DWOn = not DWOn
         add_to_chat(158, 'Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'))
@@ -2554,6 +2635,8 @@ local function build_lac(job_id)
         end
     end
     local R, obis = data.rules or {}, owned_obis();
+    local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
+    have.__jugs = #jugs > 0;
     local o = {};
     local function add(line) table.insert(o, line); end
 
@@ -2680,6 +2763,8 @@ local function build_lac(job_id)
     add('');
     add('-- Toggles you can type as /pdt, /mdt, /hybrid, /idle... (they run /lac fwd <name>)');
     add('local slash_cmds = ' .. actions.slash_cmds(have) .. ';');
+    add('-- BST: your jug pets; /jug picks the one Call Beast / Bestial Loyalty puts in the ammo slot');
+    add('local jugs, JugIdx = ' .. actions.jug_literal(jugs) .. ', 1;');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
@@ -2828,6 +2913,10 @@ profile.HandleCommand = function(args)
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn;
         gFunc.Message('Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'));
+    elseif c == 'jug' then
+        if #jugs == 0 then gFunc.Message('No jug pets in your bags.'); return; end
+        JugIdx = JugIdx % #jugs + 1;
+        gFunc.Message('Jug: ' .. jugs[JugIdx]);
     elseif c == 'dw' then
         DWOn = not DWOn;
         gFunc.Message('Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'));
@@ -2849,6 +2938,7 @@ profile.HandleDefault = function()
     if petAction ~= nil and petAction.Name ~= nil and matches(petAction.Name, rules.pet_breath) and eq('BreathPotency') then
         return;
     end
+    if petAction ~= nil and eq('Ready') then return; end      -- BST: the pet's Ready / Sic move
     local player = gData.GetPlayer();
     if player.Status == 'Engaged' then
         if Mode == 'pdt' and eq('PDT') then
@@ -2893,6 +2983,7 @@ profile.HandleAbility = function()
     elseif sp_map[name] then eq(sp_map[name]);
     elseif ja_map[name] then eq(ja_map[name]);
     end
+    if (name == 'Call Beast' or name == 'Bestial Loyalty') and jugs[JugIdx] then gFunc.Equip('Ammo', jugs[JugIdx]); end
 end
 
 profile.HandleItem = function()
@@ -3269,6 +3360,7 @@ local CATEGORY_OF = {
     Meditate = 'Abilities', Berserk = 'Abilities', Warcry = 'Abilities', Sublimation = 'Abilities', SP = 'Abilities',
     Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities', Focus = 'Abilities',
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
+    Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
@@ -3630,7 +3722,7 @@ local function draw_sidebar()
                         if imgui.Selectable('Remove "' .. label .. '" from ' .. JOBS[ui.job]) then
                             actions.remove_set(JOBS[ui.job], d.id);
                             ui.set_idx, ui.dirty = 1, true;
-                            msg(string.format('%s: removed the %s set (it is left out of exports too). "+ Add a set" puts it back.', JOBS[ui.job], d.label));
+                            msg(string.format('%s: removed the %s set (it is left out of exports too). "Restore removed sets" puts it back.', JOBS[ui.job], d.label));
                         end
                         imgui.EndPopup();
                     end
@@ -3641,10 +3733,14 @@ local function draw_sidebar()
                 end
             end
         end
-        imgui.Spacing();
-        imgui.PushStyleColor(ImGuiCol_Text, C.gold_dim);
-        if imgui.Selectable('   + Add a set##addset') then imgui.OpenPopup('ygo_addset'); ui.addset_filter = { '' }; end
-        imgui.PopStyleColor();
+        -- Only when sets were removed: a link to put them back (this job's own sets only)
+        local nrem = #(s.set_removed[JOBS[ui.job]] or {});
+        if nrem > 0 then
+            imgui.Spacing();
+            imgui.PushStyleColor(ImGuiCol_Text, C.gold_dim);
+            if imgui.Selectable(string.format('   Restore removed sets (%d)##addset', nrem)) then imgui.OpenPopup('ygo_addset'); end
+            imgui.PopStyleColor();
+        end
         actions.draw_add_set();
     end
     imgui.EndChild();
@@ -3655,49 +3751,18 @@ end
 function actions.draw_add_set()
     if not imgui.BeginPopup('ygo_addset') then return; end
     local abbr = JOBS[ui.job];
-    ui.addset_filter = ui.addset_filter or { '' };
-    imgui.TextColored(C.gold, 'Add a set to ' .. abbr);
-    imgui.PushItemWidth(260);
-    imgui.InputText('##addset_filter', ui.addset_filter, 64);
-    imgui.PopItemWidth();
-    if imgui.IsItemHovered() then imgui.SetTooltip('Type to search'); end
-    local f = (ui.addset_filter[1] or ''):lower();
-    local function chosen(id, label)
-        actions.add_set(abbr, id);
-        ui.dirty = true;
-        msg(string.format('%s: added the %s set. Re-export to get it in your XML / LuAshitacast / GearSwap file.', abbr, label));
-        imgui.CloseCurrentPopup();
-    end
-    local removed = s.set_removed[abbr] or {};
-    if #removed > 0 then
-        imgui.Separator();
-        imgui.TextColored(C.muted, 'REMOVED (put back)');
-        for _, id in ipairs(removed) do
-            local def = data.sets[id];
-            local label = (def and def.label) or (id:gsub('^ws:', 'WS - '));
-            if f == '' or label:lower():find(f, 1, true) then
-                if imgui.Selectable(label .. '##rm_' .. id) then chosen(id, label); end
-            end
-        end
-    end
+    imgui.TextColored(C.gold, 'Put back a removed ' .. abbr .. ' set');
     imgui.Separator();
-    imgui.TextColored(C.muted, 'OTHER SETS');
-    local present, list = {}, {};
-    for _, id in ipairs(actions.job_set_ids(abbr)) do present[id] = true; end
-    for id, def in pairs(data.sets) do
-        if not present[id] and not def.info then
-            table.insert(list, { id = id, label = def.label or id });
+    for _, id in ipairs(s.set_removed[abbr] or {}) do
+        local def = data.sets[id];
+        local label = (def and def.label) or (id:gsub('^ws:', 'WS - '));
+        if imgui.Selectable(label .. '##rm_' .. id) then
+            actions.add_set(abbr, id);
+            ui.dirty = true;
+            msg(string.format('%s: the %s set is back. Re-export to get it in your XML / LuAshitacast / GearSwap file.', abbr, label));
+            imgui.CloseCurrentPopup();
         end
     end
-    table.sort(list, function(a, b) return a.label < b.label; end);
-    imgui.BeginChild('##addset_list', { 300, 260 }, false);
-    for _, e in ipairs(list) do
-        if f == '' or e.label:lower():find(f, 1, true) or e.id:lower():find(f, 1, true) then
-            if imgui.Selectable(e.label .. '##add_' .. e.id) then chosen(e.id, e.label); end
-            if imgui.IsItemHovered() then imgui.SetTooltip('Set name in exports: ' .. ((data.sets[e.id].name) or e.id)); end
-        end
-    end
-    imgui.EndChild();
     imgui.EndPopup();
 end
 
