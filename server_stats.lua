@@ -222,6 +222,7 @@ return {
     [12515] = { cover = 5, def = 24, enmity = 2, hp = 12, mnd = 3 }, -- Gallant Coronet
     [12519] = { def = 16, hp = 12, mnd = 5 }, -- Drachen Armet
     [12520] = { def = 15, int = 3, mp = 20, summoning = 5 }, -- Evokers Horn
+    [12562] = { agi = 10, chr = 10, def = 52, dex = 10, int = 10, mnd = 10, mp = 30, str = 10, vit = 10 }, -- Kirins Osode
     [12564] = { bdt = -9, def = 47, hp = 12 }, -- Dragon Mail
     [12617] = { agi = 2, def = 43, regen = 1, str = -2, throwing = 10 }, -- War Shinobi Gi
     [12618] = { def = 43, enmity = 4, int = 3, sird = 10 }, -- Yasha Samue
@@ -364,6 +365,7 @@ return {
     [14436] = { def = 41, enmity = -5, mnd = 5 }, -- Blessed Bliaut
     [14439] = { def = 48, stp = 7, str = 9, wsacc = 10 }, -- Hmn. Domaru +1
     [14441] = { acc = 6, def = 44, enmity = -3, macc = 6, mp = 25 }, -- Chasuble +1
+    [14469] = { acc = 10, def = 50, eva = 10, mnd = -5, mp = -25 }, -- Reverend Mail
     [14474] = { acc = 5, def = 44, hp = 20, str = 6, vit = 6 }, -- Tpl. Cyclas +1
     [14475] = { def = 40, enfeebling = 12, enmity = -4, hmp = 5, mp = 35 }, -- Hlr. Bliaut +1
     [14477] = { def = 44, enfeebling = 15, hmp = 5, mp = 34, sird = 12 }, -- Wlk. Tabard +1
@@ -508,7 +510,7 @@ return {
     [15137] = { chr = 5, def = 15, enmity = 2, hp = 15, ta = 1 }, -- Assassins Pouln.
     [15138] = { def = 19, enmity = 1, hp = 18, mnd = 3, sentinel = 10 }, -- Valor Leggings
     [15139] = { def = 17, enfeebling = 5, mp = 12 }, -- Abyss Sollerets
-    [15140] = { def = 14, hp = 13, vit = 4 }, -- Monster Gaiters
+    [15140] = { charmtime = 3, def = 14, hp = 13, reward = 20, vit = 4 }, -- Monster Gaiters
     [15146] = { bpdelay = 2, def = 14, mp = 20, vit = 3 }, -- Summoners Pgch.
     [15159] = { def = 20, enfeebling = 10, eva = 10 }, -- Igqira Tiara
     [15160] = { def = 21, enfeebling = 11, eva = 11 }, -- Genie Tiara
@@ -775,12 +777,14 @@ return {
     [17858] = { dex = 2 }, -- Turbo Animator
     [17925] = { racc = 7, ratt = 7 }, -- Fransisca
     [18017] = {  }, -- Asn. Jambiya
+    [18043] = { acc = 5 }, -- Suzakus Scythe
     [18115] = { acc = 2, stp = 1 }, -- Engetsuto
     [18121] = { da = 3, stp = 3 }, -- Valkyries Fork
     [18139] = { att = 12 }, -- Bomb Core
     [18140] = { int = 2, mp = 10 }, -- Phtm. Tathlum
     [18141] = { eva = 8, hp = 8, mp = 8 }, -- Ungur Boomerang
     [18148] = {  }, -- Acid Bolt
+    [18198] = { att = 5 }, -- Byakkos Axe
     [18217] = {  }, -- Rampager
     [18235] = { racc = 25 }, -- Corsair Bullet
     [18245] = { macc = 8 }, -- Aureole
@@ -800,7 +804,7 @@ return {
     [18603] = {  }, -- Majestas
     [18617] = {  }, -- Cracked Staff
     [18623] = { mdt = -5 }, -- Chtonic Staff
-    [18633] = { agi = 5, chr = 5, cure = 10, dex = 5, hmp = 10, int = 5, mnd = 5, str = 5, vit = 5 }, -- Chatoyant Staff
+    [18633] = { agi = 5, charm = 15, chr = 5, cure = 10, dex = 5, hmp = 10, int = 5, mnd = 5, str = 5, vit = 5 }, -- Chatoyant Staff
     [18723] = {  }, -- Steel Bullet
     [18724] = {  }, -- Soultrapper 2000
     [18725] = {  }, -- H.S. Soul Plate
@@ -837,13 +841,19 @@ return {
     [19790] = { dt = -5, enmity = 5, hp = 50, vit = 5 }, -- Oneiros Lance
     [20517] = { dex = 9, hp = 25, mp = 25 }, -- Terror Talons
     [20543] = { att = 5, dex = 3, eva = 5, sk_h2h = 3, stp = 3, str = 3 }, -- Maochinoli
+    [20554] = { acc = 8, def = 5, dex = 8, pdt = -8, vit = 8 }, -- Steady Fists
     [20618] = { acc = 8, agi = 4, dex = 4, enmity = 4, eva = 5, hp = 15, ta = 1 }, -- Sandung
     [20632] = { acc = 12, agi = 8, racc = 12 }, -- Turbulence
     [20643] = { agi = 5 }, -- Oathbreaker
+    [20699] = { att = 15, dw = 5, eva = 10 }, -- Koboto
     [20705] = { cure = 15, enmity = 5, mnd = 10 }, -- Brilliance
     [20720] = { acc = 8, enmity = -4, hp = 15, mab = 4, macc = 4, mnd = 4, mp = 15, phalanxrcv = 3, str = 4 }, -- Egeking
     [20740] = { def = 15, dt = -5, enmity = 5, mnd = 3 }, -- Unbreakable
+    [20842] = { berserk = 15, curercv = 15, dt = -8, ta = 4 }, -- Reikiono
+    [20846] = { att = 15, crit = 5, mdt = -4 }, -- Jokushuono
     [20872] = { sk_gaxe = 3, stp = 5, str = 3, vit = 3 }, -- Ixtab
+    [20893] = { acc = 8, att = 15, str = 5 }, -- Shukuyus Scythe
+    [20936] = { acc = 10, agi = 9, stp = 5, vit = 9 }, -- Hurricane
     [21026] = { chr = 5, samba = 15, stepacc = 10 }, -- Flamedancer Glaive
     [21047] = { dex = 3, scb = 3, sk_gkatana = 3, str = 3 }, -- Azukinagamitsu
     [21054] = { agi = 12, archery = 15, hp = 20 }, -- Kyugutachi
@@ -951,6 +961,7 @@ return {
     [26161] = { att = 5, dw = 3, meva = 3 }, -- Shukuyu Ring
     [26163] = { acc = 9, att = 9, def = -9, eva = -9 }, -- Aress Ring
     [26173] = { def = 9, eva = -9, racc = 9, ratt = 9 }, -- Enyos Ring
+    [26174] = { def = 9, eva = -9, racc = 9, ratt = 9 }, -- Athenas Ring
     [26188] = { bpdelay2 = 5, mp = 40, summoning = 10 }, -- Eidolon Ring
     [26219] = { cure = 2, enmity = -1, fc = 1 }, -- Najis Loop
     [26320] = { def = 6, geomancy = 5, mp = 25, singing = 5, summoning = 5 }, -- Kobo Obi
@@ -1077,6 +1088,8 @@ return {
     [39060] = { agi = 4, archery = 9, def = 6 }, -- Yumihei Mantle
     [39063] = {  }, -- Tinkers Collar
     [39100] = { def = 14, dex = 3, haste = 2 }, -- Venom Vambraces
+    [39101] = { hp = 15, sb = 5 }, -- Toxin Earring
+    [39102] = { agi = 3, def = 12, eva = 5, racc = 5 }, -- Duskwall
     [39103] = { hp = 20, mnd = 2 }, -- Blight Ring
     [39210] = { agi = 3, def = 13, enmity = 1, hp = 10, sird = 10 }, -- Bladedancer Greaves
     [39211] = { acc = 3, def = 15, dex = 3, hp = 12 }, -- Bladedancer Gauntlets

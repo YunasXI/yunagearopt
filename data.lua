@@ -146,7 +146,7 @@ return {
         ["Cor. Culottes +1"] = { stats = { acc = 6, dw = 3 } },   -- COR
         ["Cor. Bottes +1"] = { stats = { rapid = 5, snapshot = 3 } },   -- COR
         ["Dancer's Tiara +1"] = { stats = { crit = 3, haste = 5 } },   -- DNC
-        ["Dnc. Casaque +1"] = { stats = { waltz = 5 } },   -- DNC
+        ["Dnc. Casaque +1"] = { stats = { waltz = 5, waltzdelay = 5 } },   -- DNC
         ["Dnc. Bangles +1"] = { stats = { dw = 3, haste = 3 } },   -- DNC
         ["Dancer's Tights +1"] = { stats = { str = 11, dex = 11 } },   -- DNC
         ["Dancer's Shoes +1"] = { stats = { da = 3, haste = 3 } },   -- DNC
@@ -199,7 +199,7 @@ return {
         ["Runeist Trousers"] = { stats = { vit = 11, mnd = 11 } },   -- RUN
         ["Runeist Bottes"] = { stats = { bdt = -3, enmity = 3 } },   -- RUN
         ["Myn. Kabuto +1"] = { stats = { crit = 3, haste = 5 } },   -- SAM
-        ["Myn. Domaru +1"] = { stats = { regen = 3 } },   -- SAM
+        ["Myn. Domaru +1"] = { stats = { regen = 3, meditate = 1 } },   -- SAM
         ["Myn. Kote +1"] = { stats = { haste = 3, zanshin = 3 } },   -- SAM
         ["Myn. Haidate +1"] = { stats = { haste = 5, stp = 5 } },   -- SAM
         ["Myn. Sune-ate +1"] = { stats = { da = 3, haste = 3 } },   -- SAM
@@ -287,7 +287,7 @@ return {
         ["Mel. Gaiters +1"] = { stats = { acc = 8, counter = 4, haste = 4 } },   -- MNK
         ["Melee Cape"] = { stats = { hp = 10, acc = 8, att = 8, counter = 3 } },   -- MNK
         ["Kog. Hatsuburi +1"] = { stats = { enmity = 8, haste = 5, sb = 10 } },   -- NIN
-        ["Kog. Chainmail +1"] = { stats = { crit = 4, stp = 6 } },   -- NIN
+        ["Kog. Chainmail +1"] = { stats = { crit = 4, stp = 6, enmloss = 10 } },   -- NIN
         ["Kog. Tekko +1"] = { stats = { acc = 8, att = 8, dt = -4, eva = 6 } },   -- NIN
         ["Kog. Hakama +1"] = { stats = { dex = 6, agi = 6, counter = 6, dt = -5 } },   -- NIN
         ["Kog. Kyahan +1"] = { stats = { haste = 4, meva = 6 } },   -- NIN
@@ -317,7 +317,7 @@ return {
         ["Sct. Socks +1"] = { stats = { str = 6, mnd = 6, ctp = 6, snapshot = 3 } },   -- RNG
         ["Scout's Belt"] = { stats = { hp = 10, enmity = -3, stp = 3 } },   -- RNG
         ["Fu. Bandeau +1"] = { stats = { curercv = 2, haste = 2, sk_gsword = 3 } },   -- RUN
-        ["Futhark Coat +1"] = { stats = { dt = -5 } },   -- RUN
+        ["Futhark Coat +1"] = { stats = { dt = -5, enmloss = 10 } },   -- RUN
         ["Futhark Mitons +1"] = { stats = { str = 8, vit = 8, haste = 4, mdb = 4 } },   -- RUN
         ["Futhark Trousers +1"] = { stats = { acc = 8, haste = 4, stp = 5 } },   -- RUN
         ["Futhark Boots +1"] = { stats = { vit = 10, meva = 8 } },   -- RUN
@@ -370,7 +370,7 @@ return {
         ["Luminous Earring"] = { stats = { hp = 15, macc = 3, stp = 2 } },   -- MNK/RDM/THF/BST/BRD/NIN/BLU/COR/PUP/DNC/RUN
         ["Cullet Gloves"] = { stats = { agi = 5, haste = 2, macc = 4 } },   -- MNK/THF/BRD/RNG/NIN/COR/DNC
         ["Eldritch Sabatons"] = { stats = { int = 4, mnd = 4, mbb = 3, sk_sword = 3 } },   -- RDM/DRK/BLU/RUN
-        ["Kennan's Longbow"] = { stats = { enmity = -5, racc = 3 } },   -- RNG/SAM
+        ["Kennan's Longbow"] = { stats = { enmity = -5, racc = 3, meditate = 2 } },   -- RNG/SAM
         ["Kyugutachi"] = { stats = { att = 12, ratt = 12 } },   -- SAM
         ["Enlightenment"] = { stats = { cure = 3, eva = 3 } },   -- SCH
         ["Liberty"] = { stats = { eva = 3, ratt = 3 } },   -- THF/RNG/NIN/COR
@@ -391,6 +391,34 @@ return {
         ["Soothing Sachet"] = { stats = { petacc = 5, petatk = 5, petdt = -3 } },   -- SMN
         -- Augment shown in game by the player (Scorpion harness +1: "Regen"+1, Phys. dmg. taken -3%)
         ["Scp. Harness +1"] = { stats = { regen = 1, pdt = -3 } },   -- THF and others
+        -- Dragonslaying upgrades, A5 (bg-wiki: CatsEyeXI_Content/Dragonslaying, the Upgrades tables)
+        ["Adept's Earring"] = { stats = { hp = 15, mp = 15, cmp = 2 } },   -- HP+15 MP+15; Conserve MP+2
+        ["Cinderstone"] = { stats = { hp = 15, acc = 5, att = 2 } },   -- HP+15; Accuracy+5; Attack+2
+        ["Hierarch's Mantle"] = { stats = { mp = 15, fc = 2 } },   -- MP+15; Fast Cast+2%; Pet: DEF+5
+        ["Rimestone"] = { stats = { mp = 15, int = 3, enmity = -5 } },   -- MP+15; INT+3; Enmity-5
+        ["Duskwall"] = { stats = { macc = 5, racc = 5 } },   -- Ranged Acc +5; Magic Acc +5; Sneak Attack dmg +2%
+        ["Blight Ring"] = { stats = { hp = 15, int = 3, dark = 5 } },   -- HP+15; Dark magic skill +5; INT+3
+        ["Venom Vambraces"] = { stats = { acc = 5 } },   -- Accuracy +5; Pet: Store TP +5; Automaton: Ranged Skill +2
+        ["Toxin Earring"] = { stats = { mp = 15, enfdur = 2 } },   -- MP+15; Water Magic Accuracy +5; Enfeebling Magic Duration +2%
+        ["Titanium Band"] = { stats = { vit = 5, acc = 5, dt = -2 } },   -- VIT+5; Accuracy+5; Damage taken -2%
+        ["Erudite Cap"] = { stats = { mnd = 5, enmity = -5, fc = 2 } },   -- MND+5; Enmity-5; Fast Cast +2%
+        ["Acrobat's Breeches"] = { stats = { dex = 5, att = 5, dw = 2 } },   -- DEX+5; Attack+5; Dual Wield+2
+        ["Steady Fists"] = { stats = { att = 5, counter = 2, enmity = 5 } },   -- Attack+5; Enmity+5; Counter+2
+        ["Timeless Ocarina"] = { stats = { att = 10, dw = 3, macc = 10 } },   -- Attack+10; Magic Accuracy+10; Dual Wield+3
+        ["Assailant's Visor"] = { stats = { acc = 5, att = 5, da = 2 } },   -- Attack+5; Accuracy+5; Double Attack+2%
+        ["Ornate Gloves"] = { stats = { int = 5, enmity = -5, mcrit = 2 } },   -- INT+5; Enmity-5; Magic crit rate +2%
+        ["Subtle Sash"] = { stats = { dex = 5, agi = 2, marksmanship = 5 } },   -- DEX+5; Marksmanship skill+5; AGI+2
+        ["Unbreakable"] = { stats = { vit = 5, mdt = -2 } },   -- VIT+5; Parrying Rate+5%; Magic dmg. taken -2%
+        ["Conqueror's Helm"] = { stats = { acc = 5, att = 5, dw = 2 } },   -- Attack+5; Accuracy+5; Dual Wield+2
+        ["Covenant Belt"] = { stats = { mp = 15, mnd = 5, bpdelay = 2 } },   -- MP+15; MND+5; BP ability delay-2
+        ["Loxo Scarf"] = { stats = { str = 5, att = 5, snapshot = 2 } },   -- STR+5; Attack+5; Snapshot+2
+        ["Stormblade"] = { stats = { dex = 5, haste = 2 } },   -- DMG+5; DEX+5; Haste+2%
+        ["Bolt Stone"] = { stats = { att = 5, petatk = 5 } },   -- Attack+5; Pet Attack+5; Pet Haste+3%
+        ["Ruthless Greaves"] = { stats = { acc = 5, att = 5, stp = 2 } },   -- Attack+5; Accuracy+5; Store TP +2
+        ["Windfall Hat"] = { stats = { agi = 5, acc = 5, stp = 2 } },   -- AGI+5; Accuracy+5; Store TP+2
+        ["Swift Gages"] = { stats = { dex = 5, att = 5, da = 2 } },   -- DEX+5; Attack+5; Double Attack+2%
+        ["Hurricane"] = { stats = { acc = 5, ta = 2, zanshin = 5 } },   -- Accuracy+5; Triple Attack+2%; Zanshin+5
+        ["Turbulence"] = { stats = { str = 5, att = 8, ratt = 8, stp = 3 } },   -- STR+5; Attack+8; R.Attack+8; Store TP+3
         -- SCNM legs, augmented: "Refresh +1" = a stronger Refresh spell when you cast it (not idle MP)
         ["Apogee Tonban"] = { stats = { refreshpot = 1 } },      -- WHM/BLM/RDM/SMN/BLU/SCH/GEO
         ["Pinnacle Cuisses"] = { stats = { refreshpot = 1 } },   -- WAR/PLD/DRK/BST/DRG/SAM/RUN
