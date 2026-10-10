@@ -62,6 +62,7 @@ return {
         'Meditate', 'Berserk', 'Warcry', 'Sublimation',
         'Chakra', 'Boost', 'Focus',
         'Jump', { 'High Jump', 'HighJump' }, 'Angon', { 'Ancient Circle', 'AncientCircle' },
+        { 'Spirit Link', 'SpiritLink' },
         { 'Dragon Breaker', 'DragonBreaker' },
         -- DNC
         { 'Quickstep', 'Steps' }, { 'Box Step', 'Steps' }, { 'Stutter Step', 'Steps' }, { 'Feather Step', 'Steps' },
@@ -875,6 +876,9 @@ return {
         Angon       = { label = 'Angon', weights = {}, fixed = { ammo = 'Angon' } },
         DragonBreaker = { label = 'Dragon Breaker', weights = {}, fixed = { ammo = 'Fjoturangon' } },
         AncientCircle = { label = 'Ancient Circle', weights = {}, fixed = { legs = 'Drachen Brais' } },
+        -- Spirit Link: the wyvern is healed by HP drained from your current HP (gear can't raise that mid-fight);
+        -- the only CatsEyeXI piece that boosts it is Drachen Armet +1 (+15 HP healed)
+        SpiritLink    = { label = 'Spirit Link', weights = {}, fixed = { head = 'Drn. Armet +1' } },
         -- Worn on top of Precast when a spell makes the wyvern breathe / while it breathes
         Breath        = { label = 'Wyvern breath trigger (precast)', weights = {}, fixed = { head = 'Drachen Armet' } },
         BreathPotency = { label = 'Wyvern breath potency (pet skill)', weights = {}, fixed = { head = 'Wyrm Armet' } },
@@ -921,7 +925,7 @@ return {
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
-        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
+        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },

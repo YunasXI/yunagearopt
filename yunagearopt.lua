@@ -3182,7 +3182,7 @@ local CATEGORY_OF = {
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
-    Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', DragonBreaker = 'Abilities',
+    Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
