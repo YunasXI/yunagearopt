@@ -175,9 +175,12 @@ local C = {
 ----------------------------------------------------------------------------------------------------
 local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, update_checked = 0, latest_version = '', xml_phalanx = '', excluded = T{},
                     picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
+                    set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1 };   -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
+s.set_removed = actions.plain(s.set_removed or {});
+s.set_added = actions.plain(s.set_added or {});
 
 -- Weapons are always swapped, except while subbing NIN or DNC: then the job's dual-wield pair (picked in the
 -- "/NIN and /DNC weapons" row) goes on instead, or the weapons are left alone if none is picked.
@@ -699,6 +702,64 @@ local function xml_set_name(name)
     return (name:gsub("[^%w_]", ''));
 end
 
+-- The job's set ids: data.jobs' list plus the sets you added (removed ones are dropped in build_sets)
+function actions.job_set_ids(abbr)
+    local ids, seen = {}, {};
+    for _, id in ipairs(data.jobs[abbr] or {}) do table.insert(ids, id); seen[id] = true; end
+    for _, id in ipairs(s.set_added[abbr] or {}) do
+        if not seen[id] and data.sets[id] then table.insert(ids, id); seen[id] = true; end
+    end
+    return ids;
+end
+
+function actions.set_removed(abbr, id)
+    for _, r in ipairs(s.set_removed[abbr] or {}) do if r == id then return true; end end
+    return false;
+end
+
+-- Slash commands a gear-swap export answers (/pdt, /mdt, /hybrid, /idle...), as a Lua table literal
+function actions.slash_cmds(have)
+    local c = { 'idle' };
+    if have.PDT then table.insert(c, 'pdt'); end
+    if have.MDT then table.insert(c, 'mdt'); end
+    if have.TP_Hybrid then table.insert(c, 'hybrid'); end
+    if have.Nuke_MB then table.insert(c, 'mb'); end
+    if have.TH then table.insert(c, 'th'); end
+    if have.Refresh then table.insert(c, 'refresh'); end
+    if have.DW then table.insert(c, 'dw'); end
+    if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
+    local parts = {};
+    for _, x in ipairs(c) do table.insert(parts, x .. ' = true'); end
+    return '{ ' .. table.concat(parts, ', ') .. ' }', c;
+end
+
+function actions.list_without(t, v)
+    local out = {};
+    for _, x in ipairs(t or {}) do if x ~= v then table.insert(out, x); end end
+    return out;
+end
+
+-- Take a set out of a job (it leaves the list and every export), or put one back / add a new one
+function actions.remove_set(abbr, id)
+    s.set_added[abbr] = actions.list_without(s.set_added[abbr], id);
+    if in_list(data.jobs[abbr] or {}, id) or id == 'SP' or id == 'WS' or id:find('^ws:') then
+        if not actions.set_removed(abbr, id) then
+            s.set_removed[abbr] = s.set_removed[abbr] or {};
+            table.insert(s.set_removed[abbr], id);
+        end
+    end
+    settings.save();
+end
+
+function actions.add_set(abbr, id)
+    s.set_removed[abbr] = actions.list_without(s.set_removed[abbr], id);
+    if not in_list(data.jobs[abbr] or {}, id) and id ~= 'SP' and id ~= 'WS' and not id:find('^ws:') then
+        s.set_added[abbr] = actions.list_without(s.set_added[abbr], id);
+        table.insert(s.set_added[abbr], id);
+    end
+    settings.save();
+end
+
 local function build_sets(job_id)
     local abbr, list = JOBS[job_id], {};
     local wjob = in_list(data.weapon_jobs, abbr);
@@ -724,7 +785,7 @@ local function build_sets(job_id)
         if rw and rw.Marksmanship then return 'Marksmanship'; end
         return nil;
     end
-    for _, id in ipairs(data.jobs[abbr] or {}) do
+    for _, id in ipairs(actions.job_set_ids(abbr)) do
         if id == 'SP' then
             local sp = (data.sp_abilities or {})[abbr];
             local fam = sp and (data.summit or {})[sp[2]];
@@ -843,6 +904,14 @@ local function build_sets(job_id)
                 end
             end
         end
+    end
+    -- Sets you removed from this job (sidebar: right-click a set) leave the list and every export
+    if #(s.set_removed[abbr] or {}) > 0 then
+        local kept = {};
+        for _, e in ipairs(list) do
+            if not actions.set_removed(abbr, e.id) then table.insert(kept, e); end
+        end
+        list = kept;
     end
     -- Lockstyle: the look you want, picked by hand (or imported from what you wear). Nothing is chosen
     -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
@@ -1581,7 +1650,7 @@ local function build_full_xml(job_id)
     add('    <settings>');
     add('        <blockresends>true</blockresends>');
     add('    </settings>');
-    add('    <!-- Commands: /pdt /mdt /hybrid toggle defensive modes, /mb toggles magic burst, /th toggles Treasure Hunter. -->');
+    add('    <!-- Commands: /pdt /mdt /hybrid toggle defensive modes, /idle puts them back to normal, /mb toggles magic burst, /th toggles Treasure Hunter. -->');
     if abbr == 'PUP' then add('    <!-- PUP: while the automaton is out you wear its gear; /petranged switches tank / ranged gear. -->'); end
     add('    <!-- /warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring. -->');
     add('    <!-- Any set can also be forced with: /la set SetName 60 -->');
@@ -1662,6 +1731,13 @@ local function build_full_xml(job_id)
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
+    -- /idle: every mode back to normal (no PDT / MDT / Hybrid / Refresh)
+    add('        <cmd input="/idle">');
+    add('            <setvar name="Mode" value="normal" />');
+    if have.Refresh then add('            <setvar name="Refresh" value="off" />'); end
+    add('            <addtochat color="158">Mode: normal</addtochat>');
+    add('            <doidlegear />');
+    add('        </cmd>');
     -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
     add('        <cmd input="/warp">');
     add('            <gearlock length="25" />');
@@ -2045,7 +2121,8 @@ local function build_gearswap(job_id)
 
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- Put this file in Windower/addons/GearSwap/data/ as ' .. player_name() .. '_' .. abbr .. '.lua');
-    add('-- Commands: //gs c pdt | //gs c mdt | //gs c hybrid | //gs c mb | //gs c th | /warp');
+    add('-- Commands (type them like normal commands): ' .. table.concat((function() local _, c = actions.slash_cmds(have); local o = {}; for _, x in ipairs(c) do table.insert(o, '/' .. x); end; return o; end)(), ' ') .. ' /warp');
+    add('--   (or //gs c pdt, //gs c idle ... the same toggles)');
     if abbr == 'PUP' then add('-- PUP: while the automaton is out you wear its gear; //gs c petranged switches tank / ranged gear'); end
     add('');
     add('function get_sets()');
@@ -2155,6 +2232,8 @@ local function build_gearswap(job_id)
     add('    -- Weaponskills that use the MightyStrikes set while Mighty Strikes is active');
     add('    ms_ws = { ' .. table.concat(ms_line, ', ') .. ' }');
     add('');
+    add('    -- Toggles you can type as /pdt, /mdt, /hybrid, /idle... (they run //gs c <name>)');
+    add('    slash_cmds = ' .. actions.slash_cmds(have));
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
     add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
     for _, b in ipairs(built) do
@@ -2269,14 +2348,11 @@ windower.raw_register_event('action', function(act)
     end
 end)
 
--- Typing /warp runs the warp command
+-- Typing /warp, /pdt, /mdt, /hybrid, /idle... runs the toggle (gs c <name>)
 windower.raw_register_event('outgoing text', function(original)
-    if original:lower():match('^/warp%s*$') then
-        windower.send_command('gs c warp')
-        return true
-    end
-    if original:lower():match('^/dw%s*$') then
-        windower.send_command('gs c dw')
+    local c = original:lower():match('^/(%a+)%s*$')
+    if c == 'warp' or (c and slash_cmds and slash_cmds[c]) then
+        windower.send_command('gs c ' .. c)
         return true
     end
 end)
@@ -2415,6 +2491,9 @@ function self_command(command)
     if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
         Mode = (Mode == c) and 'normal' or c
         add_to_chat(158, 'Mode: ' .. Mode)
+    elseif c == 'idle' then
+        Mode, RefreshOn = 'normal', false
+        add_to_chat(158, 'Mode: normal')
     elseif c == 'mb' then
         MB = not MB
         add_to_chat(158, 'Magic Burst: ' .. (MB and 'ON' or 'OFF'))
@@ -2477,7 +2556,8 @@ local function build_lac(job_id)
 
     add(string.format('-- Generated by YunaGearOpt %s for %s (%s) on %s from the gear you own.', addon.version, player_name(), abbr, os.date('%Y-%m-%d %H:%M')));
     add('-- LuAshitacast profile. Location: Ashita/config/addons/luashitacast/' .. player_name() .. '_' .. player_server_id() .. '/' .. abbr .. '.lua');
-    add('-- Commands: /lac fwd pdt | /lac fwd mdt | /lac fwd hybrid | /lac fwd mb | /lac fwd th | /warp');
+    add('-- Commands (type them like normal commands): ' .. table.concat((function() local _, c = actions.slash_cmds(have); local o = {}; for _, x in ipairs(c) do table.insert(o, '/' .. x); end; return o; end)(), ' ') .. ' /warp');
+    add('--   (or /lac fwd pdt, /lac fwd idle ... the same toggles)');
     if abbr == 'PUP' then add('-- PUP: while the automaton is out you wear its gear; /lac fwd petranged switches tank / ranged gear'); end
     add('');
     add('local profile = {};');
@@ -2595,6 +2675,8 @@ local function build_lac(job_id)
     add(string.format('local phalanx_single_time, phalanx_party_time = %d, %d;',
         (prc and prc.single_time) or 5, (prc and prc.party_time) or 8));
     add('');
+    add('-- Toggles you can type as /pdt, /mdt, /hybrid, /idle... (they run /lac fwd <name>)');
+    add('local slash_cmds = ' .. actions.slash_cmds(have) .. ';');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
@@ -2707,12 +2789,13 @@ profile.OnLoad = function()
         if e.id == 0x28 then pcall(on_action, e); end
     end);
     ashita.events.register('command', 'ygo_lac_warp', function(e)
-        if e.command:lower():match('^/warp%s*$') then
+        local c = e.command:lower():match('^/(%a+)%s*$');
+        if c == 'warp' then
             e.blocked = true;
             warp();
-        elseif e.command:lower():match('^/dw%s*$') then
+        elseif c and slash_cmds[c] then
             e.blocked = true;
-            AshitaCore:GetChatManager():QueueCommand(1, '/lac fwd dw');
+            AshitaCore:GetChatManager():QueueCommand(1, '/lac fwd ' .. c);
         end
     end);
 end
@@ -2727,6 +2810,9 @@ profile.HandleCommand = function(args)
     if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
         Mode = (Mode == c) and 'normal' or c;
         gFunc.Message('Mode: ' .. Mode);
+    elseif c == 'idle' then
+        Mode, RefreshOn = 'normal', false;
+        gFunc.Message('Mode: normal');
     elseif c == 'mb' then
         MB = not MB;
         gFunc.Message('Magic Burst: ' .. (MB and 'ON' or 'OFF'));
@@ -3536,6 +3622,15 @@ local function draw_sidebar()
                     if imgui.Selectable('   ' .. label .. '##set' .. i, sel) then
                         ui.set_idx, ui.dirty = i, true;
                     end
+                    if imgui.IsItemHovered() then imgui.SetTooltip('Right-click to remove this set from ' .. JOBS[ui.job]); end
+                    if imgui.BeginPopupContextItem('setctx' .. i) then
+                        if imgui.Selectable('Remove "' .. label .. '" from ' .. JOBS[ui.job]) then
+                            actions.remove_set(JOBS[ui.job], d.id);
+                            ui.set_idx, ui.dirty = 1, true;
+                            msg(string.format('%s: removed the %s set (it is left out of exports too). "+ Add a set" puts it back.', JOBS[ui.job], d.label));
+                        end
+                        imgui.EndPopup();
+                    end
                     if sel then
                         imgui.PopStyleColor();
                         imgui.GetWindowDrawList():AddRectFilled({ sx, sy + 1 }, { sx + 3, sy + imgui.GetTextLineHeight() - 1 }, u32(C.gold), 1);
@@ -3543,10 +3638,64 @@ local function draw_sidebar()
                 end
             end
         end
+        imgui.Spacing();
+        imgui.PushStyleColor(ImGuiCol_Text, C.gold_dim);
+        if imgui.Selectable('   + Add a set##addset') then imgui.OpenPopup('ygo_addset'); ui.addset_filter = { '' }; end
+        imgui.PopStyleColor();
+        actions.draw_add_set();
     end
     imgui.EndChild();
     imgui.PopStyleVar();
     imgui.PopStyleColor();
+end
+
+function actions.draw_add_set()
+    if not imgui.BeginPopup('ygo_addset') then return; end
+    local abbr = JOBS[ui.job];
+    ui.addset_filter = ui.addset_filter or { '' };
+    imgui.TextColored(C.gold, 'Add a set to ' .. abbr);
+    imgui.PushItemWidth(260);
+    imgui.InputText('##addset_filter', ui.addset_filter, 64);
+    imgui.PopItemWidth();
+    if imgui.IsItemHovered() then imgui.SetTooltip('Type to search'); end
+    local f = (ui.addset_filter[1] or ''):lower();
+    local function chosen(id, label)
+        actions.add_set(abbr, id);
+        ui.dirty = true;
+        msg(string.format('%s: added the %s set. Re-export to get it in your XML / LuAshitacast / GearSwap file.', abbr, label));
+        imgui.CloseCurrentPopup();
+    end
+    local removed = s.set_removed[abbr] or {};
+    if #removed > 0 then
+        imgui.Separator();
+        imgui.TextColored(C.muted, 'REMOVED (put back)');
+        for _, id in ipairs(removed) do
+            local def = data.sets[id];
+            local label = (def and def.label) or (id:gsub('^ws:', 'WS - '));
+            if f == '' or label:lower():find(f, 1, true) then
+                if imgui.Selectable(label .. '##rm_' .. id) then chosen(id, label); end
+            end
+        end
+    end
+    imgui.Separator();
+    imgui.TextColored(C.muted, 'OTHER SETS');
+    local present, list = {}, {};
+    for _, id in ipairs(actions.job_set_ids(abbr)) do present[id] = true; end
+    for id, def in pairs(data.sets) do
+        if not present[id] and not def.info then
+            table.insert(list, { id = id, label = def.label or id });
+        end
+    end
+    table.sort(list, function(a, b) return a.label < b.label; end);
+    imgui.BeginChild('##addset_list', { 300, 260 }, false);
+    for _, e in ipairs(list) do
+        if f == '' or e.label:lower():find(f, 1, true) or e.id:lower():find(f, 1, true) then
+            if imgui.Selectable(e.label .. '##add_' .. e.id) then chosen(e.id, e.label); end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Set name in exports: ' .. ((data.sets[e.id].name) or e.id)); end
+        end
+    end
+    imgui.EndChild();
+    imgui.EndPopup();
 end
 
 local function draw_set_header()
@@ -3960,12 +4109,32 @@ local function draw_content()
     imgui.EndChild();
 end
 
-local function copy_current_set()
+local function copy_current_set(fmt)
     if ui.desc == nil then return; end
-    local out = {};
-    set_xml_lines(out, '', ui.desc.name, ui.result or {});
+    local out, assign, name = {}, ui.result or {}, ui.desc.name;
+    local covered = covered_slots(assign);
+    if fmt == 'lac' then                       -- LuAshitacast: paste inside "local sets = { ... }"
+        table.insert(out, string.format('    [%q] = {', name));
+        for _, def in ipairs(SLOTS) do
+            local c = assign[def.key];
+            if covered[def.key] then table.insert(out, string.format("        %s = 'displaced',", LAC_SLOT[def.key]));
+            elseif c then table.insert(out, string.format('        %s = %q,', LAC_SLOT[def.key], c.item.name)); end
+        end
+        table.insert(out, '    },');
+    elseif fmt == 'gs' then                    -- GearSwap: paste inside get_sets()
+        table.insert(out, string.format('    sets[%q] = {', name));
+        for _, def in ipairs(SLOTS) do
+            local c = assign[def.key];
+            if covered[def.key] then table.insert(out, string.format('        %s = empty,', GS_SLOT[def.key]));
+            elseif c then table.insert(out, string.format('        %s = %q,', GS_SLOT[def.key], gs_name(c.item.name))); end
+        end
+        table.insert(out, '    }');
+    else
+        set_xml_lines(out, '', name, assign);
+    end
     imgui.SetClipboardText(table.concat(out, '\n'));
-    msg('Set "' .. ui.desc.name .. '" copied to clipboard.');
+    local kind = (fmt == 'lac' and 'LuAshitacast') or (fmt == 'gs' and 'GearSwap') or 'XML';
+    msg('Set "' .. name .. '" copied to clipboard (' .. kind .. ').');
 end
 
 -- Import what you're wearing into the open set: every slot the set uses gets your equipped piece as its pick
@@ -4086,7 +4255,15 @@ local function draw_footer()
     imgui.SetCursorPosX(imgui.GetCursorPosX() + 8);
     if imgui.Button('Rescan', { btn_w('Rescan'), 34 }) then msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented)); end
     imgui.SameLine();
-    if imgui.Button('Copy set', { btn_w('Copy set'), 34 }) then copy_current_set(); end
+    if imgui.Button('Copy set', { btn_w('Copy set'), 34 }) then imgui.OpenPopup('ygo_copyfmt'); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('Copy this set to the clipboard as XML, LuAshitacast or GearSwap'); end
+    if imgui.BeginPopup('ygo_copyfmt') then
+        imgui.TextColored(C.muted, 'Copy as');
+        if imgui.Selectable('XML (LegacyAC)') then copy_current_set('xml'); end
+        if imgui.Selectable('LuAshitacast (.lua)') then copy_current_set('lac'); end
+        if imgui.Selectable('GearSwap (.lua)') then copy_current_set('gs'); end
+        imgui.EndPopup();
+    end
     imgui.SameLine();
     if ui.desc and ui.desc.lockstyle then
         if imgui.Button('APPLY LOCKSTYLE', { btn_w('APPLY LOCKSTYLE'), 34 }) then
@@ -4320,6 +4497,8 @@ settings.register('settings', 'ygo_settings_update', function(e)
     if e ~= nil then
         s = e;
         s.picks = actions.plain(s.picks or {});
+        s.set_removed = actions.plain(s.set_removed or {});
+        s.set_added = actions.plain(s.set_added or {});
         actions.fix_weapon_mode();
         ui.pins, ui.dirty = s.picks, true;
     end
