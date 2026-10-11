@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.13';   -- the release workflow sets this to the release number
+addon.version = '1.1.14';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1859,6 +1859,7 @@ local function build_full_xml(job_id)
     if have.PDT then table.insert(idle_branches, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(idle_branches, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
     if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
+    if have.Idle_NIN then table.insert(idle_branches, { cond = attr('p_subjob', 'NIN'), body = equip_set('Idle_NIN') }); end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
     -- PUP: automaton out -> its gear (tank, or ranged while /petranged is on)
     if have.PetTank or have.PetRanged then
@@ -2434,6 +2435,7 @@ function idle_gear()
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif RefreshOn and eq('Refresh') then
+        elseif player.sub_job == 'NIN' and eq('Idle_NIN') then
         elseif pet.isvalid and eq('Idle_Avatar') then
         elseif pet.isvalid and PetRangedOn and eq('PetRanged') then
         elseif pet.isvalid and eq('PetTank') then
@@ -3034,6 +3036,7 @@ profile.HandleDefault = function()
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif RefreshOn and eq('Refresh') then
+        elseif player.SubJob == 'NIN' and eq('Idle_NIN') then
         elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
         elseif gData.GetPet() ~= nil and PetRangedOn and eq('PetRanged') then
         elseif gData.GetPet() ~= nil and eq('PetTank') then
@@ -3445,7 +3448,7 @@ end
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
-    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle',
+    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',

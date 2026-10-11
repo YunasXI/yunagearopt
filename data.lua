@@ -75,6 +75,8 @@ return {
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
         { 'Trick Attack', 'TrickAttack' }, 'Flee',
+        -- COR
+        { 'Random Deal', 'RandomDeal' },
     },
     -- Jobs whose Precast set (haste / fast cast) also covers Utsusemi while it is being cast
     utsusemi_precast = { DRG = true },
@@ -825,6 +827,9 @@ return {
                         weights = { refresh = 25, regen = 8, geomancy = 1, handbell = 1, dt = -5, pdt = -4, mdt = -3, hp = 0.02, mp = 0.02 } },
         Idle_Avatar = { label = 'Idle - Avatar out', caps = DEF, weapons = true,
                         weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2 } },
+        -- Idle while your support job is NIN: damage taken down instead of Refresh (worn in place of Idle)
+        Idle_NIN    = { label = 'Idle - /NIN (DT)', caps = DEF, weapons = true,
+                        weights = { dt = -10, pdt = -10, mdt = -4, mdb = 2, regen = 3, eva = 0.3, hp = 0.05 } },
         Resting     = { label = 'Resting (MP)', weapons = true, weights = { hmp = 10, hhp = 2, refresh = 3 } },
         PDT         = { label = 'Physical defense', caps = DEF, weapons = true,
                         weights = { dt = -10, pdt = -10, bdt = -3, def = 0.1, hp = 0.05, eva = 0.3, curercv = 0.3 } },
@@ -923,6 +928,8 @@ return {
         Berserk     = { label = 'Berserk', weights = { berserk = 10 } },
         Warcry      = { label = 'Warcry', weights = { warcry = 10 } },
         Sublimation = { label = 'Sublimation', weights = { sublimation = 10 } },
+        -- COR Random Deal: Commodore Frac +1 enhances it (short or long in-game name)
+        RandomDeal  = { label = 'Random Deal', weights = {}, fixed = { body = { 'Comm. Frac +1', 'Commodore Frac +1' } } },
         PhantomRoll = { label = 'Phantom Roll', range = 'any', weights = { roll = 10, rolldur = 2, rolldelay = 3, rollaoe = 6 } },
 
         -- MNK: Temple Gloves +1 enhance Boost. Worn when you use Boost.
@@ -1012,7 +1019,7 @@ return {
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
-        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
