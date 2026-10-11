@@ -2367,22 +2367,6 @@ return {
         ['Berserk'] = { -- from your BLU XML: Berserk
             head  = 'Apogee Petasos',
         },
-        ['SpectralFloe'] = { -- from your BLU XML: Spectral Floe
-            main  = 'Chatoyant Staff',
-            sub   = 'Omni Grip',
-            head  = 'Morrigan\'s Coron.',
-            neck  = 'Combatant\'s Torque',
-            ear1  = 'Novio Earring',
-            ear2  = 'Moldavite Earring',
-            body  = 'Morrigan\'s Robe',
-            hands = 'Morrigan\'s Cuffs',
-            ring1 = 'Galdr Ring',
-            ring2 = 'Shiva Ring +1',
-            back  = 'Hecate\'s Cape',
-            waist = 'Hachirin-no-Obi',
-            legs  = 'Morrigan\'s Slops',
-            feet  = 'Magus Charuqs +1',
-        },
         ['Movement'] = { -- from your BLU XML: Movement
             legs  = 'blood cuisses',
         },

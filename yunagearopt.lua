@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.8';   -- the release workflow sets this to the release number
+addon.version = '1.1.9';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -152,18 +152,21 @@ local DW_MODES = { 'AUTO', 'ON', 'OFF' };
 
 -- Minimal theme: near-black neutrals, white hairlines, and gold only where it matters (title, selection, exports, BiS)
 local C = {
-    bg       = { 0.052, 0.055, 0.064, 0.97 },
-    side     = { 0.066, 0.070, 0.082, 1.00 },
-    card     = { 0.082, 0.087, 0.101, 1.00 },
-    frame    = { 0.110, 0.116, 0.134, 1.00 },
-    frame_hi = { 0.150, 0.157, 0.180, 1.00 },
-    border   = { 1.000, 1.000, 1.000, 0.06 },
-    line     = { 1.000, 1.000, 1.000, 0.07 },
-    gold     = { 0.940, 0.770, 0.420, 1.00 },
-    gold_dim = { 0.940, 0.770, 0.420, 0.62 },
-    gold_bg  = { 0.940, 0.770, 0.420, 0.92 },
-    text     = { 0.910, 0.918, 0.935, 1.00 },
-    muted    = { 0.500, 0.528, 0.590, 1.00 },
+    -- Navy panels and a periwinkle accent (VanaCore's settings look). "gold" is the UI accent name the code uses;
+    -- the Best in Slot gold is C.bis.
+    bg       = { 0.086, 0.098, 0.145, 1.00 },
+    side     = { 0.067, 0.078, 0.118, 1.00 },
+    card     = { 0.125, 0.145, 0.222, 1.00 },   -- a deep navy, a little lighter than the panel
+    frame    = { 0.176, 0.196, 0.271, 1.00 },
+    frame_hi = { 0.220, 0.243, 0.333, 1.00 },
+    border   = { 0.560, 0.620, 1.000, 0.12 },
+    line     = { 0.700, 0.750, 1.000, 0.08 },
+    gold     = { 0.490, 0.557, 1.000, 1.00 },
+    gold_dim = { 0.600, 0.650, 1.000, 0.80 },
+    gold_bg  = { 0.420, 0.490, 0.960, 0.95 },
+    bis      = { 0.940, 0.770, 0.420, 1.00 },
+    text     = { 0.910, 0.922, 0.957, 1.00 },
+    muted    = { 0.545, 0.576, 0.667, 1.00 },
     aug      = { 0.720, 0.560, 1.000, 1.00 },
     green    = { 0.450, 0.900, 0.600, 1.00 },
     red      = { 1.000, 0.450, 0.450, 1.00 },
@@ -815,7 +818,7 @@ local function build_sets(job_id)
                     base_weights = (def.weights_by_job and def.weights_by_job[abbr]) or def.weights, caps = def.caps or {},
                     weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
-                    info = def.info,
+                    info = def.info, obi = def.obi,
                 };
                 local pref = {};
                 if in_wset then pref.main, pref.sub = true, true; end          -- melee weapons only from your list
@@ -906,13 +909,9 @@ local function build_sets(job_id)
     -- "/NIN /DNC Weapons": the two weapons worn whenever you sub NIN or DNC (picked by hand, never automatic)
     table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
                          base_weights = {}, caps = {}, weapons = true, fixed = {} });
-    -- Sets you removed from this job (sidebar: right-click a set) leave the list and every export
-    if #(s.set_removed[abbr] or {}) > 0 then
-        local kept = {};
-        for _, e in ipairs(list) do
-            if not actions.set_removed(abbr, e.id) then table.insert(kept, e); end
-        end
-        list = kept;
+    -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
+    for _, e in ipairs(list) do
+        if actions.set_removed(abbr, e.id) then e.disabled = true; end
     end
     -- Lockstyle: the look you want, picked by hand (or imported from what you wear). Nothing is chosen
     -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
@@ -920,6 +919,15 @@ local function build_sets(job_id)
                          base_weights = {}, caps = {}, weapons = true, range = 'any', fixed = {}, lockstyle = true });
     for _, e in ipairs(list) do e.abbr = abbr; end
     return list;
+end
+
+-- The sets an export writes: every set of the job that is switched on
+function actions.export_sets(job_id)
+    local out = {};
+    for _, desc in ipairs(build_sets(job_id)) do
+        if not desc.disabled then table.insert(out, desc); end
+    end
+    return out;
 end
 
 local function weights_for(job_id, desc)
@@ -1597,10 +1605,14 @@ local function obi_block(obis, only)
                 table.insert(o2, string.format('%s<equip><waist>%s</waist></equip>', i2, xml_escape(o.name)));
             end;
             table.insert(out, string.format('%s<if %s>', ind, attr('ad_element', e)));
+            -- Weather element first (the check that works in LegacyAC), then the storm spell (as a buff, and by the raw
+            -- weather name: Voidstorm doesn't always resolve through e_weatherelement), then the day
             emit_chain(out, ind .. '    ', {
-                { cond = attr('e_weather', e .. '*'), body = put },
-                { cond = attr('e_dayelement', e), body = put },
+                { cond = 'advanced="%ad_element=%e_weatherelement"', body = put },
                 { cond = attr('buffactive', o.storm), body = put },
+                { cond = attr('e_weather', o.storm), body = put },
+                { cond = attr('e_weather', e:sub(1, 1):upper() .. e:sub(2) .. ' Storm'), body = put },   -- "Dark Storm"
+                { cond = attr('e_dayelement', e), body = put },
             }, nil);
             table.insert(out, ind .. '</if>');
         end
@@ -1632,7 +1644,7 @@ end
 
 local function build_full_xml(job_id)
     local abbr = JOBS[job_id];
-    local descs = build_sets(job_id);
+    local descs = actions.export_sets(job_id);
     local built, have = {}, {};
     for _, desc in ipairs(descs) do
         local pins = ui.pins[abbr .. '|' .. desc.id] or {};
@@ -1912,7 +1924,8 @@ local function build_full_xml(job_id)
     if have.Geomancy then table.insert(m, { cond = attr('ad_skill', 'geomancy'), body = equip_set('Geomancy') }); end
     -- Spells with their own set (Flash, Reprisal, Phalanx) come before the magic-skill rules
     for i, p in ipairs(spell_set_list(have, abbr)) do
-        table.insert(m, i, { cond = attr('ad_name', p[1]), body = equip_set(p[2]) });
+        local wobi = (data.sets[p[2]] or {}).obi;              -- BLU magical spells: + the weather / day obi
+        table.insert(m, i, { cond = attr('ad_name', p[1]), body = wobi and with_obi(p[2], obis) or equip_set(p[2]) });
     end
     local base_mid = job_base(data.midcast_base, abbr, have);
     if #m > 0 or base_mid then
@@ -2159,7 +2172,7 @@ end
 local function build_gearswap(job_id)
     local abbr = JOBS[job_id];
     local built, have = {}, {};
-    for _, desc in ipairs(build_sets(job_id)) do
+    for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
             table.insert(built, { desc = desc, assign = assign });
@@ -2256,7 +2269,8 @@ local function build_gearswap(job_id)
     add('    -- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
     add('    spell_sets = {');
     for _, p in ipairs(spell_set_list(have, abbr)) do
-        add(string.format('        { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
+        add(string.format('        { pats = %s, set = %q%s },', lua_list(wild_to_patterns(p[1])), p[2],
+            (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('    }');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
@@ -2475,7 +2489,10 @@ function midcast(spell)
     if midcast_base then eq(midcast_base) end
     if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return end
     for _, ss in ipairs(spell_sets) do
-        if matches(name, ss.pats) and eq(ss.set) then return end
+        if matches(name, ss.pats) and eq(ss.set) then
+            if ss.obi then obi(spell.element) end          -- BLU magical spells: weather / day / storm obi
+            return
+        end
     end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light')
@@ -2616,7 +2633,7 @@ end
 local function build_lac(job_id)
     local abbr = JOBS[job_id];
     local built, have = {}, {};
-    for _, desc in ipairs(build_sets(job_id)) do
+    for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
             table.insert(built, { desc = desc, assign = assign });
@@ -2730,7 +2747,8 @@ local function build_lac(job_id)
     add('-- Spells with their own midcast set, and the base set worn first for every spell / ability (tanks)');
     add('local spell_sets = {');
     for _, p in ipairs(spell_set_list(have, abbr)) do
-        add(string.format('    { pats = %s, set = %q },', lua_list(wild_to_patterns(p[1])), p[2]));
+        add(string.format('    { pats = %s, set = %q%s },', lua_list(wild_to_patterns(p[1])), p[2],
+            (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('};');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
@@ -2793,11 +2811,14 @@ local function eq(name)
     return true;
 end
 
+local STORMS = { Fire = 'Firestorm', Ice = 'Hailstorm', Wind = 'Windstorm', Earth = 'Sandstorm', Thunder = 'Thunderstorm',
+                 Water = 'Rainstorm', Light = 'Aurorastorm', Dark = 'Voidstorm' };
 local function obi(element)
     local o = obis[element];
     if o == nil then return; end
     local env = gData.GetEnvironment();
-    if env.WeatherElement == element or env.DayElement == element then gFunc.Equip('Waist', o); end
+    local storm = STORMS[element] and gData.GetBuffCount(STORMS[element]) > 0;   -- a storm spell on you counts as weather
+    if env.WeatherElement == element or env.DayElement == element or storm then gFunc.Equip('Waist', o); end
 end
 
 local function buff(name) return gData.GetBuffCount(name) > 0; end
@@ -3003,7 +3024,10 @@ profile.HandleMidcast = function()
     if midcast_base then eq(midcast_base); end
     if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return; end
     for _, ss in ipairs(spell_sets) do
-        if matches(name, ss.pats) and eq(ss.set) then return; end
+        if matches(name, ss.pats) and eq(ss.set) then
+            if ss.obi then obi(spell.Element); end         -- BLU magical spells: weather / day / storm obi
+            return;
+        end
     end
     if matches(name, rules.cure) and eq('Cure') then
         obi('Light');
@@ -3380,9 +3404,9 @@ local function push_theme()
         { ImGuiCol_WindowBg, C.bg }, { ImGuiCol_ChildBg, { 0, 0, 0, 0 } }, { ImGuiCol_PopupBg, { 0.075, 0.079, 0.092, 0.99 } },
         { ImGuiCol_Border, C.border }, { ImGuiCol_Text, C.text }, { ImGuiCol_TextDisabled, C.muted },
         { ImGuiCol_FrameBg, C.frame }, { ImGuiCol_FrameBgHovered, C.frame_hi }, { ImGuiCol_FrameBgActive, C.frame_hi },
-        { ImGuiCol_Button, C.frame }, { ImGuiCol_ButtonHovered, C.frame_hi }, { ImGuiCol_ButtonActive, C.frame_hi },
-        { ImGuiCol_Header, { 1, 1, 1, 0.06 } }, { ImGuiCol_HeaderHovered, { 1, 1, 1, 0.045 } },
-        { ImGuiCol_HeaderActive, { 1, 1, 1, 0.09 } },
+        { ImGuiCol_Button, { 1, 1, 1, 0.035 } }, { ImGuiCol_ButtonHovered, { 1, 1, 1, 0.08 } }, { ImGuiCol_ButtonActive, { 1, 1, 1, 0.12 } },
+        { ImGuiCol_Header, { C.gold[1], C.gold[2], C.gold[3], 0.18 } }, { ImGuiCol_HeaderHovered, { 1, 1, 1, 0.05 } },
+        { ImGuiCol_HeaderActive, { C.gold[1], C.gold[2], C.gold[3], 0.24 } },
         { ImGuiCol_SliderGrab, C.gold }, { ImGuiCol_SliderGrabActive, C.gold }, { ImGuiCol_CheckMark, C.gold },
         { ImGuiCol_PlotHistogram, C.gold }, { ImGuiCol_Separator, C.line },
         { ImGuiCol_ScrollbarBg, { 0, 0, 0, 0 } }, { ImGuiCol_ScrollbarGrab, { 1, 1, 1, 0.08 } },
@@ -3391,10 +3415,11 @@ local function push_theme()
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
-        { ImGuiStyleVar_WindowRounding, 12 }, { ImGuiStyleVar_ChildRounding, 8 }, { ImGuiStyleVar_FrameRounding, 6 },
-        { ImGuiStyleVar_GrabRounding, 6 }, { ImGuiStyleVar_PopupRounding, 8 }, { ImGuiStyleVar_ScrollbarRounding, 8 },
-        { ImGuiStyleVar_WindowPadding, { 16, 14 } }, { ImGuiStyleVar_FramePadding, { 10, 6 } },
-        { ImGuiStyleVar_ItemSpacing, { 8, 8 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 8 },
+        { ImGuiStyleVar_WindowRounding, 8 }, { ImGuiStyleVar_ChildRounding, 6 }, { ImGuiStyleVar_FrameRounding, 5 },
+        { ImGuiStyleVar_GrabRounding, 8 }, { ImGuiStyleVar_PopupRounding, 6 }, { ImGuiStyleVar_ScrollbarRounding, 6 },
+        { ImGuiStyleVar_WindowPadding, { 14, 12 } }, { ImGuiStyleVar_FramePadding, { 10, 5 } },
+        { ImGuiStyleVar_ItemSpacing, { 8, 6 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 6 },
+        { ImGuiStyleVar_FrameBorderSize, 1 },
     };
     for _, v in ipairs(vars) do imgui.PushStyleVar(v[1], v[2]); end
     return #cols, #vars;
@@ -3402,10 +3427,10 @@ end
 
 local function accent_button(label, size, active)
     if active then
-        imgui.PushStyleColor(ImGuiCol_Button, C.gold_bg);
-        imgui.PushStyleColor(ImGuiCol_ButtonHovered, C.gold);
-        imgui.PushStyleColor(ImGuiCol_ButtonActive, C.gold);
-        imgui.PushStyleColor(ImGuiCol_Text, C.dark);
+        imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.30 });
+        imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.40 });
+        imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.50 });
+        imgui.PushStyleColor(ImGuiCol_Text, { 1, 1, 1, 1 });
     end
     local clicked = imgui.Button(label, size);
     if active then imgui.PopStyleColor(4); end
@@ -3545,6 +3570,61 @@ local function btn_w(text) return math.floor(text_w(text) + 26); end
 
 local function u32(c) return imgui.GetColorU32(c); end
 
+-- A VanaCore-style switch: a pill that is blue and knob-right when on. Returns true when clicked.
+function actions.switch(id, on, w, h)
+    local x, y = imgui.GetCursorScreenPos();
+    w, h = w or 38, h or 20;
+    local clicked = imgui.InvisibleButton(id, { w, h });
+    local hov = imgui.IsItemHovered();
+    local dl = imgui.GetWindowDrawList();
+    local bg = on and C.gold or (hov and C.frame_hi or C.frame);
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(bg), h / 2);
+    local kx = on and (x + w - h / 2) or (x + h / 2);
+    dl:AddCircleFilled({ kx, y + h / 2 }, h / 2 - (h < 18 and 2 or 3), u32({ 1, 1, 1, on and 1 or 0.85 }), 20);
+    return clicked;
+end
+
+-- A segmented control ("Off | FXAA | SMAA"): one rounded frame, the chosen part lifted. Returns the clicked index.
+function actions.segmented(id, labels, current, seg_w)
+    local x, y = imgui.GetCursorScreenPos();
+    local h = 26;
+    local total = #labels * seg_w + 6;
+    local dl = imgui.GetWindowDrawList();
+    dl:AddRectFilled({ x, y }, { x + total, y + h + 6 }, u32(C.side), 8);
+    dl:AddRect({ x, y }, { x + total, y + h + 6 }, u32(C.border), 8);
+    local picked = nil;
+    imgui.SetCursorScreenPos({ x + 3, y + 3 });
+    for i, label in ipairs(labels) do
+        if i > 1 then imgui.SameLine(0, 0); end
+        local sel = i == current;
+        imgui.PushStyleColor(ImGuiCol_Button, sel and C.frame_hi or { 0, 0, 0, 0 });
+        imgui.PushStyleColor(ImGuiCol_ButtonHovered, sel and C.frame_hi or { 1, 1, 1, 0.05 });
+        imgui.PushStyleColor(ImGuiCol_ButtonActive, C.frame_hi);
+        imgui.PushStyleColor(ImGuiCol_Text, sel and C.text or C.muted);
+        if imgui.Button(label .. '##' .. id .. i, { seg_w, h }) then picked = i; end
+        imgui.PopStyleColor(4);
+    end
+    return picked;
+end
+
+-- The square tile left of a set's title (VanaCore draws an icon there): the set's category initials
+function actions.icon_tile(text)
+    local x, y = imgui.GetCursorScreenPos();
+    local sz = 44;
+    local dl = imgui.GetWindowDrawList();
+    dl:AddRectFilled({ x, y }, { x + sz, y + sz }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.16 }), 10);
+    dl:AddRect({ x, y }, { x + sz, y + sz }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.35 }), 10);
+    imgui.SetWindowFontScale(1.15);
+    local tw = imgui.CalcTextSize(text);
+    if type(tw) == 'table' then tw = tw.x or tw[1]; end
+    imgui.SetCursorScreenPos({ x + (sz - (tw or 16)) / 2, y + sz / 2 - 9 });
+    imgui.TextColored(C.gold, text);
+    imgui.SetWindowFontScale(1.0);
+    imgui.SetCursorScreenPos({ x, y });
+    imgui.Dummy({ sz, sz });
+end
+
+
 -- Thin edge around the current card in its tier color (a touch stronger for Best-in-Slot level pieces)
 local function tier_frame(col, strong)
     local dl = imgui.GetWindowDrawList();
@@ -3576,8 +3656,18 @@ end
 -- Section title: small, quiet, uppercase - no line, just space around it
 local function caption(title)
     imgui.Spacing();
-    imgui.SetWindowFontScale(0.82);
-    imgui.TextColored(C.muted, title);
+    imgui.SetWindowFontScale(0.86);
+    imgui.TextColored(C.gold, title);
+    local x2, y2 = imgui.GetItemRectMax();
+    if type(x2) == 'table' then x2, y2 = x2.x or x2[1], x2.y or x2[2]; end
+    local wx = imgui.GetWindowPos();
+    if type(wx) == 'table' then wx = wx.x or wx[1]; end
+    if x2 and y2 and wx then
+        local right = wx + imgui.GetWindowWidth() - 14;
+        if right > x2 + 12 then
+            imgui.GetWindowDrawList():AddRectFilled({ x2 + 10, y2 - 7 }, { right, y2 - 6 }, u32(C.line));
+        end
+    end
     imgui.SetWindowFontScale(1.0);
 end
 
@@ -3668,10 +3758,14 @@ end
 local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
-    if imgui.BeginChild('ygo_side', { 236, -60 }, true) then
+    if imgui.BeginChild('ygo_side', { 236, -54 }, true) then
+        if imgui.Button('Rescan gear##ygo_rescan', { imgui.GetWindowWidth() - 28, 24 }) then
+            msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
+        end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Read your bags again (after you get or move gear)'); end
         caption('JOB');
         for i, abbr in ipairs(JOBS) do
-            if job_button(i, abbr, { 48, 28 }) then select_job(i); end
+            if job_button(i, abbr, { 47, 24 }) then select_job(i); end
             if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d   (%s)', abbr, job_level(i), ROLE[abbr] or '')); end
             if i % 4 ~= 0 then imgui.SameLine(0, 4); end
         end
@@ -3684,61 +3778,63 @@ local function draw_sidebar()
             local last_skill = nil;
             for i, d in ipairs(ui.sets) do
                 if category(d) == cat then
+                    local function header(text)                -- VanaCore's small grey section label
+                        imgui.Spacing();
+                        imgui.SetWindowFontScale(0.78);
+                        imgui.TextColored(C.muted, text);
+                        imgui.SetWindowFontScale(1.0);
+                    end
                     if cat == 'Weaponskills' and d.ws and d.ws.skill and d.ws.skill ~= last_skill then
-                        if first then imgui.Spacing(); imgui.TextColored(C.muted, cat:upper()); first = false; end
+                        if first then header(cat:upper()); first = false; end
                         last_skill = d.ws.skill;
+                        imgui.SetWindowFontScale(0.82);
                         imgui.TextColored(C.gold_dim, '  ' .. (SKILL_NAMES[d.ws.skill] or ''));
+                        imgui.SetWindowFontScale(1.0);
                     end
                     if first then
-                        imgui.Spacing();
-                        imgui.TextColored(C.muted, cat:upper());
+                        header(cat:upper());
                         first = false;
                     end
                     local label = (d.kind == 'ws' and d.ws and d.id ~= 'WS') and d.ws.name or d.label:gsub('^WS %- ', '');
                     local sel = i == ui.set_idx;
                     local sx, sy = imgui.GetCursorScreenPos();
-                    if sel then imgui.PushStyleColor(ImGuiCol_Text, C.gold); end
-                    -- the row stops short of the right edge: the red x sits there
+                    -- A VanaCore row: 24 px tall, white text; the selected one a navy pill with a thin blue bar
                     local ww = imgui.GetWindowWidth();
-                    if imgui.Selectable('   ' .. label .. '##set' .. i, sel, 0, { ww - 58, 0 }) then
-                        ui.set_idx, ui.dirty = i, true;
-                    end
+                    local rw, rh = ww - 46, 26;
+                    if imgui.InvisibleButton('##set' .. i, { rw, rh }) then ui.set_idx, ui.dirty = i, true; end
+                    local rhov = imgui.IsItemHovered();
+                    local rdl = imgui.GetWindowDrawList();
                     if sel then
-                        imgui.PopStyleColor();
-                        imgui.GetWindowDrawList():AddRectFilled({ sx, sy + 1 }, { sx + 3, sy + imgui.GetTextLineHeight() - 1 }, u32(C.gold), 1);
+                        rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32(C.frame), 6);
+                        rdl:AddRectFilled({ sx, sy + 5 }, { sx + 2, sy + rh - 5 }, u32(C.gold), 1);
+                    elseif rhov then
+                        rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
                     end
-                    -- red x: removes the set from this job (and from its exports); "Restore removed sets" puts it back
-                    -- drawn by hand: a square the height of the row, the x's two strokes centred in it
-                    imgui.SameLine(ww - 48);
-                    local bx, by = imgui.GetCursorScreenPos();
-                    local bh = imgui.GetTextLineHeight();
-                    local bw = bh + 4;
-                    local clicked = imgui.InvisibleButton('##rmset' .. i, { bw, bh });
-                    local hov = imgui.IsItemHovered();
-                    local dl = imgui.GetWindowDrawList();
-                    if hov then dl:AddRectFilled({ bx, by }, { bx + bw, by + bh }, u32({ C.red[1], C.red[2], C.red[3], 0.28 }), 3); end
-                    local cx, cy, r = bx + bw / 2, by + bh / 2, bh * 0.26;
-                    local col = u32({ C.red[1], C.red[2], C.red[3], hov and 1 or 0.85 });
-                    dl:AddLine({ cx - r, cy - r }, { cx + r, cy + r }, col, 2);
-                    dl:AddLine({ cx - r, cy + r }, { cx + r, cy - r }, col, 2);
-                    if hov then imgui.SetTooltip('Remove ' .. label .. ' from ' .. JOBS[ui.job] .. ' (and from its exports)'); end
-                    if clicked then
-                        actions.remove_set(JOBS[ui.job], d.id);
-                        ui.set_idx, ui.dirty = 1, true;
-                        msg(string.format('%s: removed the %s set (it is left out of exports too). "Restore removed sets" puts it back.', JOBS[ui.job], d.label));
+                    rdl:PushClipRect({ sx, sy }, { sx + rw, sy + rh }, true);
+                    local tcol = d.disabled and { C.muted[1], C.muted[2], C.muted[3], 0.55 } or (sel and C.text or { 0.78, 0.80, 0.87, 1 });
+                    rdl:AddText({ sx + 14, sy + (rh - imgui.GetTextLineHeight()) / 2 }, u32(tcol), label);
+                    rdl:PopClipRect();
+                    if rhov and text_w(label) + 14 > rw then imgui.SetTooltip(label); end   -- a name cut off at the edge
+                    -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
+                    imgui.SameLine(ww - 44);
+                    imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
+                    if actions.switch('##seton' .. i, not d.disabled, 26, 14) then
+                        if d.disabled then
+                            actions.add_set(JOBS[ui.job], d.id);
+                            msg(string.format('%s: %s is on again (it is exported).', JOBS[ui.job], d.label));
+                        else
+                            actions.remove_set(JOBS[ui.job], d.id);
+                            msg(string.format('%s: %s is off (left out of your XML / LuAshitacast / GearSwap files).', JOBS[ui.job], d.label));
+                        end
+                        ui.dirty = true;
+                    end
+                    if imgui.IsItemHovered() then
+                        imgui.SetTooltip(d.disabled and 'Off: left out of your exported files. Click to turn it on.'
+                            or 'On: this set is exported. Click to leave it out of your files.');
                     end
                 end
             end
         end
-        -- Only when sets were removed: a link to put them back (this job's own sets only)
-        local nrem = #(s.set_removed[JOBS[ui.job]] or {});
-        if nrem > 0 then
-            imgui.Spacing();
-            imgui.PushStyleColor(ImGuiCol_Text, C.gold_dim);
-            if imgui.Selectable(string.format('   Restore removed sets (%d)##addset', nrem)) then imgui.OpenPopup('ygo_addset'); end
-            imgui.PopStyleColor();
-        end
-        actions.draw_add_set();
     end
     imgui.EndChild();
     imgui.PopStyleVar();
@@ -3767,19 +3863,21 @@ local function draw_set_header()
     local d = ui.desc;
     -- The set name takes the set's quality color (no number): white -> blue -> yellow -> orange towards Best in Slot
     local col = ui.show_bis and TIER_ORANGE or (set_ratio() and tier(set_ratio()) or C.text);
-    local hx, hy = imgui.GetCursorScreenPos();
+    local cat = category(d);
+    local initials = { Melee = 'ME', Weaponskills = 'WS', Precast = 'PC', Magic = 'MA', Abilities = 'AB', ['Defense & Idle'] = 'DI' };
+    actions.icon_tile(d.lockstyle and 'LS' or (initials[cat] or 'YG'));
+    imgui.SameLine(0, 14);
+    imgui.BeginGroup();
     title_text(d.label, 1.35, col);
     if imgui.IsItemHovered() then
         local lines = { 'The color of the set name shows how close it is to Best in Slot.' };
         score_legend(lines);
         imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
     end
-    imgui.SameLine();
-    imgui.SetCursorPosY(imgui.GetCursorPosY() + 5);
-    imgui.TextColored(C.muted, '  XML set ');
+    imgui.TextColored(C.muted, (d.lockstyle and 'Your look' or cat) .. '   |   exported as ');
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold_dim, d.name);
-    gold_line(imgui.GetWindowDrawList(), hx, hy + 26, hx + imgui.GetWindowWidth() * 0.6, 0.45);
+    imgui.EndGroup();
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
     if d.lockstyle or d.dwpair then
@@ -3787,16 +3885,15 @@ local function draw_set_header()
     else
         imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
         local showing = ui.show_bis;            -- the click below flips show_bis; push/pop follow what was drawn
-        if not showing then
-            imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.12 });
-            imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.22 });
-            imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
-            imgui.PushStyleColor(ImGuiCol_Text, C.gold);
-        end
-        if accent_button((showing and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 26 }, showing) then
+        local g = C.bis;
+        imgui.PushStyleColor(ImGuiCol_Button, showing and { g[1], g[2], g[3], 0.92 } or { g[1], g[2], g[3], 0.12 });
+        imgui.PushStyleColor(ImGuiCol_ButtonHovered, showing and g or { g[1], g[2], g[3], 0.22 });
+        imgui.PushStyleColor(ImGuiCol_ButtonActive, showing and g or { g[1], g[2], g[3], 0.32 });
+        imgui.PushStyleColor(ImGuiCol_Text, showing and { 0.06, 0.06, 0.07, 1 } or g);
+        if imgui.Button((showing and 'MY SET' or 'VIEW BIS SET') .. '##bisview', { btn_w('VIEW BIS SET'), 26 }) then
             ui.show_bis = not ui.show_bis;
         end
-        if not showing then imgui.PopStyleColor(4); end
+        imgui.PopStyleColor(4);
         if imgui.IsItemHovered() then
             imgui.SetTooltip(ui.show_bis and 'Back to your own set.' or 'Show the Best in Slot set for this job and set,\nincluding pieces you do not own yet.');
         end
@@ -3814,17 +3911,19 @@ local function draw_set_header()
 
     -- Options row
     imgui.Spacing();
-    local ign = { s.ignore_level };
-    if imgui.Checkbox('Ignore level', ign) then s.ignore_level, ui.dirty = ign[1], true; end
+    if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
+    imgui.SameLine(0, 10);
+    imgui.TextColored(C.text, 'Ignore level');
+    if imgui.IsItemHovered() then imgui.SetTooltip('Use gear above your current level too'); end
     if d.kind == 'tp' then
-        imgui.TextColored(C.muted, 'Dual Wield');
-        imgui.SameLine();
-        for i, label in ipairs(DW_MODES) do
-            if accent_button(label .. '##dw', { 54, 24 }, s.dw_mode == i) then s.dw_mode, ui.dirty = i, true; end
-            imgui.SameLine(0, 4);
-        end
+        imgui.SameLine(0, 28);
+        imgui.TextColored(C.text, 'Dual Wield');
+        imgui.SameLine(0, 10);
+        local picked = actions.segmented('dw', DW_MODES, s.dw_mode, 56);
+        if picked then s.dw_mode, ui.dirty = picked, true; end
+        imgui.SameLine(0, 10);
         local dw = dw_active(ui.job);
-        imgui.TextColored(dw and C.green or C.muted, dw and '  active' or '  not used');
+        imgui.TextColored(dw and C.green or C.muted, dw and 'active' or 'not used');
     end
 end
 
@@ -3910,7 +4009,7 @@ local function draw_picker(def)
 end
 
 -- Paper-doll cards: 4 x 4 like the in-game equipment screen, each with the item icon and a tier-colored frame
-local CARD_H = 112;
+local CARD_H = 124;
 local CARD_FLAGS = bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse);
 local DOLL = { 'main', 'sub', 'range', 'ammo', 'head', 'neck', 'ear1', 'ear2',
                'body', 'hands', 'ring1', 'ring2', 'back', 'waist', 'legs', 'feet' };
@@ -3930,11 +4029,11 @@ local function draw_bis_card(def)
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
     imgui.BeginChild('bcard_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
     hover_shade();
-    imgui.SetWindowFontScale(0.85);
+    imgui.SetWindowFontScale(0.95);
     slot_icon(b and b.item, b and TIER_ORANGE or C.muted);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
-    imgui.TextColored(C.muted, def.label:upper());
+    imgui.TextColored({ 0.66, 0.70, 0.80, 1 }, def.label:upper());
     imgui.SameLine();
     imgui.TextColored(TIER_ORANGE, 'BiS');
     if b then imgui.TextColored(have and C.green or C.muted, have and 'owned' or 'not owned'); end
@@ -3942,8 +4041,8 @@ local function draw_bis_card(def)
     if b then
         imgui.TextColored(have and TIER_ORANGE or C.text, b.item.name);
         local chips = stat_chips(b.item, ui.weights or {}, 2);
-        if text_w(chips) * 0.85 > imgui.GetWindowWidth() - 24 then chips = stat_chips(b.item, ui.weights or {}, 1); end
-        imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips ~= '' and chips or ' ');
+        if text_w(chips) * 0.95 > imgui.GetWindowWidth() - 24 then chips = stat_chips(b.item, ui.weights or {}, 1); end
+        imgui.TextColored({ 0.90, 0.92, 0.97, 1 }, chips ~= '' and chips or ' ');
     else
         imgui.TextColored(C.muted, ui.bis and 'Nothing better' or 'BiS loading...');
     end
@@ -3963,13 +4062,13 @@ local function draw_card(def, max_score)
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
     imgui.BeginChild('card_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
     hover_shade();
-    imgui.SetWindowFontScale(0.85);
+    imgui.SetWindowFontScale(0.95);
     slot_icon(c and c.item, col);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
-    imgui.TextColored(C.muted, def.label:upper());
+    imgui.TextColored({ 0.66, 0.70, 0.80, 1 }, def.label:upper());
     -- Tags go on the bag line, which has room for them (next to the slot name they ran into the arrow)
-    if c then imgui.TextColored(EQUIP_BAGS[c.item.where] and C.muted or C.red, c.item.where); end
+    if c then imgui.TextColored(EQUIP_BAGS[c.item.where] and { 0.66, 0.70, 0.80, 1 } or C.red, c.item.where); end
     if pin ~= nil then
         imgui.SameLine(); imgui.TextColored(C.gold, 'PIN');
     elseif c and ui.forced and ui.forced[def.key] then
@@ -3987,8 +4086,8 @@ local function draw_card(def, max_score)
         imgui.Text(c.item.name);
         -- Two stats when they fit on the card, otherwise only the most important one
         local chips = stat_chips(c.item, ui.weights or {}, 2);
-        if text_w(chips) * 0.85 > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
-        imgui.TextColored({ 0.70, 0.74, 0.82, 1 }, chips);
+        if text_w(chips) * 0.95 > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
+        imgui.TextColored({ 0.90, 0.92, 0.97, 1 }, chips);
         imgui.PushStyleColor(ImGuiCol_PlotHistogram, col);
         imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 2 }, '');
         imgui.PopStyleColor();
@@ -4007,7 +4106,7 @@ local function draw_unused(def)
     imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.25 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
     imgui.BeginChild('unused_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
-    imgui.SetWindowFontScale(0.85);
+    imgui.SetWindowFontScale(0.95);
     slot_icon(nil, C.muted);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
@@ -4022,6 +4121,37 @@ local function draw_unused(def)
         draw_picker(def);
     end
     imgui.EndChild();
+    imgui.PopStyleColor(2);
+end
+
+-- The weather obi card (sets with obi = true): the obi you own (Hachirin-no-Obi or the element's own obi), worn
+-- instead of the waist above when the weather, a storm spell or the day matches the spell's element
+function actions.draw_obi_card()
+    local it = nil;
+    for _, item in ipairs(owned) do
+        local n = item.name:lower();
+        if n == (data.obi_all or ''):lower() then it = item; break; end
+        for _, o in pairs(data.obis or {}) do if n == o.obi:lower() then it = it or item; end end
+    end
+    imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
+    imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
+    imgui.BeginChild('card_obi', { 0, CARD_H }, true, CARD_FLAGS);
+    hover_shade();
+    imgui.SetWindowFontScale(0.95);
+    slot_icon(it, it and C.gold or C.muted);
+    imgui.SameLine(0, 8);
+    imgui.BeginGroup();
+    imgui.TextColored({ 0.66, 0.70, 0.80, 1 }, 'WAIST - WEATHER');
+    imgui.TextColored(it and C.green or C.muted, it and 'owned' or 'not owned');
+    imgui.EndGroup();
+    imgui.TextColored(it and C.gold or C.text, it and it.name or (data.obi_all or 'Hachirin-no-Obi'));
+    imgui.TextColored({ 0.90, 0.92, 0.97, 1 }, 'Weather / storm / day');
+    imgui.EndChild();
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Put on instead of the waist above when the spell\'s element matches the weather, your storm spell\n'
+            .. '(Sandstorm, Voidstorm...) or the day: Entomb, Tenebral Crush, Spectral Floe, Silent Storm, Scouring Spate,\n'
+            .. 'Anvil Lightning, Searing Tempest, Blinding Fulgor and the other magical blue spells.');
+    end
     imgui.PopStyleColor(2);
 end
 
@@ -4171,6 +4301,11 @@ local function draw_content()
                         imgui.TableNextColumn();
                         if active[key] then draw_card(active[key], max_score); else draw_unused(by_key[key]); end
                     end
+                    if ui.desc.obi then                         -- BLU magical: the weather obi, under the waist card
+                        imgui.TableNextColumn();
+                        imgui.TableNextColumn();
+                        actions.draw_obi_card();
+                    end
                     imgui.EndTable();
                 end
                 draw_totals();
@@ -4278,6 +4413,138 @@ function actions.augment_report()
 end
 
 -- "Before you export" window: recommends a backup and lists exactly which files will be replaced
+-- IMPORT XML ---------------------------------------------------------------------------------------------------------
+-- The job's LegacyAC file: config\LegacyAC\<Name>_<JOB>.xml of the launcher that is running (else the addon's legacyac\ copy)
+function actions.xml_path(job)
+    local fname = player_name() .. '_' .. JOBS[job] .. '.xml';
+    local install = nil;
+    pcall(function() install = AshitaCore:GetInstallPath(); end);
+    local tries = {};
+    if install then table.insert(tries, install:gsub('[\\/]+$', '') .. '\\config\\LegacyAC\\' .. fname); end
+    table.insert(tries, base_path() .. 'legacyac\\' .. fname);
+    for _, path in ipairs(tries) do
+        local f = io.open(path, 'r');
+        if f then f:close(); return path, fname; end
+    end
+    return nil, fname;
+end
+
+-- Copy every set of the XML whose name YunaGearOpt uses into your picks (slots the XML set doesn't list are left empty,
+-- so the set matches the file). <Set>_Weapons goes into <Set>; DualWieldWeapons into "/NIN /DNC Weapons".
+function actions.import_xml(job)
+    local path, fname = actions.xml_path(job);
+    if path == nil then msg('No ' .. fname .. ' found in config\\LegacyAC (or addons\\yunagearopt\\legacyac).'); return; end
+    local f = io.open(path, 'r');
+    local text = f and f:read('*a') or '';
+    if f then f:close(); end
+    local function unesc(v)
+        return (v:gsub('&apos;', "'"):gsub('&quot;', '"'):gsub('&lt;', '<'):gsub('&gt;', '>'):gsub('&amp;', '&'):gsub('^%s+', ''):gsub('%s+$', ''));
+    end
+    local tag_key = {};
+    for _, def in ipairs(SLOTS) do tag_key[def.tag] = def.key; end
+    -- set name (lower case) -> slot -> item name (false = removed / empty)
+    local xml_sets, order = {}, {};
+    for name, body in text:gmatch('<set%s+name%s*=%s*"([^"]+)"[^>]*>(.-)</set>') do
+        name = unesc(name);
+        local target = name:gsub('_Weapons$', '');
+        if name == 'DualWieldWeapons' then target = 'DWPAIR'; end
+        local k = target:lower();
+        if xml_sets[k] == nil then xml_sets[k] = {}; table.insert(order, target); end
+        for tag, val in body:gmatch('<(%w+)[^>]*>([^<]*)</%1>') do
+            local key = tag_key[tag:lower()];
+            if key then
+                local v = unesc(val);
+                if v:lower() == 'remove' or v == '' then xml_sets[k][key] = false;
+                elseif v:lower() ~= 'displaced' then xml_sets[k][key] = v; end
+            end
+        end
+    end
+    local abbr = JOBS[job];
+    local mine = {};
+    for _, it in ipairs(owned) do mine[name_key(it.name)] = mine[name_key(it.name)] or it; end
+    local done, skipped, missing, used = 0, {}, 0, {};
+    for _, desc in ipairs(build_sets(job)) do
+        local x = xml_sets[desc.name:lower()];
+        if x and not desc.lockstyle and not used[desc.name:lower()] then
+            used[desc.name:lower()] = true;
+            local picks = {};
+            local slots = desc.dwpair and { { key = 'main' }, { key = 'sub' } } or active_slots(desc);
+            for _, def in ipairs(slots) do
+                local v = x[def.key];
+                if v then
+                    local it = mine[name_key(v)];
+                    picks[def.key] = { name = it and it.name or v, where = it and it.where or nil };
+                    if not it then missing = missing + 1; end
+                elseif not desc.dwpair then
+                    picks[def.key] = false;                  -- not in the XML set: the set leaves it alone too
+                end
+            end
+            ui.pins[abbr .. '|' .. desc.id] = picks;
+            done = done + 1;
+        end
+    end
+    for _, n in ipairs(order) do
+        if not used[n:lower()] then table.insert(skipped, n); end
+    end
+    settings.save();
+    ui.dirty = true;
+    msg(string.format('%s: imported %d set%s from %s.', abbr, done, done == 1 and '' or 's', fname));
+    if missing > 0 then
+        msg(string.format('  %d piece%s in the file you don\'t own: YunaGearOpt uses your best piece for those slots until you get them.',
+            missing, missing == 1 and '' or 's'));
+    end
+    if #skipped > 0 then msg('  Not imported (YunaGearOpt has no set with that name): ' .. table.concat(skipped, ', ')); end
+end
+
+function actions.import_xml_tip()
+    local nl = string.char(10);
+    return table.concat({
+        'IMPORT XML  -  copy your XML file' .. string.char(39) .. 's sets into YunaGearOpt', '',
+        'Reads ' .. player_name() .. '_' .. JOBS[ui.job] .. '.xml (config/LegacyAC) and puts each of its sets into the matching',
+        'YunaGearOpt set, so this window shows exactly the gear your XML uses.', '',
+        'ALT CHARACTERS: if you copied another character' .. string.char(39) .. 's XML and renamed it for this character',
+        '(e.g. your main' .. string.char(39) .. 's Main_BLU.xml copied as Alt_BLU.xml), YunaGearOpt doesn' .. string.char(39) .. 't know about that file.',
+        'Click this on the alt and the sets here will match what the game is really using.', '',
+        '- Sets are matched by name (files made by YunaGearOpt match completely).',
+        '- It replaces your picks in those sets; "Reset picks" undoes one set.',
+        '- Pieces you don' .. string.char(39) .. 't own: your best piece is used until you get them.',
+        'A window asks before anything changes.' }, nl);
+end
+
+function actions.draw_import_xml_confirm()
+    if not ui.import_xml_open then return; end
+    imgui.OpenPopup('ygo_import_xml');
+    if imgui.BeginPopupModal('ygo_import_xml', nil, bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoTitleBar)) then
+        local path, fname = actions.xml_path(ui.job);
+        title_text('Import ' .. JOBS[ui.job] .. ' sets from your XML', 1.15, C.gold);
+        imgui.Spacing();
+        imgui.PushTextWrapPos(imgui.GetCursorPosX() + 470);
+        imgui.TextColored(C.text, 'This copies the sets from ' .. fname .. ' into YunaGearOpt, so the window shows exactly the gear your XML file uses.');
+        imgui.Spacing();
+        imgui.TextColored(C.text, 'Made for alt characters: if you copied your main\'s XML for an alt (for example Main_BLU.xml copied as '
+            .. 'Alt_BLU.xml), YunaGearOpt doesn\'t know about it. Import it here on the alt and the sets match.');
+        imgui.Spacing();
+        imgui.TextColored(C.muted, '- Sets are matched by name. Files made by YunaGearOpt match completely; sets with other names are skipped and listed in chat.');
+        imgui.TextColored(C.muted, '- It replaces your picks in the matched ' .. JOBS[ui.job] .. ' sets. "Reset picks" puts one set back to automatic.');
+        imgui.TextColored(C.muted, '- Pieces you don\'t own: your best piece is used in that slot until you get them.');
+        imgui.PopTextWrapPos();
+        imgui.Spacing();
+        if path then imgui.TextColored(C.green, 'Found: ' .. path); else imgui.TextColored(C.red, 'No ' .. fname .. ' found in config\\LegacyAC.'); end
+        imgui.Spacing();
+        if path and accent_button('IMPORT##ygo_ixml_go', { 140, 32 }, true) then
+            actions.import_xml(ui.job);
+            ui.import_xml_open = false;
+            imgui.CloseCurrentPopup();
+        end
+        if path then imgui.SameLine(0, 8); end
+        if ghost_button('Cancel##ygo_ixml_no', { 100, 32 }) then
+            ui.import_xml_open = false;
+            imgui.CloseCurrentPopup();
+        end
+        imgui.EndPopup();
+    end
+end
+
 local function draw_export_confirm()
     local id = 'Before you export###ygo_export';
     if ui.open_export_popup then
@@ -4315,69 +4582,76 @@ local function draw_export_confirm()
     imgui.EndPopup();
 end
 
+-- A button with a small chevron (the game font has no arrow glyph): opens a menu
+function actions.menu_button(label, id, w, accent)
+    if accent then
+        imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.14 });
+        imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.24 });
+        imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
+        imgui.PushStyleColor(ImGuiCol_Text, C.gold);
+    end
+    local x, y = imgui.GetCursorScreenPos();
+    local clicked = imgui.Button(label .. '      ##' .. id, { w, 30 });
+    if accent then imgui.PopStyleColor(4); end
+    local dl, cx, cy = imgui.GetWindowDrawList(), x + w - 16, y + 15;
+    local col = u32(accent and C.gold or C.muted);
+    dl:AddLine({ cx - 4, cy - 2 }, { cx, cy + 2 }, col, 1.5);
+    dl:AddLine({ cx, cy + 2 }, { cx + 4, cy - 2 }, col, 1.5);
+    if clicked then imgui.OpenPopup(id); end
+    return clicked;
+end
+
 local function draw_footer()
     local dl = imgui.GetWindowDrawList();
     local wx = imgui.GetWindowPos();
     local _, y = imgui.GetCursorScreenPos();
     local w = imgui.GetWindowWidth();
     y = y + 4;
-    gold_line(dl, wx + 16, y, wx + w - 16);
-    imgui.SetCursorPosY(imgui.GetCursorPosY() + 11);
-    imgui.SetCursorPosX(imgui.GetCursorPosX() + 8);
-    if imgui.Button('Rescan', { btn_w('Rescan'), 34 }) then msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented)); end
-    imgui.SameLine();
-    if imgui.Button('Copy set', { btn_w('Copy set'), 34 }) then imgui.OpenPopup('ygo_copyfmt'); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Copy this set to the clipboard as XML, LuAshitacast or GearSwap'); end
-    if imgui.BeginPopup('ygo_copyfmt') then
-        imgui.TextColored(C.muted, 'Copy as');
-        if imgui.Selectable('XML (LegacyAC)') then copy_current_set('xml'); end
-        if imgui.Selectable('LuAshitacast (.lua)') then copy_current_set('lac'); end
-        if imgui.Selectable('GearSwap (.lua)') then copy_current_set('gs'); end
-        imgui.EndPopup();
-    end
-    imgui.SameLine();
+    gold_line(dl, wx + 14, y, wx + w - 14);
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 10);
+    imgui.SetCursorPosX(imgui.GetCursorPosX() + 4);
     if ui.desc and ui.desc.lockstyle then
-        if imgui.Button('APPLY LOCKSTYLE', { btn_w('APPLY LOCKSTYLE'), 34 }) then
+        if imgui.Button('APPLY LOCKSTYLE', { btn_w('APPLY LOCKSTYLE'), 30 }) then
             if ui.job == main_job() then look.apply(ui.job, false);
             else msg('Change to ' .. JOBS[ui.job] .. ' to lock this look on (it goes on by itself when you do).'); end
         end
         if imgui.IsItemHovered() then imgui.SetTooltip('Locks this look on your character (/ygo lockstyle).\nIt also goes back on by itself after login and every job change.'); end
     else
-        if imgui.Button('EQUIP IN GAME', { btn_w('EQUIP IN GAME'), 34 }) then equip_current_set(); end
+        if imgui.Button('EQUIP IN GAME', { btn_w('EQUIP IN GAME'), 30 }) then equip_current_set(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Puts this set on your character right now (/equip),\nso you can see it. Weapons in the set reset TP.'); end
     end
     imgui.SameLine();
-    if imgui.Button('IMPORT EQUIPPED', { btn_w('IMPORT EQUIPPED'), 34 }) then actions.import_equipped(); end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Puts the gear you are wearing right now into this set (' .. (ui.desc and ui.desc.label or '') .. ').\n'
-            .. 'Each slot the set uses gets your equipped piece; an empty slot stays empty.\nReset picks undoes it.');
+    actions.menu_button('IMPORT', 'ygo_import_menu', btn_w('IMPORT') + 30, false);
+    if imgui.BeginPopup('ygo_import_menu') then
+        if imgui.Selectable('Gear I am wearing  (this set)') then actions.import_equipped(); end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Puts the gear you are wearing right now into this set (' .. (ui.desc and ui.desc.label or '') .. ').\n'
+                .. 'Each slot the set uses gets your equipped piece; an empty slot stays empty.\nReset picks undoes it.');
+        end
+        if imgui.Selectable('XML file  (alt characters)') then ui.import_xml_open = true; end
+        if imgui.IsItemHovered() then imgui.SetTooltip(actions.import_xml_tip()); end
+        imgui.EndPopup();
     end
     local pins = ui.pins[ui.ctx] or {};
     if next(pins) ~= nil then
         imgui.SameLine();
-        if imgui.Button('Reset picks', { btn_w('Reset picks'), 34 }) then ui.pins[ui.ctx] = nil; ui.dirty = true; settings.save(); end
+        if imgui.Button('Reset picks', { btn_w('Reset picks'), 30 }) then ui.pins[ui.ctx] = nil; ui.dirty = true; settings.save(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
-    local l1, l2, l3 = 'EXPORT XML', 'EXPORT LAC', 'EXPORT GEARSWAP';
-    local w1, w2, w3 = btn_w(l1), btn_w(l2), btn_w(l3);
-    imgui.SameLine(imgui.GetWindowWidth() - (w1 + w2 + w3 + 16 + 14));
-    -- Exports: gold text on a soft gold tint, a little brighter on hover (three solid gold blocks were too loud)
-    local function export_button(label, size)
-        imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.10 });
-        imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.20 });
-        imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.30 });
-        imgui.PushStyleColor(ImGuiCol_Text, C.gold);
-        local clicked = imgui.Button(label, size);
-        imgui.PopStyleColor(4);
-        return clicked;
+    local ew = btn_w('EXPORT') + 30;
+    imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
+    actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
+    if imgui.BeginPopup('ygo_export_menu') then
+        imgui.TextColored(C.muted, 'Export every ' .. JOBS[ui.job] .. ' set + rules');
+        imgui.Separator();
+        if imgui.Selectable('XML  (LegacyAC)') then ask_export('xml'); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '.xml'); end
+        if imgui.Selectable('LuAshitacast') then ask_export('lac'); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
+        if imgui.Selectable('GearSwap  (Windower)') then ask_export('gs'); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
+        imgui.EndPopup();
     end
-    if export_button(l1, { w1, 34 }) then ask_export('xml'); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\LegacyAC\\Name_' .. JOBS[ui.job] .. '.xml'); end
-    imgui.SameLine(0, 8);
-    if export_button(l2, { w2, 34 }) then ask_export('lac'); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita): every ' .. JOBS[ui.job] .. ' set + rules\n-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
-    imgui.SameLine(0, 8);
-    if export_button(l3, { w3, 34 }) then ask_export('gs'); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower): every ' .. JOBS[ui.job] .. ' set + rules\n-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
 end
 
 local function draw_full()
@@ -4549,14 +4823,41 @@ local function draw_notice()
     imgui.PopStyleColor();
 end
 
+-- Segoe UI, the font VanaCore's windows use. Windows ships it, so nothing is bundled: it's read from the Fonts folder.
+-- Loaded once when the addon loads (as other addons do); if it isn't there, the game's ImGui font is kept.
+function actions.load_font()
+    ui.font = nil;
+    local dir = (os.getenv('WINDIR') or 'C:\\Windows') .. '\\Fonts\\';
+    for _, name in ipairs({ 'segoeui.ttf', 'SegUIVar.ttf' }) do
+        local f = io.open(dir .. name, 'rb');
+        if f then
+            f:close();
+            local ok, font = pcall(imgui.AddFontFromFileTTF, dir .. name, 17);
+            if ok and font then ui.font = font; return; end
+        end
+    end
+end
+
+-- Push the font for the whole window: newer ImGui (fonts with LegacySize) wants a size, older ones don't
+function actions.push_font()
+    local f = ui.font;
+    if f == nil then return false; end
+    local ok = false;
+    if f.LegacySize ~= nil then ok = pcall(imgui.PushFont, f, 17); else ok = pcall(imgui.PushFont, f); end
+    return ok;
+end
+
 local function draw_ui()
     if not ui.open[1] or data == nil then return; end
     if not bis.done then bis_step(); end
     if ui.dirty then recompute(); end
     local nc, nv = push_theme();
+    local fontpushed = actions.push_font();
     if s.compact then draw_lazy(); else draw_full(); end
     draw_notice();
     draw_export_confirm();
+    actions.draw_import_xml_confirm();
+    if fontpushed then imgui.PopFont(); end
     imgui.PopStyleVar(nv);
     imgui.PopStyleColor(nc);
 end
@@ -4575,7 +4876,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
     end
 end);
 
-ashita.events.register('load', 'ygo_load', function() load_data(); end);
+ashita.events.register('load', 'ygo_load', function() load_data(); actions.load_font(); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
 ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); look.watch(); draw_ui(); end);
 

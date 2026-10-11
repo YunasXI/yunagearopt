@@ -89,7 +89,7 @@ return {
         -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
         { 'Poisona|Paralyna|Blindna|Silena|Stona|Viruna|Cursna|Erase', 'NaSpells' },
         { 'Refresh|Refresh II|Refresh III', 'RefreshSpell' },
-        { 'Spectral Floe', 'SpectralFloe' }, { 'Battery Charge', 'BatteryCharge' },
+        { 'Battery Charge', 'BatteryCharge' },
         { 'Foot Kick|Power Attack|Sprout Smack|Wild Oats|Queasyshroom|Battle Dance|Head Butt|Feather Storm|Helldive|'
           .. 'Bludgeon|Claw Cyclone|Screwdriver|Grand Slam|Smite of Rage|Pinecone Bomb|Jet Stream|Uppercut|Terror Touch|'
           .. 'Mandibular Bite|Sickle Slash|Dimensional Death|Spiral Spin|Death Scissors|Seedspray|Body Slam|Hydro Shot|'
@@ -97,7 +97,7 @@ return {
           .. 'Goblin Rush|Vanity Dive|Whirl of Rage|Benthic Typhoon|Quad. Continuum|Empty Thrash|Delta Thrust|Heavy Strike|'
           .. 'Quadrastrike|Tourbillion|Amorphic Spikes|Barbed Crescent|Bilgestorm|Bloodrake|Glutinous Dart|Paralyzing Triad|'
           .. 'Thrashing Assault|Sinker Drill|Sweeping Gouge|Saurian Slide|Sub-zero Smash|Tail Slap|Frypan', 'BluPhys' },
-        { 'Cursed Sphere|Blastbomb|Bomb Toss|Death Ray|Magic Hammer|Ice Break|Maelstrom|Corrosive Ooze|Firespit|'
+        { 'Spectral Floe|Cursed Sphere|Blastbomb|Bomb Toss|Death Ray|Magic Hammer|Ice Break|Maelstrom|Corrosive Ooze|Firespit|'
           .. 'Regurgitation|Eyes On Me|Mysterious Light|Blitzstrahl|Acrid Stream|Leafstorm|Thermal Pulse|Charged Whisker|'
           .. 'Blazing Bound|Gates of Hades|Thunderbolt|Droning Whirlwind|Rending Deluge|Tem. Upheaval|Embalming Earth|'
           .. 'Foul Waters|Searing Tempest|Anvil Lightning|Entomb|Scouring Spate|Silent Storm|Tenebral Crush|Water Bomb|'
@@ -930,9 +930,9 @@ return {
 
         -- BLU: blue magic categories (the gear comes from your BLU XML)
         BluPhys      = { label = 'Blue magic - Physical', weights = { blue = 3, str = 1.5, dex = 1.2, vit = 0.5, att = 1, acc = 1, da = 2, crit = 1 } },
-        BluMag       = { label = 'Blue magic - Magical', weapons = true, weights = { blue = 2, int = 2, mab = 8, macc = 2, mbb = 3 } },
+        -- obi = true: the elemental obi goes on when the weather (storm spells too) or the day matches the spell's element
+        BluMag       = { label = 'Blue magic - Magical', weapons = true, obi = true, weights = { blue = 2, int = 2, mab = 8, macc = 2, mbb = 3 } },
         BluDebuff    = { label = 'Blue magic - Debuff', weapons = true, weights = { macc = 4, blue = 3, int = 1, mnd = 0.5 } },
-        SpectralFloe = { label = 'Spectral Floe', weapons = true, weights = { blue = 1, int = 2, mab = 8, macc = 1.5, mbb = 3 } },
         BatteryCharge = { label = 'Battery Charge', weapons = true, weights = { enhdur = 3, blue = 1, refresh = 2, cmp = 0.5, refreshpot = 20 } },
         -- Idle gear you switch on yourself with /refresh (MP recovery)
         Refresh      = { label = 'Idle - Refresh (toggle /refresh)', weapons = true, weights = { refresh = 30, hmp = 3, regen = 3, mp = 0.02 } },
@@ -1011,7 +1011,7 @@ return {
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'SpectralFloe', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
