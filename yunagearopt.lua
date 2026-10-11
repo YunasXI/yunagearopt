@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.10';   -- the release workflow sets this to the release number
+addon.version = '1.1.11';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4218,12 +4218,15 @@ function actions.draw_obi_card()
 end
 
 local function draw_totals()
-    if not (ui.result and ui.weights) then return; end
-    local totals = set_totals(ui.result, ui.weights);
+    -- In Best in Slot view the totals add up the BiS pieces on the cards, not your own set
+    local bis_view = ui.show_bis and ui.bis and ui.bis.assign;
+    local assign = bis_view and ui.bis.assign or ui.result;
+    if not (assign and ui.weights) then return; end
+    local totals = set_totals(assign, ui.weights);
     local keys = {};
     for k in pairs(totals) do table.insert(keys, k); end
     table.sort(keys, function(a, b) return math.abs(ui.weights[a]) > math.abs(ui.weights[b]); end);
-    caption('SET TOTALS');
+    caption(bis_view and 'SET TOTALS (BiS)' or 'SET TOTALS');
     if #keys == 0 then imgui.TextColored(C.muted, '-'); return; end
     local caps = ui.desc.caps or {};
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
