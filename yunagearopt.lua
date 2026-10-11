@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.11';   -- the release workflow sets this to the release number
+addon.version = '1.1.12';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1734,7 +1734,8 @@ local function build_full_xml(job_id)
     for _, b in ipairs(built) do
         add(string.format('        <!-- %s -->', xml_escape(b.desc.label)));
         local a = b.assign;
-        if s.weapon_mode == 1 and mage and b.desc.id ~= 'DW' and (a.main or a.sub) then
+        -- Set weapons give way to the /NIN /DNC pair only when you picked one; with nothing picked, sets swap weapons as usual
+        if s.weapon_mode == 1 and pair and b.desc.id ~= 'DW' and (a.main or a.sub) then
             local rest, wpn = {}, {};
             for k, v in pairs(a) do
                 if k == 'main' or k == 'sub' then wpn[k] = v; else rest[k] = v; end
@@ -2305,7 +2306,7 @@ local function build_gearswap(job_id)
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
     add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and (in_list(data.weapon_jobs, abbr) or actions.dw_pair(abbr) ~= nil)));
+    add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil));   -- only with a picked /NIN /DNC pair
     add('    -- PLD: engaged in TP_Hybrid (TP - Engaged); with /NIN or /DNC in TP (TP - Offense) with the weapon pair');
     add('    engaged_dw = ' .. tostring((data.engaged_dw or {})[abbr] == true and have.TP_Hybrid == true));
     local gpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
@@ -2783,7 +2784,7 @@ local function build_lac(job_id)
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
     add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
-    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and (in_list(data.weapon_jobs, abbr) or actions.dw_pair(abbr) ~= nil)) .. ';');
+    add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil) .. ';');   -- only with a picked /NIN /DNC pair
     local lpair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
     add('-- PLD: engaged in TP_Hybrid (TP - Engaged); with /NIN or /DNC in TP (TP - Offense) with the weapon pair');
     add('local engaged_dw = ' .. tostring((data.engaged_dw or {})[abbr] == true and have.TP_Hybrid == true) .. ';');
