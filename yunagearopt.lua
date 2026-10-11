@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.12';   -- the release workflow sets this to the release number
+addon.version = '1.1.13';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -720,6 +720,30 @@ function actions.ws_moved(abbr, have)
         end
     end
     return out;
+end
+
+-- Cancel the Copy Image buff (Utsusemi shadows: 1, 2, 3, 4+) that is on you, with the game's status-cancel packet
+-- (0xF1, as Ashita's debuff addon does). Used by XML exports so Utsusemi: Ichi can replace Ni's shadows.
+function actions.cancel_shadows()
+    pcall(function()
+        local want = { [66] = true, [444] = true, [445] = true, [446] = true };
+        local buffs = AshitaCore:GetMemoryManager():GetPlayer():GetBuffs();
+        for _, id in pairs(buffs or {}) do
+            if want[id] then
+                AshitaCore:GetPacketManager():AddOutgoingPacket(0xF1,
+                    { 0xF1, 0x04, 0x00, 0x00, bit.band(id, 0xFF), bit.rshift(id, 8), 0x00, 0x00 });
+                want[id] = nil;
+            end
+        end
+    end);
+end
+
+-- Is LegacyAC running? Ashita's plugin manager says so; VanaCore runs LegacyAC itself and doesn't report it there,
+-- so under VanaCore it counts as loaded (a /la command without LegacyAC simply does nothing).
+function actions.legacyac_loaded()
+    local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
+    if ok and loaded then return true; end
+    return (addon.path or ''):lower():find('vanacore', 1, true) ~= nil;
 end
 
 -- The job's set ids: data.jobs' list (removed ones are dropped in build_sets). Sets from other jobs can't be
@@ -1957,8 +1981,10 @@ local function build_full_xml(job_id)
         table.insert(m, i, { cond = attr('ad_name', p[1]), body = wobi and with_obi(p[2], obis) or equip_set(p[2]) });
     end
     local base_mid = job_base(data.midcast_base, abbr, have);
-    if #m > 0 or base_mid then
+    do
         add('    <midmagic>');
+        -- Utsusemi: Ichi can't replace Ni's shadows: cancel them first (YunaGearOpt sends the cancel; keep it loaded)
+        add('        <if ad_name="Utsusemi: Ichi"><command>/ygo cancelshadows</command></if>');
         if base_mid then
             add('        <!-- Every spell: ' .. base_mid .. ' first, then the spell\'s own set on top -->');
             add(string.format('        <equip set="%s" />', base_mid));
@@ -2512,6 +2538,12 @@ function precast(spell)
 end
 
 function midcast(spell)
+    -- Utsusemi: Ichi can't replace Ni's shadows: cancel the Copy Image buff first (1, 2, 3, 4+ shadows)
+    if spell.english == 'Utsusemi: Ichi' then
+        for _, id in ipairs({ 66, 444, 445, 446 }) do
+            if buffactive[id] then windower.ffxi.cancel_buff(id) end
+        end
+    end
     if spell.action_type == 'Ranged Attack' then eq(ranged_set('Midshot')) return end
     if spell.action_type ~= 'Magic' then return end
     local name, skill = spell.english, spell.skill
@@ -3050,6 +3082,14 @@ end
 profile.HandleMidcast = function()
     local spell = gData.GetAction();
     local name, skill = spell.Name or '', spell.Skill or '';
+    -- Utsusemi: Ichi can't replace Ni's shadows: cancel the Copy Image buff first (1, 2, 3, 4+ shadows)
+    if name == 'Utsusemi: Ichi' then
+        for _, id in ipairs({ 66, 444, 445, 446 }) do
+            if gData.GetBuffCount(id) > 0 then
+                AshitaCore:GetPacketManager():AddOutgoingPacket(0xF1, { 0xF1, 0x04, 0x00, 0x00, bit.band(id, 0xFF), bit.rshift(id, 8), 0x00, 0x00 });
+            end
+        end
+    end
     if midcast_base then eq(midcast_base); end
     if utsusemi_precast and name:match('^Utsusemi') and eq('Precast') then return; end
     for _, ss in ipairs(spell_sets) do
@@ -3208,7 +3248,7 @@ function actions.reload_after_export(kind)
     end
     local cm = AshitaCore:GetChatManager();
     if kind == 'xml' then
-        local okL, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
+        local okL, loaded = true, actions.legacyac_loaded();
         if okL and loaded then
             cm:QueueCommand(1, '/la load');
             msg('  LegacyAC reloaded with the new XML.');
@@ -4958,7 +4998,7 @@ local function phalanx_for_legacyac(e)
     if prc == nil then return; end
     local job = JOBS[main_job()];
     if not (',' .. (s.xml_phalanx or '') .. ','):find(',' .. job .. ',', 1, true) then return; end
-    local okL, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
+    local okL, loaded = true, actions.legacyac_loaded();
     if not (okL and loaded) then return; end
     local single, party = {}, {};
     for _, id in ipairs(prc.single or {}) do single[id] = true; end
@@ -5066,6 +5106,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         end
         recompute();
         equip_current_set();
+    elseif sub == 'cancelshadows' then
+        actions.cancel_shadows();
     elseif sub == 'reload' then
         base_cache = {};
         bis_reset();
