@@ -82,11 +82,12 @@ end
 
 -- CatsEyeXI logo for the header, loaded once from images\catseye.png (false = missing)
 local logo = nil;
-local function logo_texture()
-    if logo ~= nil then return logo or nil; end
-    logo = false;
+local function logo_texture(name)
+    logo = logo or {};                                     -- one texture per image file (false = missing)
+    if logo[name] ~= nil then return logo[name] or nil; end
+    logo[name] = false;
     pcall(function()
-        local f = io.open(addon.path .. '/images/catseye.png', 'rb');
+        local f = io.open(addon.path .. '/images/' .. name, 'rb');
         if f == nil then return; end
         local data = f:read('*a');
         f:close();
@@ -94,10 +95,10 @@ local function logo_texture()
         if ffi.C.D3DXCreateTextureFromFileInMemoryEx(d3d.get_device(), data, #data, 0xFFFFFFFF, 0xFFFFFFFF, 1, 0,
                 ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED, ffi.C.D3DX_DEFAULT, ffi.C.D3DX_DEFAULT, 0, nil, nil, ptr) == ffi.C.S_OK then
             local tex = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', ptr[0]));
-            logo = { tex = tex, ptr = tonumber(ffi.cast('uint32_t', tex)) };
+            logo[name] = { tex = tex, ptr = tonumber(ffi.cast('uint32_t', tex)) };
         end
     end);
-    return logo or nil;
+    return logo[name] or nil;
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -3746,12 +3747,20 @@ local function draw_header()
 
         -- CatsEyeXI logo, then the title and a single quiet info line
         local lx = 4;
-        local lg = logo_texture();
+        local lg = logo_texture('catseye.png');
         if lg then
             imgui.SetCursorPos({ 0, 7 });
             imgui.Image(lg.ptr, { 92, 56 });
             if imgui.IsItemHovered() then imgui.SetTooltip('Made for CatsEyeXI'); end
             lx = 106;
+        end
+        -- VanaCore's logo next to it (the crystal and the moogle)
+        local vg = logo_texture('vanacore.png');
+        if vg then
+            imgui.SetCursorPos({ lx - 10, 7 });
+            imgui.Image(vg.ptr, { 56, 56 });
+            if imgui.IsItemHovered() then imgui.SetTooltip('Runs on VanaCore'); end
+            lx = lx - 10 + 56 + 12;
         end
 
         imgui.SetCursorPos({ lx, 12 });
