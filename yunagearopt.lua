@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.9';   -- the release workflow sets this to the release number
+addon.version = '1.1.10';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -47,6 +47,33 @@ local function item_icon(id)
         if ffi.C.D3DXCreateTextureFromFileInMemoryEx(d3d.get_device(), item.Bitmap, item.ImageSize, 0xFFFFFFFF, 0xFFFFFFFF, 1, 0,
                 ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED, ffi.C.D3DX_DEFAULT, ffi.C.D3DX_DEFAULT, 0xFF000000, nil, nil, ptr) == ffi.C.S_OK then
             local tex = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', ptr[0]));
+            -- Livelier once, at load, like the icons in the game's own menus: more colour (saturation x1.35 around each
+            -- pixel's brightness) and a mild brightness bump (x1.12). Darks stay dark, so nothing looks washed out.
+            -- (only names defined above this function: icons, ffi - not ui / msg, which come later in the file)
+            local okb, err = pcall(function()
+                local w, h = 32, 32;
+                local dres, desc = tex:GetLevelDesc(0);
+                if dres == ffi.C.S_OK and desc ~= nil then w, h = tonumber(desc.Width), tonumber(desc.Height); end
+                local res, rect = tex:LockRect(0, nil, 0);
+                if res ~= ffi.C.S_OK or rect == nil then error('LockRect returned ' .. tostring(res)); end
+                local bits, pitch = ffi.cast('uint8_t*', rect.pBits), tonumber(rect.Pitch);
+                for yy = 0, h - 1 do
+                    local row = bits + yy * pitch;
+                    for xx = 0, w - 1 do
+                        local px = row + xx * 4;
+                        if px[3] > 0 then
+                            local bl, gr, rd = px[0], px[1], px[2];
+                            local l = 0.114 * bl + 0.587 * gr + 0.299 * rd;       -- the pixel's brightness
+                            for c, v in ipairs({ bl, gr, rd }) do
+                                local o = (l + (v - l) * 1.35) * 1.12;
+                                px[c - 1] = o < 0 and 0 or (o > 255 and 255 or math.floor(o + 0.5));
+                            end
+                        end
+                    end
+                end
+                tex:UnlockRect(0);
+            end);
+            if not okb and icons.err == nil then icons.err = tostring(err); end   -- told once in chat by draw_ui
             icons[id] = { tex = tex, ptr = tonumber(ffi.cast('uint32_t', tex)) };
         end
     end);
@@ -3412,6 +3439,9 @@ local function push_theme()
         { ImGuiCol_ScrollbarBg, { 0, 0, 0, 0 } }, { ImGuiCol_ScrollbarGrab, { 1, 1, 1, 0.08 } },
         { ImGuiCol_ScrollbarGrabHovered, { 1, 1, 1, 0.16 } }, { ImGuiCol_ScrollbarGrabActive, { 1, 1, 1, 0.22 } },
         { ImGuiCol_TableRowBg, { 0, 0, 0, 0 } },
+        { ImGuiCol_ResizeGrip, { 1, 1, 1, 0.06 } },
+        { ImGuiCol_ResizeGripHovered, { C.gold[1], C.gold[2], C.gold[3], 0.55 } },
+        { ImGuiCol_ResizeGripActive, { C.gold[1], C.gold[2], C.gold[3], 0.85 } },
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
@@ -3571,6 +3601,22 @@ local function btn_w(text) return math.floor(text_w(text) + 26); end
 local function u32(c) return imgui.GetColorU32(c); end
 
 -- A VanaCore-style switch: a pill that is blue and knob-right when on. Returns true when clicked.
+-- A small dropdown button: a rounded square (blue tint on hover) with a thin chevron, matching the switches and menus
+function actions.chevron_button(id)
+    local x, y = imgui.GetCursorScreenPos();
+    local w, h = 24, 22;
+    local clicked = imgui.InvisibleButton(id, { w, h });
+    local hov = imgui.IsItemHovered();
+    local dl = imgui.GetWindowDrawList();
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(hov and { C.gold[1], C.gold[2], C.gold[3], 0.28 } or { 1, 1, 1, 0.05 }), 6);
+    dl:AddRect({ x, y }, { x + w, y + h }, u32(hov and { C.gold[1], C.gold[2], C.gold[3], 0.60 } or C.border), 6);
+    local cx, cy = x + w / 2, y + h / 2 + 1;
+    local col = u32(hov and { 1, 1, 1, 1 } or C.gold_dim);
+    dl:AddLine({ cx - 4.5, cy - 2.5 }, { cx, cy + 2 }, col, 1.6);
+    dl:AddLine({ cx, cy + 2 }, { cx + 4.5, cy - 2.5 }, col, 1.6);
+    return clicked;
+end
+
 function actions.switch(id, on, w, h)
     local x, y = imgui.GetCursorScreenPos();
     w, h = w or 38, h or 20;
@@ -3641,9 +3687,10 @@ local ICON = 36;
 local function slot_icon(item, col)
     local dl = imgui.GetWindowDrawList();
     local x, y = imgui.GetCursorScreenPos();
-    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0, 0, 0, 0.28 }), 6);
+    x, y = math.floor(x + 0.5), math.floor(y + 0.5);       -- whole pixels: the 32x32 icon is drawn 1:1, no blur
+    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0.02, 0.03, 0.07, 0.85 }), 6);   -- dark, like the game's slots
     local ic = item and item_icon(item.id);
-    if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + ICON - 2, y + ICON - 2 }); end
+    if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + 34, y + 34 }); end
     if item then dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], 0.35 }), 6, 0, 1); end
     imgui.Dummy({ ICON, ICON });
 end
@@ -3810,10 +3857,16 @@ local function draw_sidebar()
                     elseif rhov then
                         rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
                     end
-                    rdl:PushClipRect({ sx, sy }, { sx + rw, sy + rh }, true);
+                    local tx_end = sx + rw - 10;                 -- text stops 10 px before the switch
+                    rdl:PushClipRect({ sx, sy }, { tx_end, sy + rh }, true);
                     local tcol = d.disabled and { C.muted[1], C.muted[2], C.muted[3], 0.55 } or (sel and C.text or { 0.78, 0.80, 0.87, 1 });
                     rdl:AddText({ sx + 14, sy + (rh - imgui.GetTextLineHeight()) / 2 }, u32(tcol), label);
                     rdl:PopClipRect();
+                    if text_w(label) + 14 > rw - 10 then              -- a long name fades out instead of ending in a hard cut
+                        local bg = sel and C.frame or C.side;
+                        local clear, solid = u32({ bg[1], bg[2], bg[3], 0 }), u32({ bg[1], bg[2], bg[3], 1 });
+                        rdl:AddRectFilledMultiColor({ tx_end - 22, sy + 1 }, { tx_end, sy + rh - 1 }, clear, solid, solid, clear);
+                    end
                     if rhov and text_w(label) + 14 > rw then imgui.SetTooltip(label); end   -- a name cut off at the edge
                     -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
                     imgui.SameLine(ww - 44);
@@ -4078,7 +4131,7 @@ local function draw_card(def, max_score)
     imgui.EndGroup();
     -- Outside the group: inside one, SameLine's offset counts from the group's left edge and the arrow ends up off the card
     imgui.SameLine(imgui.GetWindowWidth() - 34);
-    if imgui.ArrowButton('##arrow_' .. def.key, ImGuiDir_Down) then imgui.OpenPopup('pick_' .. def.key); end
+    if actions.chevron_button('##arrow_' .. def.key) then imgui.OpenPopup('pick_' .. def.key); end
     if imgui.IsItemHovered() then imgui.SetTooltip('Choose a different piece'); end
     draw_picker(def);
 
@@ -4116,7 +4169,7 @@ local function draw_unused(def)
     -- Weapon slots: pick a weapon for this set with the arrow (outside the group, like the normal cards)
     if (def.weapon or def.ranged) and not ui.show_bis and ui.desc and not ui.desc.info then
         imgui.SameLine(imgui.GetWindowWidth() - 34);
-        if imgui.ArrowButton('##arrow_' .. def.key, ImGuiDir_Down) then imgui.OpenPopup('pick_' .. def.key); end
+        if actions.chevron_button('##arrow_' .. def.key) then imgui.OpenPopup('pick_' .. def.key); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Choose a weapon for this set\n(Auto = not swapped)'); end
         draw_picker(def);
     end
@@ -4849,6 +4902,10 @@ end
 
 local function draw_ui()
     if not ui.open[1] or data == nil then return; end
+    if icons.err and not icons.warned then
+        icons.warned = true;
+        msg('Item icons could not be brightened (' .. icons.err .. '); they show at normal brightness.');
+    end
     if not bis.done then bis_step(); end
     if ui.dirty then recompute(); end
     local nc, nv = push_theme();
