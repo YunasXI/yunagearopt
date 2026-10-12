@@ -89,6 +89,8 @@ return {
     -- Spells that wear their own midcast set, checked before the usual magic-skill rules: { name (* = wildcard), set }
     spell_sets = {
         { 'Flash', 'Enmity', jobs = { 'PLD' } }, { 'Reprisal', 'Enmity', jobs = { 'PLD' } }, { 'Phalanx*', 'Phalanx' },
+        -- BRD: Lullabies and Finale share one set (song recast delay gear, Terpander)
+        { '*Lullaby*|*Finale*', 'LullabyFinale', jobs = { 'BRD' } },
         -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
         { 'Poisona|Paralyna|Blindna|Silena|Stona|Viruna|Cursna|Erase', 'NaSpells' },
         { 'Refresh|Refresh II|Refresh III', 'RefreshSpell' },
@@ -671,6 +673,8 @@ return {
         -- BRD song duration the item data doesn't carry: Carnwenhan (+10%) and the SCNM Apex Haidate's augment (+10%)
         ['Carnwenhan']        = { songdur = 10 },
         ['Apex Haidate']      = { songdur = 10 },
+        -- SCNM Apex Sune-Ate's BRD augment: song recast delay -10 (counted whether or not you own it, so Best in Slot sees it too)
+        ['Apex Sune-Ate']     = { songrecast = 10 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
         ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
         ['Sattva Ring']       = { hp = 15, vit = 5, agi = 5, enmity = 3 },
@@ -904,6 +908,13 @@ return {
                           weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5 } },
         Songs_Debuff  = { label = 'Songs - Debuff', weapons = true, range = 'instrument',
                           weights = { chr = 3, macc = 3, singing = 2, string = 2, wind = 2 } },
+        -- Lullaby / Finale: a BRD player's set, built for song recast delay (a piece you don't own is filled automatically)
+        LullabyFinale = { label = 'Songs - Lullaby / Finale (recast)', weapons = true, range = 'instrument',
+                          weights = { songrecast = 10, chr = 2, macc = 2, singing = 1, string = 1, wind = 1 },
+                          fixed = { main = 'Alkalurops', sub = 'Reflexive Grip +1', range = 'Terpander', head = 'Brd. Roundlet +1',
+                                    body = 'Chl. Jstcorps +1', hands = 'Sheikh Gages', legs = 'Chl. Cannions +1', feet = 'Apex Sune-Ate',
+                                    neck = 'Timeless Ocarina', waist = "Aoidos' Belt", ear1 = 'Incubus Earring +1',
+                                    ear2 = 'Incubus Earring +1', ring1 = 'Veela Ring', ring2 = 'Light Ring', back = "Jester's Cape +1" } },
         BlueMagic     = { label = 'Blue magic skill', weights = { blue = 5, str = 0.5, dex = 0.5, mab = 1 } },
         Geomancy      = { label = 'Geomancy', weapons = true, weights = { geomancy = 5, handbell = 4, cmp = 0.5 } },
         BP_Delay      = { label = 'Blood Pact delay', caps = { bpdelay = 15, bpdelay2 = 15 }, weapons = true, weights = { bpdelay = 10, bpdelay2 = 10, summoning = 1 } },
@@ -1095,7 +1106,7 @@ return {
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
                 'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
