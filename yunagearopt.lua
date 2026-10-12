@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.14';   -- the release workflow sets this to the release number
+addon.version = '1.1.15';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3662,14 +3662,17 @@ function actions.chevron_button(id)
     return clicked;
 end
 
-function actions.switch(id, on, w, h)
+function actions.switch(id, on, w, h, quiet)
     local x, y = imgui.GetCursorScreenPos();
     w, h = w or 38, h or 20;
     local clicked = imgui.InvisibleButton(id, { w, h });
     local hov = imgui.IsItemHovered();
     local dl = imgui.GetWindowDrawList();
     local bg = on and C.gold or (hov and C.frame_hi or C.frame);
+    -- quiet (the sidebar's long list): a soft "on", and "off" gets a red edge so a switched-off set stands out
+    if quiet and on then bg = { C.gold[1], C.gold[2], C.gold[3], hov and 0.65 or 0.42 }; end
     dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(bg), h / 2);
+    if quiet and not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.red[1], C.red[2], C.red[3], 0.75 }), h / 2, 0, 1); end
     local kx = on and (x + w - h / 2) or (x + h / 2);
     dl:AddCircleFilled({ kx, y + h / 2 }, h / 2 - (h < 18 and 2 or 3), u32({ 1, 1, 1, on and 1 or 0.85 }), 20);
     return clicked;
@@ -3906,7 +3909,7 @@ local function draw_sidebar()
                     local rdl = imgui.GetWindowDrawList();
                     if sel then
                         rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32(C.frame), 6);
-                        rdl:AddRectFilled({ sx, sy + 5 }, { sx + 2, sy + rh - 5 }, u32(C.gold), 1);
+                        rdl:AddRectFilled({ sx, sy + 4 }, { sx + 3, sy + rh - 4 }, u32(C.gold), 1);
                     elseif rhov then
                         rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
                     end
@@ -3924,7 +3927,7 @@ local function draw_sidebar()
                     -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
                     imgui.SameLine(ww - 44);
                     imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
-                    if actions.switch('##seton' .. i, not d.disabled, 26, 14) then
+                    if actions.switch('##seton' .. i, not d.disabled, 26, 14, true) then
                         if d.disabled then
                             actions.add_set(JOBS[ui.job], d.id);
                             msg(string.format('%s: %s is on again (it is exported).', JOBS[ui.job], d.label));
@@ -4158,6 +4161,37 @@ local function draw_bis_card(def)
     imgui.PopStyleColor(2);
 end
 
+-- A small rounded tag (bag, PREF, AUG, PIN) on the card's second line
+function actions.tag(text, col, first)
+    if not first then imgui.SameLine(0, 4); end
+    imgui.SetWindowFontScale(0.78);
+    local w, h = text_w(text) + 10, imgui.GetTextLineHeight() + 2;
+    local x, y = imgui.GetCursorScreenPos();
+    local dl = imgui.GetWindowDrawList();
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.15 }), 4);
+    dl:AddText({ x + 5, y + 1 }, u32(col), text);
+    imgui.Dummy({ w, h });
+    imgui.SetWindowFontScale(0.95);
+end
+
+-- Dashed edge around the current card (a slot the set doesn't swap)
+function actions.dashed_frame(col)
+    local dl = imgui.GetWindowDrawList();
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    local c = u32(col);
+    dl:PushClipRect({ x, y }, { x + w, y + h }, false);
+    for px = x + 8, x + w - 8, 10 do
+        dl:AddLine({ px, y + 0.5 }, { math.min(px + 5, x + w - 8), y + 0.5 }, c, 1);
+        dl:AddLine({ px, y + h - 0.5 }, { math.min(px + 5, x + w - 8), y + h - 0.5 }, c, 1);
+    end
+    for py = y + 8, y + h - 8, 10 do
+        dl:AddLine({ x + 0.5, py }, { x + 0.5, math.min(py + 5, y + h - 8) }, c, 1);
+        dl:AddLine({ x + w - 0.5, py }, { x + w - 0.5, math.min(py + 5, y + h - 8) }, c, 1);
+    end
+    dl:PopClipRect();
+end
+
 local function draw_card(def, max_score)
     if ui.show_bis then draw_bis_card(def); return; end
     local c = ui.result and ui.result[def.key];
@@ -4172,15 +4206,19 @@ local function draw_card(def, max_score)
     slot_icon(c and c.item, col);
     imgui.SameLine(0, 8);
     imgui.BeginGroup();
-    imgui.TextColored({ 0.66, 0.70, 0.80, 1 }, def.label:upper());
-    -- Tags go on the bag line, which has room for them (next to the slot name they ran into the arrow)
-    if c then imgui.TextColored(EQUIP_BAGS[c.item.where] and { 0.66, 0.70, 0.80, 1 } or C.red, c.item.where); end
-    if pin ~= nil then
-        imgui.SameLine(); imgui.TextColored(C.gold, 'PIN');
-    elseif c and ui.forced and ui.forced[def.key] then
-        imgui.SameLine(); imgui.TextColored(C.green, 'PREF');
+    -- The slot name small and quiet; the bag and PIN / PREF / AUG as small tags under it
+    imgui.SetWindowFontScale(0.8);
+    imgui.TextColored(C.muted, def.label:upper());
+    imgui.SetWindowFontScale(0.95);
+    if c then
+        actions.tag(c.item.where, EQUIP_BAGS[c.item.where] and { 0.66, 0.70, 0.80, 1 } or C.red, true);
+        if pin ~= nil then
+            actions.tag('PIN', C.gold);
+        elseif ui.forced and ui.forced[def.key] then
+            actions.tag('PREF', C.green);
+        end
+        if c.item.augmented then actions.tag('AUG', C.aug); end
     end
-    if c and c.item.augmented then imgui.SameLine(); imgui.TextColored(C.aug, 'AUG'); end
     imgui.EndGroup();
     -- Outside the group: inside one, SameLine's offset counts from the group's left edge and the arrow ends up off the card
     imgui.SameLine(imgui.GetWindowWidth() - 34);
@@ -4189,15 +4227,25 @@ local function draw_card(def, max_score)
     draw_picker(def);
 
     if c then
-        imgui.Text(c.item.name);
+        -- The item name is the card's main line: a little bigger, bright white
+        imgui.SetWindowFontScale(1.06);
+        imgui.TextColored({ 1, 1, 1, 1 }, c.item.name);
+        imgui.SetWindowFontScale(0.95);
         -- Two stats when they fit on the card, otherwise only the most important one
         local chips = stat_chips(c.item, ui.weights or {}, 2);
-        if text_w(chips) * 0.95 > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
-        imgui.TextColored({ 0.90, 0.92, 0.97, 1 }, chips);
-        imgui.PushStyleColor(ImGuiCol_PlotHistogram, col);
-        imgui.ProgressBar(r and math.min(1, r) or (max_score > 0 and math.max(0, c.score / max_score) or 0), { -1, 2 }, '');
-        imgui.PopStyleColor();
-        tier_frame(col, r ~= nil and r >= 0.95);
+        if text_w(chips) > imgui.GetWindowWidth() - 24 then chips = stat_chips(c.item, ui.weights or {}, 1); end
+        imgui.TextColored({ 0.70, 0.74, 0.84, 1 }, chips);
+        -- Only a card with a clearly better piece out there stands out: amber edge + the Best in Slot piece's name
+        local b = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
+        local up = r ~= nil and r < 0.95 and b ~= nil and name_key(b.item.name) ~= name_key(c.item.name);
+        if up then
+            imgui.SetWindowFontScale(0.8);
+            imgui.TextColored(C.bis, 'Upgrade: ' .. b.item.name);
+            imgui.SetWindowFontScale(0.95);
+            tier_frame(C.bis, true);
+        else
+            tier_frame(C.gold, false);
+        end
     else
         local extra = pin == nil and ui.desc.fixed and not ui.desc.fixed[def.key];   -- a free slot in a fixed set
         imgui.TextColored(C.muted, extra and 'Empty - add a piece with the arrow' or (pin == false and 'Left empty' or 'Nothing useful'));
@@ -4209,9 +4257,10 @@ end
 
 -- A slot this set doesn't swap (e.g. weapons when weapon swaps are off): a dim placeholder keeps the doll shape
 local function draw_unused(def)
-    imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.25 });
+    imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.08 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
     imgui.BeginChild('unused_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    actions.dashed_frame({ C.muted[1], C.muted[2], C.muted[3], 0.35 });
     imgui.SetWindowFontScale(0.95);
     slot_icon(nil, C.muted);
     imgui.SameLine(0, 8);
@@ -4270,30 +4319,31 @@ local function draw_totals()
     local keys = {};
     for k in pairs(totals) do table.insert(keys, k); end
     table.sort(keys, function(a, b) return math.abs(ui.weights[a]) > math.abs(ui.weights[b]); end);
-    caption(bis_view and 'SET TOTALS (BiS)' or 'SET TOTALS');
-    if #keys == 0 then imgui.TextColored(C.muted, '-'); return; end
+    if #keys == 0 then return; end
+    -- One rounded chip per stat ("M.Acc +68", "Haste 25/25"), wrapping onto a new line when the row is full
     local caps = ui.desc.caps or {};
-    imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
-    local rows = math.ceil(math.min(#keys, 20) / 4);
-    if imgui.BeginChild('ygo_totals', { 0, rows * 24 + 16 }, true, ImGuiWindowFlags_NoScrollbar) then
-        if imgui.BeginTable('ygo_totals_t', 4, ImGuiTableFlags_SizingStretchSame) then
-            for i = 1, math.min(#keys, 20) do
-                local k, v = keys[i], totals[keys[i]];
-                imgui.TableNextColumn();
-                imgui.TextColored(C.muted, label_of(k));
-                imgui.SameLine();
-                if caps[k] then
-                    local at_cap = (caps[k] >= 0 and v >= caps[k]) or (caps[k] < 0 and v <= caps[k]);
-                    imgui.TextColored(at_cap and C.gold or C.green, string.format('%s/%d', fmt_num(v), caps[k]));
-                else
-                    imgui.TextColored(((v > 0) == (ui.weights[k] > 0)) and C.green or C.red, fmt_num(v));
-                end
-            end
-            imgui.EndTable();
+    local dl = imgui.GetWindowDrawList();
+    local right = imgui.GetWindowWidth() - 12;
+    for i = 1, math.min(#keys, 20) do
+        local k, v = keys[i], totals[keys[i]];
+        local text, col;
+        if caps[k] then
+            local at_cap = (caps[k] >= 0 and v >= caps[k]) or (caps[k] < 0 and v <= caps[k]);
+            text, col = string.format('%s %s/%d', label_of(k), fmt_num(v), caps[k]), at_cap and C.gold or C.green;
+        else
+            text, col = label_of(k) .. ' ' .. fmt_num(v), ((v > 0) == (ui.weights[k] > 0)) and C.green or C.red;
         end
+        local w, h = text_w(text) + 16, imgui.GetTextLineHeight() + 6;
+        if i > 1 then
+            imgui.SameLine(0, 6);
+            if imgui.GetCursorPosX() + w > right then imgui.NewLine(); end
+        end
+        local x, y = imgui.GetCursorScreenPos();
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.10 }), h / 2);
+        dl:AddRect({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.30 }), h / 2, 0, 1);
+        dl:AddText({ x + 8, y + 3 }, u32(col), text);
+        imgui.Dummy({ w, h });
     end
-    imgui.EndChild();
-    imgui.PopStyleColor();
 end
 
 -- The job's dual-wield pair, used instead of a set's weapons while subbing NIN or DNC.
@@ -4405,6 +4455,8 @@ local function draw_content()
                 for _, def in ipairs(SLOTS) do by_key[def.key] = def; end
                 for _, def in ipairs(active_slots(ui.desc, ui.show_bis)) do active[def.key] = def; end
                 actions.draw_dw_pair();
+                draw_totals();
+                imgui.Spacing();
                 if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
                     for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();
@@ -4417,7 +4469,6 @@ local function draw_content()
                     end
                     imgui.EndTable();
                 end
-                draw_totals();
             end
         end
     end
@@ -4759,6 +4810,19 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
         if imgui.Selectable('GearSwap  (Windower)') then ask_export('gs'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
+        -- Only the open set, to the clipboard: for people who keep their own hand-made file and paste one set into it
+        local d = ui.desc;
+        if d and not d.info and not d.dwpair then
+            imgui.Spacing();
+            imgui.TextColored(C.muted, 'Copy only this set (' .. d.label .. ')');
+            imgui.Separator();
+            if imgui.Selectable('XML  (copy set)') then copy_current_set('xml'); end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Copies just this <set> to the clipboard.\nNo file is written: paste it into your own XML.'); end
+            if imgui.Selectable('LuAshitacast  (copy set)') then copy_current_set('lac'); end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Copies just this set to the clipboard.\nNo file is written: paste it inside your profile\'s sets table.'); end
+            if imgui.Selectable('GearSwap  (copy set)') then copy_current_set('gs'); end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Copies just this set to the clipboard.\nNo file is written: paste it inside get_sets().'); end
+        end
         imgui.EndPopup();
     end
 end
