@@ -66,6 +66,7 @@ return {
         { 'Dragon Breaker', 'DragonBreaker' },
         -- BST
         'Charm', 'Reward', { 'Call Beast', 'CallBeast' }, { 'Bestial Loyalty', 'CallBeast' },
+        'Tame', { 'Sic', 'SicReady' }, { 'Ready', 'SicReady' },
         -- DNC
         { 'Quickstep', 'Steps' }, { 'Box Step', 'Steps' }, { 'Stutter Step', 'Steps' }, { 'Feather Step', 'Steps' },
         { 'Drain Samba', 'Samba' }, { 'Drain Samba II', 'Samba' }, { 'Drain Samba III', 'Samba' },
@@ -112,7 +113,7 @@ return {
           .. 'Digest|Osmosis', 'BluDebuff' },
     },
     -- Set put on first for every spell / every job ability, before that spell's or ability's own set (tanks)
-    midcast_base = { PLD = 'SIR' },
+    midcast_base = { PLD = 'SIR', BST = 'SIR' },
     ability_base = { PLD = 'Enmity' },
 
     -- Set names shown for one job only (the export set name stays the same)
@@ -598,6 +599,36 @@ return {
         { sets = { 'TP' }, jobs = { 'NIN', 'THF' }, items = { "Ares's Ring" } },
         -- WHM: Yagrush for -na spells and Erase (makes them area of effect)
         { sets = { 'NaSpells' }, jobs = { 'WHM' }, items = { 'Yagrush' } },
+        -- BST (a BST player's profile): the pieces they use first in each set, when you own them
+        { sets = { 'Idle' }, jobs = { 'BST' }, items = { 'Pinnacle Celata', 'Pinnacle Cuirass', 'Pinnacle Dastanas', 'Pinnacle Cuisses',
+                                                          "Skadi's Jambeaux", 'Orochi Nodowa +1', 'Beastly Girdle', "Terra's Earring",
+                                                          'Echad Ring', 'Shadow Mantle' } },
+        { sets = { 'PDT' }, jobs = { 'BST' }, items = { 'Genmei Kabuto', 'Pinnacle Cuirass', 'Melaco Mittens', 'Pinnacle Cuisses',
+                                                         "Skadi's Jambeaux", 'Oneiros Torque', 'Beastly Girdle', "Terra's Earring",
+                                                         'Jelly Ring', 'Succor Ring', 'Shadow Mantle' } },
+        { sets = { 'TP' }, jobs = { 'BST' }, items = { 'White Tathlum', "Conqueror's Helm", 'Armada Hauberk', 'Bst. Gloves +1',
+                                                        'Jokushu Haidate', 'Ruthless Greaves', "Combatant's Torque", "Enlil's Sash",
+                                                        'Brutal Earring', 'Beastly Earring', 'Rajas Ring', "Mars's Ring", "Aife's Mantle" } },
+        { sets = { 'TP_Acc' }, jobs = { 'BST' }, items = { 'White Tathlum', 'Tribal Wreath', 'Armada Hauberk', 'Jokushu Haidate',
+                                                            'Ruthless Greaves', "Combatant's Torque", "Enlil's Sash", 'Brutal Earring',
+                                                            'Beastly Earring', 'Rajas Ring', "Mars's Ring", "Cuchulain's Mantle" } },
+        { sets = { 'TP_Hybrid' }, jobs = { 'BST' }, items = { 'Genmei Kabuto', 'Armada Hauberk', 'Melaco Mittens', 'Jokushu Haidate',
+                                                               'Ruthless Greaves', 'Oneiros Torque', "Enlil's Sash", "Terra's Earring",
+                                                               'Jelly Ring', 'Succor Ring', 'Shadow Mantle' } },
+        { sets = { 'Precast' }, jobs = { 'BST' }, items = { 'Loquac. Earring', 'Bst. Helm +1', 'Bst. Jackcoat +1', 'Swift Gages',
+                                                             'Jokushu Haidate', 'Shukuyu Sune-ate', "Enlil's Sash" } },
+        { sets = { 'SIR' }, jobs = { 'BST' }, items = { 'Optical Hat', 'Bst. Jackcoat +1', 'Swift Gages', 'Jokushu Haidate',
+                                                         'Shukuyu Sune-ate', 'Evasion Torque', "Scouter's Rope", 'Novia Earring',
+                                                         'Ethereal Earring', 'Sattva Ring', 'Moepapa Ring', "Boxer's Mantle" } },
+        { ws = 'multi', jobs = { 'BST' }, items = { 'Tiphia Sting', 'Hecatomb Cap +1', 'Armada Hauberk', 'Hct. Mittens +1',
+                                                     'Hct. Leggings +1', 'Warwolf Belt +1', 'Brutal Earring', 'Rajas Ring',
+                                                     'Strigoi Ring', 'Cerb. Mantle +1' } },
+        { ws = 'single', jobs = { 'BST' }, items = { 'Tiphia Sting', 'Hecatomb Cap +1', 'Armada Hauberk', "Alkyoneus's Brc.",
+                                                      'Hct. Leggings +1', 'Warwolf Belt +1', 'Brutal Earring', "Vulcan's Earring",
+                                                      'Rajas Ring', 'Strigoi Ring', 'Cerb. Mantle +1' } },
+        { ws_names = { 'Rampage' }, jobs = { 'BST' }, items = { 'Zilant Ring' } },
+        { ws_names = { 'Primal Rend' }, jobs = { 'BST' }, items = { 'Imperial Egg', 'Jumalik Helm', 'Reiki Osode', 'Novio Earring',
+                                                                     'Moldavite Earring', "Lyricist's Gonnelle" } },
         -- NIN weaponskill ammo (every other NIN set keeps Yoru Shuriken): DEX weaponskills / STR weaponskills
         { ws_stat = 'dex', jobs = { 'NIN' }, items = { 'Yetshila +1' } },
         { ws_stat = 'str', jobs = { 'NIN' }, items = { 'Cinderstone' } },
@@ -796,6 +827,9 @@ return {
         drain_aspir   = 'Drain*|Aspir*',
         breath_spells = 'Dia*|Poison*|Poisonga*|Foot Kick|Barfire*',     -- spells that make the wyvern use a breath
         pet_breath    = 'Healing Breath*|Flame Breath|Frost Breath|Gust Breath|Hydro Breath|Lightning Breath|Sand Breath|Remove Breath',
+        -- BST pet moves that are magical or a debuff (LandSandBoat's own move scripts): they wear Ready_Magic;
+        -- every other Ready / Sic move (physical hits, buffs, heals) wears Ready
+        pet_magic     = 'Acid Mist|Acid Spray|Aqua Breath|Blaster|Bubble Shower|Chaotic Eye|Charged Whisker|Choke Breath|Corrosive Ooze|Cursed Sphere|Dark Spore|Digest|Drainkiss|Dream Flower|Dust Cloud|Filamented Hold|Fireball|Geist Wall|Gloeosuccus|Hi-Freq Field|Intimidate|Jettatura|Molting Plumage|Nihility Song|Noisome Powder|Numbing Noise|Palsy Pollen|Predatory Glare|Purulent Ooze|Roar|Sandblast|Sandpit|Scream|Sheep Song|Silence Gas|Snow Cloud|Soporific|Spider Web|Spoil|Spore|TP Drainkiss|Toxic Spit|Venom|Venom Spray',
     },
 
     -- Elemental obis: worn on the waist when the spell element matches weather, day or a storm buff
@@ -962,13 +996,58 @@ return {
         Angon       = { label = 'Angon', weights = {}, fixed = { ammo = 'Angon' } },
         DragonBreaker = { label = 'Dragon Breaker', weights = {}, fixed = { ammo = 'Fjoturangon' } },
         AncientCircle = { label = 'Ancient Circle', weights = {}, fixed = { legs = 'Drachen Brais' } },
-        -- BST pet sets. Charm: CHR + Charm duration. Reward: MND + Reward+ %, with your best pet food in the ammo slot.
-        -- Call Beast / Bestial Loyalty: jug pet level (Monster Gloves); the jug you chose with /jug goes in the ammo slot.
-        -- Ready: worn while your pet uses a Ready move (CHR, plus any Pet: pieces you pick by hand).
-        Charm         = { label = 'Charm', weights = { chr = 3, charmtime = 1, tame = 5, charm = 5 } },
-        Reward        = { label = 'Reward (pet food)', pet_food = true, weights = { mnd = 1, reward = 4 } },
-        CallBeast     = { label = 'Call Beast / Bestial Loyalty', weights = { jugrange = 10 } },
-        Ready         = { label = 'Ready (pet move)', weights = { chr = 1 } },
+        -- BST pet sets, from a BST player's profile (a list = any of those names, best first; a piece you don't own is
+        -- filled automatically). Charm and Call Beast / Bestial Loyalty wear the same CHR / pet gear; Call Beast keeps
+        -- the jug you chose with /jug in the ammo slot, Charm an Imperial Egg. Reward: MND / Reward+ gear with your
+        -- best pet food in the ammo slot.
+        Charm         = { label = 'Charm', weights = { chr = 3, charmtime = 1, tame = 5, charm = 5 },
+                          fixed = { ammo = 'Imperial Egg', head = { "Maat's Cap", 'Monster Helm', 'Bst. Helm +1' }, body = 'Reiki Osode', hands = 'Mst. Gloves +1',
+                                          legs = 'Bst. Trousers +1', feet = 'Mst. Gaiters +1', neck = "Combatant's Torque",
+                                          waist = 'Monster Belt', ring1 = 'Veela Ring', ring2 = 'Light Ring',
+                                          ear1 = 'Delta Earring', ear2 = 'Beastly Earring', back = "Lyricist's Gonnelle" } },
+        Reward        = { label = 'Reward (pet food)', pet_food = true, weights = { mnd = 1, reward = 4 },
+                          fixed = { head = 'Stout Bonnet', body = 'Bst. Jackcoat +1', hands = 'Ogre Gloves', legs = 'Magic Cuisses',
+                                    feet = { 'Mst. Gaiters +1', 'Bst. Gaiters +1' }, neck = "Aife's Medal", waist = 'Salire Belt',
+                                    ring1 = 'Levia. Ring', ring2 = 'Tamas Ring', ear1 = 'Aqua Earring', ear2 = 'Aqua Earring',
+                                    back = 'Ryl. Army Mantle' } },
+        CallBeast     = { label = 'Call Beast / Bestial Loyalty', weights = { jugrange = 10 },
+                          fixed = { head = { "Maat's Cap", 'Monster Helm', 'Bst. Helm +1' }, body = 'Reiki Osode', hands = 'Mst. Gloves +1',
+                                          legs = 'Bst. Trousers +1', feet = 'Mst. Gaiters +1', neck = "Combatant's Torque",
+                                          waist = 'Monster Belt', ring1 = 'Veela Ring', ring2 = 'Light Ring',
+                                          ear1 = 'Delta Earring', ear2 = 'Beastly Earring', back = "Lyricist's Gonnelle" } },
+        Tame          = { label = 'Tame', weights = {}, fixed = { head = 'Bst. Helm +1' } },
+        -- Using Sic / Ready yourself (before the pet's move)
+        SicReady      = { label = 'Sic / Ready (using it)', weights = {}, fixed = { body = 'Mst. Jackcoat +1', feet = 'Pinnacle Sabatons' } },
+        -- The pet's move: physical hits, buffs and heals wear Ready; magical / debuff moves (rules.pet_magic) Ready_Magic
+        Ready         = { label = 'Ready - Physical / buffs (pet move)', weights = { chr = 1 },
+                          fixed = { ammo = 'Imperial Egg', head = "Maat's Cap", body = 'Reiki Osode', hands = 'Bst. Gloves +1',
+                                    legs = 'Bst. Trousers +1', feet = 'Mst. Gaiters +1', neck = "Combatant's Torque",
+                                    waist = 'Monster Belt', ring1 = 'Veela Ring', ring2 = 'Light Ring', ear1 = 'Delta Earring',
+                                    ear2 = 'Beastly Earring', back = "Lyricist's Gonnelle" } },
+        Ready_Magic   = { label = 'Ready - Magical / debuffs (pet move)', weights = { chr = 1 },
+                          fixed = { ammo = 'Imperial Egg', head = 'Pinnacle Celata', body = 'Stout Jacket', hands = 'Mst. Gloves +1',
+                                    legs = 'Pinnacle Cuisses', feet = 'Mst. Gaiters +1', neck = "Combatant's Torque",
+                                    waist = 'Monster Belt', ring1 = 'Veela Ring', ring2 = 'Light Ring', ear1 = 'Delta Earring',
+                                    ear2 = 'Beastly Earring', back = 'Pincer Mantle' } },
+        -- BST idle while a pet is out (exported as Idle_Avatar, so the "pet is out" rules use it)
+        Idle_Pet      = { label = 'Idle - Pet out', name = 'Idle_Avatar', caps = DEF, weights = { dt = -5, pdt = -5, mdt = -2, regen = 3, haste = 1 },
+                          fixed = { head = 'Bst. Helm +1', body = { 'Bst. Jackcoat +1', 'Haubergeon +1', "Elder's Surcoat" },
+                                    hands = 'Melaco Mittens', legs = { 'Bst. Trousers +1', 'Republic Subligar' },
+                                    feet = { 'Bst. Gaiters +1', "Elder's Sandals" }, neck = 'Orochi Nodowa +1', waist = 'Beastly Girdle',
+                                    ear1 = "Terra's Earring", ear2 = "Terra's Earring", ring1 = { 'Jelly Ring', "Sniper's Ring +1" },
+                                    ring2 = { 'Succor Ring', 'Zilant Ring', "Sniper's Ring +1" }, back = { 'Oneiros Cappa', 'Amemet Mantle +1' } } },
+        -- BST engaged modes: /acc (more accuracy) and /petonly (your pet fights, you wear pet gear)
+        TP_Acc        = { label = 'TP - Accuracy (toggle /acc)', kind = 'tp', caps = { haste = 25 },
+                          weights = { combatskill = 0.9, stp = 5, da = 7, ta = 10, qa = 12, haste = 8, acc = 2.5, att = 0.3, str = 0.2, dex = 0.8, crit = 1.5, zanshin = 2 } },
+        TP_Pet        = { label = 'TP - Pet fights (toggle /petonly)', kind = 'tp', caps = { haste = 25 },
+                          weights = { haste = 5, acc = 1, att = 0.5, stp = 2, da = 3 },
+                          fixed = { head = 'Bst. Helm +1', body = { 'Bst. Jackcoat +1', 'Haubergeon +1', "Elder's Surcoat" },
+                                    hands = { 'Mst. Gloves +1', 'Bst. Gloves +1', "Elder's Bracers" }, legs = { 'Bst. Trousers +1', 'Republic Subligar' },
+                                    feet = { 'Armada Sollerets', "Elder's Sandals" }, neck = { "Combatant's Torque", 'Peacock Charm', 'Spike Necklace' },
+                                    waist = { 'Bolt Stone', 'Headlong Belt' }, ear1 = { 'Brutal Earring', "Merman's Earring", 'Beetle Earring +1' },
+                                    ear2 = { 'Beastly Earring', "Merman's Earring", 'Beetle Earring +1' }, ring1 = { 'Rajas Ring', "Sniper's Ring +1" },
+                                    ring2 = { "Mars's Ring", 'Zilant Ring', "Sniper's Ring +1" },
+                                    back = { "Aife's Mantle", "Cuchulain's Mantle", 'Amemet Mantle +1', 'Rep. Army Mantle' } } },
         -- Spirit Link: the wyvern is healed by HP drained from your current HP (gear can't raise that mid-fight);
         -- the only CatsEyeXI piece that boosts it is Drachen Armet +1 (+15 HP healed)
         SpiritLink    = { label = 'Spirit Link', weights = {}, fixed = { head = 'Drn. Armet +1' } },
@@ -1011,7 +1090,8 @@ return {
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
-        BST = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Charm', 'Reward', 'CallBeast', 'Ready', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
+                'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },

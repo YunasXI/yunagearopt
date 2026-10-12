@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.16';   -- the release workflow sets this to the release number
+addon.version = '1.1.17';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -765,6 +765,8 @@ function actions.slash_cmds(have)
     if have.PDT then table.insert(c, 'pdt'); end
     if have.MDT then table.insert(c, 'mdt'); end
     if have.TP_Hybrid and not have.__nohybrid then table.insert(c, 'hybrid'); end   -- PLD: TP_Hybrid is its engaged set anyway
+    if have.TP_Acc then table.insert(c, 'acc'); end
+    if have.TP_Pet then table.insert(c, 'petonly'); end
     if have.Nuke_MB then table.insert(c, 'mb'); end
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
@@ -1801,6 +1803,8 @@ local function build_full_xml(job_id)
     if have.PDT then toggle('/pdt', 'Mode', 'pdt', 'PDT mode'); end
     if have.MDT then toggle('/mdt', 'Mode', 'mdt', 'MDT mode'); end
     if have.TP_Hybrid and not have.__nohybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
+    if have.TP_Acc then toggle('/acc', 'Mode', 'acc', 'Accuracy TP mode'); end
+    if have.TP_Pet then toggle('/petonly', 'Mode', 'petonly', 'Pet fights (pet gear when engaged)'); end
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
@@ -1841,6 +1845,8 @@ local function build_full_xml(job_id)
     if have.PDT then table.insert(engaged, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(engaged, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
     if have.TP_Hybrid and not have.__nohybrid then table.insert(engaged, { cond = 'advanced="$Mode=hybrid"', body = equip_set('TP_Hybrid') }); end
+    if have.TP_Acc then table.insert(engaged, { cond = 'advanced="$Mode=acc"', body = equip_set('TP_Acc') }); end
+    if have.TP_Pet then table.insert(engaged, { cond = 'advanced="$Mode=petonly"', body = equip_set('TP_Pet') }); end
     local tp_body = have.TP and function(o, i)
         equip_set('TP')(o, i);
         if have.TH then emit_chain(o, i, { { cond = 'advanced="$TH=on"', body = equip_set('TH') } }, nil); end
@@ -2085,6 +2091,7 @@ local function build_full_xml(job_id)
     local pet_b = {};
     if have.BloodPact then table.insert(pet_b, { cond = attr('ad_type', 'bloodpactrage|bloodpactward'), body = equip_set('BloodPact') }); end
     if have.BreathPotency and R.pet_breath then table.insert(pet_b, { cond = attr('ad_name', R.pet_breath), body = equip_set('BreathPotency') }); end
+    if have.Ready_Magic and R.pet_magic then table.insert(pet_b, { cond = attr('ad_name', R.pet_magic), body = equip_set('Ready_Magic') }); end
     if #pet_b > 0 or have.Ready then
         add('    <petskill>');
         -- BST: any other pet move (Ready / Sic) wears the Ready set
@@ -2319,6 +2326,7 @@ local function build_gearswap(job_id)
     add('        song_debuff = ' .. lua_list(wild_to_patterns(R.song_debuff)) .. ',');
     add('        breath = ' .. lua_list(wild_to_patterns(R.breath_spells)) .. ',');
     add('        pet_breath = ' .. lua_list(wild_to_patterns(R.pet_breath)) .. ',');
+    add('        pet_magic = ' .. lua_list(wild_to_patterns(R.pet_magic or '')) .. ',');
     add('    }');
     add('    utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true));
     add('');
@@ -2422,6 +2430,8 @@ function idle_gear()
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
+        elseif Mode == 'acc' and eq('TP_Acc') then
+        elseif Mode == 'petonly' and eq('TP_Pet') then
         elseif engaged_dw and player.sub_job ~= 'NIN' and player.sub_job ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle')
         end
@@ -2594,6 +2604,7 @@ function aftercast(spell) idle_gear() end
 function pet_midcast(spell)
     if spell.type == 'BloodPactRage' or spell.type == 'BloodPactWard' then eq('BloodPact')
     elseif matches(spell.english, rules.pet_breath) then eq('BreathPotency')
+    elseif matches(spell.english, rules.pet_magic) and eq('Ready_Magic') then   -- BST: magical / debuff pet move
     elseif sets['Ready'] then eq('Ready') end           -- BST: the pet's Ready / Sic move
 end
 
@@ -2636,7 +2647,7 @@ function self_command(command)
         if not midaction() then idle_gear() end
         return
     end
-    if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
+    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' then
         Mode = (Mode == c) and 'normal' or c
         add_to_chat(158, 'Mode: ' .. Mode)
     elseif c == 'idle' then
@@ -2804,6 +2815,7 @@ local function build_lac(job_id)
     add('    song_debuff = ' .. lua_list(wild_to_patterns(R.song_debuff)) .. ',');
     add('    breath      = ' .. lua_list(wild_to_patterns(R.breath_spells)) .. ',');
     add('    pet_breath  = ' .. lua_list(wild_to_patterns(R.pet_breath)) .. ',');
+    add('    pet_magic   = ' .. lua_list(wild_to_patterns(R.pet_magic or '')) .. ',');
     add('};');
     add('local utsusemi_precast = ' .. tostring((data.utsusemi_precast or {})[abbr] == true) .. ';');
     add('');
@@ -2974,7 +2986,7 @@ end
 
 profile.HandleCommand = function(args)
     local c = (args[1] or ''):lower();
-    if c == 'pdt' or c == 'mdt' or c == 'hybrid' then
+    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' then
         Mode = (Mode == c) and 'normal' or c;
         gFunc.Message('Mode: ' .. Mode);
     elseif c == 'idle' then
@@ -3017,12 +3029,15 @@ profile.HandleDefault = function()
     if petAction ~= nil and petAction.Name ~= nil and matches(petAction.Name, rules.pet_breath) and eq('BreathPotency') then
         return;
     end
+    if petAction ~= nil and petAction.Name ~= nil and matches(petAction.Name, rules.pet_magic) and eq('Ready_Magic') then return; end
     if petAction ~= nil and eq('Ready') then return; end      -- BST: the pet's Ready / Sic move
     local player = gData.GetPlayer();
     if player.Status == 'Engaged' then
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
+        elseif Mode == 'acc' and eq('TP_Acc') then
+        elseif Mode == 'petonly' and eq('TP_Pet') then
         elseif engaged_dw and player.SubJob ~= 'NIN' and player.SubJob ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle');
         end
@@ -3456,6 +3471,7 @@ local CATEGORY_OF = {
     Counterstance = 'Abilities', Chakra = 'Abilities', Boost = 'Abilities', Focus = 'Abilities',
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     DWPAIR = 'Melee', Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
+    Ready_Magic = 'Abilities', SicReady = 'Abilities', Tame = 'Abilities', Idle_Pet = 'Defense & Idle', SIR = 'Precast',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle', Idle_Luopan = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
@@ -3945,20 +3961,20 @@ local function draw_header()
         -- Flat: no fill or glow, one hairline under the header
         gold_line(dl, x, y + h - 1, x + w);
 
-        -- Left: the VanaCore crystal, YUNA GEAROPT and, under the title, who and what was scanned
-        local lx = 6;
-        local vg = logo_texture('vanacore.png');
-        local VS = 54;
-        if vg then
-            local okf, fy = pcall(actions.fx_float);
-            imgui.SetCursorPos({ lx, 28 + (okf and fy or 0) });
-            local vx, vy = imgui.GetCursorScreenPos();
-            pcall(actions.fx_vanacore_back, dl, vx, vy, VS, VS, ui.vc_hov);
-            imgui.Image(vg.ptr, { VS, VS });
-            ui.vc_hov = imgui.IsItemHovered();
-            if ui.vc_hov then imgui.SetTooltip('Runs on VanaCore'); end
-            pcall(actions.fx_vanacore_front, dl, vx, vy, VS, VS, ui.vc_hov);
-            lx = lx + VS + 12;
+        -- Left: the YGO logo, YUNA GEAROPT and, under the title, who and what was scanned
+        local lx = 4;
+        local yg = logo_texture('ygo.png');
+        if yg then
+            local YS = 108;
+            imgui.SetCursorPos({ 0, 2 });
+            local gx, gy = imgui.GetCursorScreenPos();
+            pcall(actions.fx_ygo_back, dl, gx, gy, YS, YS, ui.ygo_hov);
+            pcall(actions.fx_blood, dl, gx, gy, YS, YS);
+            imgui.Image(yg.ptr, { YS, YS });
+            ui.ygo_hov = imgui.IsItemHovered();
+            if ui.ygo_hov then imgui.SetTooltip('YunaGearOpt ' .. tostring(addon.version)); end
+            pcall(actions.fx_ygo_front, dl, gx, gy, YS, YS, ui.ygo_hov);
+            lx = YS + 8;
         end
         imgui.SetCursorPos({ lx, 26 });
         if not pcall(actions.fx_title, dl) then
@@ -3979,18 +3995,18 @@ local function draw_header()
         end
         imgui.SetWindowFontScale(1.0);
 
-        -- Middle: the YGO logo
-        local yg = logo_texture('ygo.png');
-        if yg then
-            local YS = 108;
-            imgui.SetCursorPos({ math.floor((w - YS) / 2), 2 });
-            local gx, gy = imgui.GetCursorScreenPos();
-            pcall(actions.fx_ygo_back, dl, gx, gy, YS, YS, ui.ygo_hov);
-            pcall(actions.fx_blood, dl, gx, gy, YS, YS);
-            imgui.Image(yg.ptr, { YS, YS });
-            ui.ygo_hov = imgui.IsItemHovered();
-            if ui.ygo_hov then imgui.SetTooltip('YunaGearOpt ' .. tostring(addon.version)); end
-            pcall(actions.fx_ygo_front, dl, gx, gy, YS, YS, ui.ygo_hov);
+        -- Middle: the VanaCore crystal, smaller, floating
+        local vg = logo_texture('vanacore.png');
+        if vg then
+            local VS = 42;
+            local okf, fy = pcall(actions.fx_float);
+            imgui.SetCursorPos({ math.floor((w - VS) / 2), 35 + (okf and fy or 0) });
+            local vx, vy = imgui.GetCursorScreenPos();
+            pcall(actions.fx_vanacore_back, dl, vx, vy, VS, VS, ui.vc_hov);
+            imgui.Image(vg.ptr, { VS, VS });
+            ui.vc_hov = imgui.IsItemHovered();
+            if ui.vc_hov then imgui.SetTooltip('Runs on VanaCore'); end
+            pcall(actions.fx_vanacore_front, dl, vx, vy, VS, VS, ui.vc_hov);
         end
 
         -- Right: LOCKSTYLE (gold like VIEW BIS SET, solid while you're in it), then _ and X
