@@ -142,6 +142,7 @@ return {
     [300] = { {'geomancy',1,0,1,'l'} },
     [301] = { {'handbell',1,0,1,'l'} },
     [319] = { {'refreshpot',1,0,1,'l'} },   -- CatsEyeXI SCNM legs: "Refresh" potency +1 (not in LandSandBoat)
+    [164] = { {'songdur',1,0,1,'l'} },      -- CatsEyeXI augment (Brd. Jstcorps +1, Marduk's Shalwar...): "Song duration +%" (not in LandSandBoat)
     [320] = { {'bpdelay',1,0,1,'l'} },
     [322] = { {'songct',1,0,1,'l'} },
     [323] = { {'curect',1,0,1,'l'} },

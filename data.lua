@@ -668,6 +668,9 @@ return {
         ['Monster Trousers']  = { charmtime = 2 },
         ['Mst. Trousers +1']  = { charmtime = 2 },
         ['Loquac. Earring']   = { mp = 30, fc = 2 },
+        -- BRD song duration the item data doesn't carry: Carnwenhan (+10%) and the SCNM Apex Haidate's augment (+10%)
+        ['Carnwenhan']        = { songdur = 10 },
+        ['Apex Haidate']      = { songdur = 10 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
         ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
         ['Sattva Ring']       = { hp = 15, vit = 5, agi = 5, enmity = 3 },
