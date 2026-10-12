@@ -538,6 +538,23 @@ return {
     },
     overrides = { ['Aesir Mantle'] = { da = 1 } },
 
+    -- Armor set bonuses (CatsEyeXI: the Salvage and Assault sets now give a bonus from 2 pieces on).
+    -- prefixes = the start of the item names (lower case, letters and digits only: "Marduk's Jubbah" -> "marduksjubbah",
+    -- short in-game names like "Mdk. Shalwar +1" -> "mdkshalwar1"); only head / body / hands / legs / feet count.
+    -- values = the bonus with 1, 2, 3, 4, 5 pieces. Askar's "HP +0/2/4/7/10%" is counted as flat HP (about 1500 HP at 75).
+    set_bonuses = {
+        { name = 'Ares',       prefixes = { 'ares' },                     stat = 'da',    values = { 0, 1, 2, 3, 5 } },
+        { name = "Marduk's",   prefixes = { 'marduks', 'mdk' },           stat = 'fc',    values = { 0, 1, 2, 3, 5 } },
+        { name = "Morrigan's", prefixes = { 'morrigans', 'morcoronal' },  stat = 'mab',   values = { 0, 1, 2, 3, 5 } },
+        { name = "Skadi's",    prefixes = { 'skadis', 'skd' },            stat = 'crit',  values = { 0, 1, 2, 3, 5 } },
+        { name = 'Usukane',    prefixes = { 'usukane', 'usk' },           stat = 'haste', values = { 0, 1, 2, 3, 5 } },
+        { name = 'Denali',     prefixes = { 'denali' },                   stat = 'acc',   values = { 0, 4, 8, 14, 20 } },
+        { name = 'Askar',      prefixes = { 'askar' },                    stat = 'hp',    values = { 0, 30, 60, 105, 150 } },
+        { name = 'Pahluwan',   prefixes = { 'pln' },                      stat = 'sb',    values = { 0, 2, 4, 7, 10 } },
+        { name = 'Goliard',    prefixes = { 'goliard' },                  stat = 'mdb',   values = { 0, 2, 4, 7, 10 } },
+        { name = 'Amir',       prefixes = { 'amir' },                     stat = 'mdt',   values = { 0, -2, -4, -7, -10 } },
+    },
+
     -- Items whose normal and HQ (+1) versions don't work together: never both in one set, the better one stays
     -- (players reported Brutal Earring + Brutal Earring +1 don't stack)
     no_stack = { 'Brutal Earring' },
@@ -877,6 +894,14 @@ return {
         MDT         = { label = 'Magic defense', caps = DEF, weapons = true,
                         weights = { dt = -10, mdt = -10, mdb = 6, meva = 1, hp = 0.05 } },
         Movement    = { label = 'Movement speed', weights = { move = 20 } },
+        -- NIN evasion tanking (/eva: worn engaged and idle). A NIN player's set; a piece you don't own is filled
+        -- automatically from evasion / damage taken gear.
+        Evasion     = { label = 'Evasion (toggle /eva)', caps = DEF, weapons = true,
+                        weights = { eva = 5, agi = 1, dt = -3, pdt = -3, mdt = -1, haste = 1, acc = 0.3 },
+                        fixed = { main = 'Nagi', sub = 'Mercurial Kunai', ammo = 'Yoru Shuriken', head = 'Nin. Hatsuburi +1',
+                                  neck = 'Evasion Torque', ear1 = 'Evasion Earring', ear2 = 'Novia Earring', body = 'Usukane Haramaki',
+                                  hands = 'Kog. Tekko +1', ring1 = 'Shukuyu Ring', ring2 = 'Titanium Band', back = "Boxer's Mantle",
+                                  waist = 'Koga Sarashi', legs = "Acrobat's Breeches", feet = 'Kog. Kyahan +1' } },
         -- Precast
         Precast      = { label = 'Precast - Fast Cast', caps = { fc = 80 }, weapons = true, weights = { fc = 10 } },
         Precast_Cure = { label = 'Precast - Cure', caps = { fc = 80, curect = 50 }, weapons = true, weights = { fc = 10, curect = 8 } },
@@ -1109,7 +1134,7 @@ return {
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
-        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },

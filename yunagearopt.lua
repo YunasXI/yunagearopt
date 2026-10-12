@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.19';   -- the release workflow sets this to the release number
+addon.version = '1.1.20';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -377,6 +377,8 @@ local function parse_stats(desc)
     local stats = {};
     if desc == nil or desc == '' then return stats; end
     local text = desc:gsub('[\r\n]', ' '):lower();
+    -- Hyphenated stat names ("Hand-to-Hand skill +9", "H-to-H"): the stat reader below stops at a hyphen
+    text = text:gsub('hand%-to%-hand', 'hand to hand'):gsub('h%-to%-h', 'hand to hand');
 
     -- Stats followed by a zone condition ("Double Attack+2% while in Lumoria") don't count
     for _, z in ipairs(ZONE_WORDS) do
@@ -767,6 +769,7 @@ function actions.slash_cmds(have)
     if have.TP_Hybrid and not have.__nohybrid then table.insert(c, 'hybrid'); end   -- PLD: TP_Hybrid is its engaged set anyway
     if have.TP_Acc then table.insert(c, 'acc'); end
     if have.TP_Pet then table.insert(c, 'petonly'); end
+    if have.Evasion then table.insert(c, 'eva'); end
     if have.Nuke_MB then table.insert(c, 'mb'); end
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
@@ -1035,6 +1038,29 @@ local function score_of(stats, w)
     return total;
 end
 
+-- Armor set bonuses (data.set_bonuses): pieces of one Salvage / Assault family in head / body / hands / legs / feet
+actions.ARMOR_SLOTS = { head = true, body = true, hands = true, legs = true, feet = true };
+function actions.add_set_bonuses(assign, w, totals)
+    local list = data and data.set_bonuses;
+    if list == nil then return; end
+    for _, sb in ipairs(list) do
+        if w[sb.stat] then
+            local n = 0;
+            for slot, c in pairs(assign) do
+                if actions.ARMOR_SLOTS[slot] and c.item and c.item.name then
+                    local k = c.item._sbkey;
+                    if k == nil then k = c.item.name:lower():gsub('[^%w]', ''); c.item._sbkey = k; end
+                    for _, pre in ipairs(sb.prefixes) do
+                        if k:sub(1, #pre) == pre then n = n + 1; break; end
+                    end
+                end
+            end
+            local v = n > 0 and (sb.values[math.min(n, #sb.values)] or 0) or 0;
+            if v ~= 0 then totals[sb.stat] = (totals[sb.stat] or 0) + v; end
+        end
+    end
+end
+
 local function set_totals(assign, w)
     local totals = {};
     for _, c in pairs(assign) do
@@ -1042,6 +1068,7 @@ local function set_totals(assign, w)
             if w[k] then totals[k] = (totals[k] or 0) + v; end
         end
     end
+    actions.add_set_bonuses(assign, w, totals);
     return totals;
 end
 
@@ -1805,6 +1832,7 @@ local function build_full_xml(job_id)
     if have.TP_Hybrid and not have.__nohybrid then toggle('/hybrid', 'Mode', 'hybrid', 'Hybrid TP mode'); end
     if have.TP_Acc then toggle('/acc', 'Mode', 'acc', 'Accuracy TP mode'); end
     if have.TP_Pet then toggle('/petonly', 'Mode', 'petonly', 'Pet fights (pet gear when engaged)'); end
+    if have.Evasion then toggle('/eva', 'Mode', 'eva', 'Evasion mode'); end
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
@@ -1847,6 +1875,7 @@ local function build_full_xml(job_id)
     if have.TP_Hybrid and not have.__nohybrid then table.insert(engaged, { cond = 'advanced="$Mode=hybrid"', body = equip_set('TP_Hybrid') }); end
     if have.TP_Acc then table.insert(engaged, { cond = 'advanced="$Mode=acc"', body = equip_set('TP_Acc') }); end
     if have.TP_Pet then table.insert(engaged, { cond = 'advanced="$Mode=petonly"', body = equip_set('TP_Pet') }); end
+    if have.Evasion then table.insert(engaged, { cond = 'advanced="$Mode=eva"', body = equip_set('Evasion') }); end
     local tp_body = have.TP and function(o, i)
         equip_set('TP')(o, i);
         if have.TH then emit_chain(o, i, { { cond = 'advanced="$TH=on"', body = equip_set('TH') } }, nil); end
@@ -1864,6 +1893,7 @@ local function build_full_xml(job_id)
     local idle_branches = {};
     if have.PDT then table.insert(idle_branches, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
     if have.MDT then table.insert(idle_branches, { cond = 'advanced="$Mode=mdt"', body = equip_set('MDT') }); end
+    if have.Evasion then table.insert(idle_branches, { cond = 'advanced="$Mode=eva"', body = equip_set('Evasion') }); end
     if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
     if have.Idle_NIN then table.insert(idle_branches, { cond = attr('p_subjob', 'NIN'), body = equip_set('Idle_NIN') }); end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
@@ -2432,6 +2462,7 @@ function idle_gear()
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
         elseif Mode == 'acc' and eq('TP_Acc') then
         elseif Mode == 'petonly' and eq('TP_Pet') then
+        elseif Mode == 'eva' and eq('Evasion') then
         elseif engaged_dw and player.sub_job ~= 'NIN' and player.sub_job ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle')
         end
@@ -2444,6 +2475,7 @@ function idle_gear()
     else
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
+        elseif Mode == 'eva' and eq('Evasion') then
         elseif RefreshOn and eq('Refresh') then
         elseif player.sub_job == 'NIN' and eq('Idle_NIN') then
         elseif pet.isvalid and eq('Idle_Avatar') then
@@ -2647,7 +2679,7 @@ function self_command(command)
         if not midaction() then idle_gear() end
         return
     end
-    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' then
+    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' or c == 'eva' then
         Mode = (Mode == c) and 'normal' or c
         add_to_chat(158, 'Mode: ' .. Mode)
     elseif c == 'idle' then
@@ -2986,7 +3018,7 @@ end
 
 profile.HandleCommand = function(args)
     local c = (args[1] or ''):lower();
-    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' then
+    if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' or c == 'eva' then
         Mode = (Mode == c) and 'normal' or c;
         gFunc.Message('Mode: ' .. Mode);
     elseif c == 'idle' then
@@ -3038,6 +3070,7 @@ profile.HandleDefault = function()
         elseif Mode == 'hybrid' and eq('TP_Hybrid') then
         elseif Mode == 'acc' and eq('TP_Acc') then
         elseif Mode == 'petonly' and eq('TP_Pet') then
+        elseif Mode == 'eva' and eq('Evasion') then
         elseif engaged_dw and player.SubJob ~= 'NIN' and player.SubJob ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle');
         end
@@ -3050,6 +3083,7 @@ profile.HandleDefault = function()
     else
         if Mode == 'pdt' and eq('PDT') then
         elseif Mode == 'mdt' and eq('MDT') then
+        elseif Mode == 'eva' and eq('Evasion') then
         elseif RefreshOn and eq('Refresh') then
         elseif player.SubJob == 'NIN' and eq('Idle_NIN') then
         elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
@@ -3472,6 +3506,7 @@ local CATEGORY_OF = {
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     DWPAIR = 'Melee', Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
     Ready_Magic = 'Abilities', SicReady = 'Abilities', Tame = 'Abilities', Idle_Pet = 'Defense & Idle', SIR = 'Precast',
+    Evasion = 'Defense & Idle',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle', Idle_Luopan = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
@@ -3676,6 +3711,46 @@ function actions.chevron_button(id)
     dl:AddLine({ cx - 4.5, cy - 2.5 }, { cx, cy + 2 }, col, 1.6);
     dl:AddLine({ cx, cy + 2 }, { cx + 4.5, cy - 2.5 }, col, 1.6);
     return clicked;
+end
+
+-- A sidebar section name that folds: the whole row is the button (click = fold / open this section, right-click =
+-- fold / open every section). The arrow at the right edge points down while open, right while folded.
+function actions.fold_header(key, text, col)
+    local folded = ui.cat_folded[key];
+    local x, y = imgui.GetCursorScreenPos();
+    local lh = imgui.GetTextLineHeight();
+    local wx = imgui.GetWindowPos();
+    if type(wx) == 'table' then wx = wx.x or wx[1]; end
+    local w, h = imgui.GetWindowWidth() - 20 - (x - (wx or x)), lh + 8;
+    local clicked = imgui.InvisibleButton('##fold_' .. key, { w, h });
+    local rclicked = imgui.IsItemClicked(1);
+    local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
+    local dl = imgui.GetWindowDrawList();
+    if hov then dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, held and 0.09 or 0.045 }), 6); end
+    local tc = hov and C.text or (folded and C.gold_dim or col);
+    dl:AddText({ x + 4, y + 4 }, u32(tc), text);
+    local ax, cy = x + w - 17, y + h / 2;
+    local c = u32(hov and C.text or (folded and C.gold_dim or col));
+    if folded then
+        dl:AddTriangleFilled({ ax - 2, cy - 5 }, { ax - 2, cy + 5 }, { ax + 4, cy }, c);
+    else
+        dl:AddTriangleFilled({ ax - 5, cy - 3 }, { ax + 5, cy - 3 }, { ax, cy + 3 }, c);
+    end
+    if hov then imgui.SetTooltip((folded and 'Click to show' or 'Click to hide') .. '\nRight-click: fold / open every section'); end
+    if clicked then ui.cat_folded[key] = not folded; end
+    if rclicked then actions.fold_all(); end
+end
+
+-- Fold every section (categories and weaponskill groups), or open them all if they are all folded already
+function actions.fold_all()
+    local keys = {};
+    for _, c in ipairs(CATEGORY_ORDER) do table.insert(keys, c); end
+    for _, d in ipairs(ui.sets or {}) do
+        if d.ws and d.ws.skill then table.insert(keys, 'ws:' .. d.ws.skill); end
+    end
+    local any_open = false;
+    for _, k in ipairs(keys) do if not ui.cat_folded[k] then any_open = true; break; end end
+    for _, k in ipairs(keys) do ui.cat_folded[k] = any_open; end
 end
 
 function actions.switch(id, on, w, h, quiet)
@@ -4060,28 +4135,32 @@ local function draw_sidebar()
         imgui.Spacing();
         -- (Lockstyle isn't a gear set: its button is in the header, next to the scan info)
         caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 1));
+        -- Section names fold (click), right-click folds / opens them all
+        ui.cat_folded = ui.cat_folded or {};
         for _, cat in ipairs(CATEGORY_ORDER) do
             local first = true;
             local last_skill = nil;
             for i, d in ipairs(ui.sets) do
                 if category(d) == cat then
-                    local function header(text)                -- VanaCore's small grey section label
+                    local function header(text)                -- VanaCore's small grey section label; click = fold
                         imgui.Spacing();
-                        imgui.SetWindowFontScale(0.78);
-                        imgui.TextColored(C.muted, text);
+                        imgui.SetWindowFontScale(0.9);
+                        actions.fold_header(cat, text, C.muted);
                         imgui.SetWindowFontScale(1.0);
                     end
                     if cat == 'Weaponskills' and d.ws and d.ws.skill and d.ws.skill ~= last_skill then
                         if first then header(cat:upper()); first = false; end
                         last_skill = d.ws.skill;
-                        imgui.SetWindowFontScale(0.82);
-                        imgui.TextColored(C.gold_dim, '  ' .. (SKILL_NAMES[d.ws.skill] or ''));
+                        imgui.SetWindowFontScale(0.98);
+                        if not ui.cat_folded[cat] then actions.fold_header('ws:' .. d.ws.skill, '  ' .. (SKILL_NAMES[d.ws.skill] or ''), C.gold_dim); end
                         imgui.SetWindowFontScale(1.0);
                     end
                     if first then
                         header(cat:upper());
                         first = false;
                     end
+                    local wsfold = cat == 'Weaponskills' and d.ws and d.ws.skill and ui.cat_folded['ws:' .. d.ws.skill];
+                    if not ui.cat_folded[cat] and not wsfold then  -- a folded section shows only its name
                     local label = (d.kind == 'ws' and d.ws and d.id ~= 'WS') and d.ws.name or d.label:gsub('^WS %- ', '');
                     local sel = i == ui.set_idx;
                     local sx, sy = imgui.GetCursorScreenPos();
@@ -4125,6 +4204,7 @@ local function draw_sidebar()
                         imgui.SetTooltip(d.disabled and 'Off: left out of your exported files. Click to turn it on.'
                             or 'On: this set is exported. Click to leave it out of your files.');
                     end
+                    end                                             -- folded category
                 end
             end
         end
