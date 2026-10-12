@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.20';   -- the release workflow sets this to the release number
+addon.version = '1.1.21';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -875,7 +875,7 @@ local function build_sets(job_id)
                     base_weights = (def.weights_by_job and def.weights_by_job[abbr]) or def.weights, caps = def.caps or {},
                     weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
-                    info = def.info, obi = def.obi,
+                    info = def.info, obi = def.obi, instrument = def.instrument,
                 };
                 local pref = {};
                 if in_wset then pref.main, pref.sub = true, true; end          -- melee weapons only from your list
@@ -931,9 +931,16 @@ local function build_sets(job_id)
         end
         for _, entry in ipairs(list) do
             entry.no_ammo = true;
-            entry.bis_range = kr[1];
-            if keep then
-                entry.range, entry.range_weapon = 'keep', keep;
+            entry.bis_range = entry.instrument or kr[1];
+            -- A set with its own instrument (BRD Ballad, Lullaby / Finale: Terpander) wears it when you own it
+            local mine = nil;
+            if entry.instrument then
+                for _, it in ipairs(owned) do
+                    if mine == nil and name_key(it.name) == name_key(entry.instrument) then mine = it.name; end
+                end
+            end
+            if mine or keep then
+                entry.range, entry.range_weapon = 'keep', mine or keep;
                 entry.pref_slots = entry.pref_slots or {};
                 entry.pref_slots.range = true;                    -- only that piece, never another instrument
             else

@@ -1819,6 +1819,9 @@ return {
         },
     },
     MNK = {
+        ['TP_MNK'] = { -- TP: Aife's Mantle on the back (not Melee Cape); every other slot is picked automatically
+            back  = "Aife's Mantle",
+        },
         ['Focus'] = { -- Temple Crown +1 enhances Focus
             head  = 'Tpl. Crown +1',
         },

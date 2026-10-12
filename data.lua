@@ -91,6 +91,8 @@ return {
         { 'Flash', 'Enmity', jobs = { 'PLD' } }, { 'Reprisal', 'Enmity', jobs = { 'PLD' } }, { 'Phalanx*', 'Phalanx' },
         -- BRD: Lullabies and Finale share one set (song recast delay gear, Terpander)
         { '*Lullaby*|*Finale*', 'LullabyFinale', jobs = { 'BRD' } },
+        -- BRD: Ballads wear their own set (Terpander as the instrument)
+        { '*Ballad*', 'Ballad', jobs = { 'BRD' } },
         -- BLU: each blue spell to its category set (any blue spell not listed here uses BlueMagic)
         { 'Poisona|Paralyna|Blindna|Silena|Stona|Viruna|Cursna|Erase', 'NaSpells' },
         { 'Refresh|Refresh II|Refresh III', 'RefreshSpell' },
@@ -255,6 +257,7 @@ return {
         ["Mirage Mantle"] = { stats = { hp = 10, mp = 10, blue = 7, stp = 5 } },   -- BLU
         ["Brd. Roundlet +1"] = { stats = { refresh = 1, songct = 5, wind = 7 } },   -- BRD
         ["Brd. Jstcorps +1"] = { stats = { pdt = -4, singing = 7, songdur = 5 } },   -- BRD
+        ["Apex Haidate"] = { stats = { songdur = 10 } },   -- BRD SCNM augment: song duration +10%
         ["Brd. Cuffs +1"] = { stats = { fc = 3, mdt = -4, regen = 2 } },   -- BRD
         ["Brd. Cannions +1"] = { stats = { cure = 5, dt = -4, macc = 6 } },   -- BRD
         ["Brd. Slippers +1"] = { stats = { chr = 8, string = 8 } },   -- BRD
@@ -601,7 +604,9 @@ return {
         -- STR rings in every weaponskill with a STR modifier (ws_stat = WS that uses that stat)
         { ws_stat = 'str', items = { 'Ifrit Ring +1', 'Strigoi Ring' } },
         -- SCNM Apex: BRD song duration (legs) and song recast -10 (feet), COR Phantom Roll +1 (legs)
-        { sets = { 'Songs_Buff' },   jobs = { 'BRD' }, items = { 'Apex Haidate' } },
+        { sets = { 'Songs_Buff', 'Ballad' }, jobs = { 'BRD' }, items = { 'Apex Haidate' } },
+        -- BRD Ballad: Terpander whenever you own it
+        { sets = { 'Ballad' }, jobs = { 'BRD' }, items = { 'Terpander' } },
         { sets = { 'Songs_Debuff' }, jobs = { 'BRD' }, items = { 'Apex Sune-Ate' } },
         { sets = { 'PhantomRoll' },  jobs = { 'COR' }, items = { 'Apex Haidate' } },
         -- SCNM legs augmented "Refresh +1" (stronger Refresh spell): worn when casting Refresh / Battery Charge
@@ -687,9 +692,9 @@ return {
         ['Monster Trousers']  = { charmtime = 2 },
         ['Mst. Trousers +1']  = { charmtime = 2 },
         ['Loquac. Earring']   = { mp = 30, fc = 2 },
-        -- BRD song duration the item data doesn't carry: Carnwenhan (+10%) and the SCNM Apex Haidate's augment (+10%)
+        -- BRD song duration the item data doesn't carry: Carnwenhan (+10%). (Apex Haidate's +10% is its SCNM augment,
+        -- read from your own pair and assumed for the Best in Slot copy in max_augments.)
         ['Carnwenhan']        = { songdur = 10 },
-        ['Apex Haidate']      = { songdur = 10 },
         -- SCNM Apex Sune-Ate's BRD augment: song recast delay -10 (counted whether or not you own it, so Best in Slot sees it too)
         ['Apex Sune-Ate']     = { songrecast = 10 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
@@ -933,8 +938,11 @@ return {
                           weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5 } },
         Songs_Debuff  = { label = 'Songs - Debuff', weapons = true, range = 'instrument',
                           weights = { chr = 3, macc = 3, singing = 2, string = 2, wind = 2 } },
+        -- Ballad: the buff song set, with Terpander as the instrument (Best in Slot too)
+        Ballad        = { label = 'Songs - Ballad (Terpander)', weapons = true, range = 'instrument', instrument = 'Terpander',
+                          weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5 } },
         -- Lullaby / Finale: a BRD player's set, built for song recast delay (a piece you don't own is filled automatically)
-        LullabyFinale = { label = 'Songs - Lullaby / Finale (recast)', weapons = true, range = 'instrument',
+        LullabyFinale = { label = 'Songs - Lullaby / Finale (recast)', weapons = true, range = 'instrument', instrument = 'Terpander',
                           weights = { songrecast = 10, chr = 2, macc = 2, singing = 1, string = 1, wind = 1 },
                           fixed = { main = 'Alkalurops', sub = 'Reflexive Grip +1', range = 'Terpander', head = 'Brd. Roundlet +1',
                                     body = 'Chl. Jstcorps +1', hands = 'Sheikh Gages', legs = 'Chl. Cannions +1', feet = 'Apex Sune-Ate',
@@ -1131,7 +1139,7 @@ return {
         DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
                 'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
-        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Ballad', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
