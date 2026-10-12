@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.15';   -- the release workflow sets this to the release number
+addon.version = '1.1.16';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -80,7 +80,7 @@ local function item_icon(id)
     return icons[id] or nil;
 end
 
--- CatsEyeXI logo for the header, loaded once from images\catseye.png (false = missing)
+-- Header picture (images\vanacore.png), each picture loaded once (false = missing)
 local logo = nil;
 local function logo_texture(name)
     logo = logo or {};                                     -- one texture per image file (false = missing)
@@ -3783,54 +3783,222 @@ local function job_button(i, abbr, size)
     return clicked;
 end
 
+-- Living header logos. Everything is drawn over / behind the two pictures with the draw list (soft circles and
+-- little four-point stars), so there are no extra images. Positions are fractions of each picture.
+function actions.fx_time()
+    local ok, t = pcall(imgui.GetTime);
+    return (ok and type(t) == 'number') and t or os.clock();
+end
+
+-- A soft round glow: a few stacked circles, faint at the edge and brighter in the middle
+function actions.fx_glow(dl, cx, cy, r, col, a)
+    for i = 4, 1, -1 do
+        dl:AddCircleFilled({ cx, cy }, r * i / 4, u32({ col[1], col[2], col[3], a * 0.32 }), 24);
+    end
+end
+
+-- A four-point twinkle star
+function actions.fx_star(dl, cx, cy, sz, a)
+    local c, k = u32({ 1, 1, 0.92, a }), sz * 0.22;
+    dl:AddTriangleFilled({ cx - sz, cy }, { cx, cy - k }, { cx, cy + k }, c);
+    dl:AddTriangleFilled({ cx + sz, cy }, { cx, cy + k }, { cx, cy - k }, c);
+    dl:AddTriangleFilled({ cx, cy - sz }, { cx + k, cy }, { cx - k, cy }, c);
+    dl:AddTriangleFilled({ cx, cy + sz }, { cx - k, cy }, { cx + k, cy }, c);
+end
+
+-- Twinkle strength for a star with its own rhythm: mostly off, a short bright flash
+function actions.fx_twinkle(t, speed, phase)
+    local v = math.max(0, math.sin(t * speed + phase));
+    return v * v * v;
+end
+
+-- VanaCore: the picture floats up and down; behind it the crystal breathes blue; the pom-pom glows; sparkles
+function actions.fx_vanacore_back(dl, x, y, w, h, hov)
+    local t = actions.fx_time();
+    local p = 0.5 + 0.5 * math.sin(t * 1.6);
+    actions.fx_glow(dl, x + 0.42 * w, y + 0.47 * h, w * (0.36 + 0.04 * p), { 0.35, 0.65, 1.0 }, (hov and 0.22 or 0.10) + 0.08 * p);
+end
+
+function actions.fx_vanacore_front(dl, x, y, w, h, hov)
+    local t = actions.fx_time();
+    actions.fx_glow(dl, x + 0.72 * w, y + 0.19 * h, w * 0.07, { 1.0, 0.35, 0.30 }, 0.10 + 0.08 * math.sin(t * 3.0));
+    for _, st in ipairs({ { 0.26, 0.22, 1.2, 0.5 }, { 0.56, 0.60, 1.0, 2.6 }, { 0.30, 0.74, 1.4, 4.4 }, { 0.48, 0.12, 0.8, 1.7 } }) do
+        local a = actions.fx_twinkle(t, st[3] * (hov and 1.8 or 1), st[4]);
+        if a > 0.04 then actions.fx_star(dl, x + st[1] * w, y + st[2] * h, 2 + 3 * a, a); end
+    end
+end
+
+-- The title, letter by letter: YUNA in white, GEAROPT flowing between periwinkle and ice blue, a light sweep across
+-- both words every 6 seconds (every 2.5 while the mouse is on it) that ends with a little star at the T
+function actions.fx_title(dl)
+    local t = actions.fx_time();
+    local full = 'YUNA GEAROPT';
+    imgui.SetWindowFontScale(1.5);
+    local x0, y0 = imgui.GetCursorScreenPos();
+    local tw, lh = text_w(full), imgui.GetTextLineHeight();
+    local period = ui.title_hov and 2.5 or 6;
+    local ph = t % period;
+    local sweep = ph < 1.1 and (ph / 1.1) * (tw + 40) - 20 or nil;
+    for i = 1, #full do
+        local ch = full:sub(i, i);
+        if ch ~= ' ' then
+            local cx = x0 + text_w(full:sub(1, i - 1));
+            local col = C.text;
+            if i > 5 then                                     -- GEAROPT: a slow colour wave through the letters
+                local u = 0.5 + 0.5 * math.sin(t * 1.2 - i * 0.45);
+                col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
+            end
+            local k = sweep and math.max(0, 1 - math.abs(cx + text_w(ch) / 2 - x0 - sweep) / 22) or 0;
+            dl:AddText({ cx, y0 }, u32({ col[1] + (1 - col[1]) * k, col[2] + (1 - col[2]) * k, col[3] + (1 - col[3]) * k, 1 }), ch);
+        end
+    end
+    if ph >= 1.1 and ph < 1.6 then                            -- the sweep's end: a quick star by the T
+        local a = 1 - (ph - 1.1) / 0.5;
+        actions.fx_star(dl, x0 + tw + 5, y0 + lh * 0.22, 2 + 5 * a, a);
+    end
+    imgui.Dummy({ tw, lh });
+    ui.title_hov = imgui.IsItemHovered();
+    imgui.SetWindowFontScale(1.0);
+end
+
+-- YGO logo: a breathing blue glow behind it, a glint that runs down the katana every few seconds and flashes at the
+-- tip, the eyes lighting up now and then, and a spark slowly circling the ink ring. Hover = brighter, faster glint.
+function actions.fx_ygo_back(dl, x, y, w, h, hov)
+    local t = actions.fx_time();
+    local p = 0.5 + 0.5 * math.sin(t * 1.4);
+    actions.fx_glow(dl, x + 0.50 * w, y + 0.48 * h, w * (0.40 + 0.03 * p), { 0.35, 0.50, 1.0 }, (hov and 0.20 or 0.08) + 0.07 * p);
+end
+
+function actions.fx_ygo_front(dl, x, y, w, h, hov)
+    local t = actions.fx_time();
+    local function at(fx, fy) return x + fx * w, y + fy * h; end
+    -- the glint along the blade (guard -> tip)
+    local period = hov and 2.2 or 4.5;
+    local ph = t % period;
+    if ph < 0.55 then
+        local u = ph / 0.55;
+        local gx, gy = at(0.34 + (0.86 - 0.34) * u, 0.37 + (0.71 - 0.37) * u);
+        actions.fx_glow(dl, gx, gy, w * 0.05, { 0.80, 0.88, 1.0 }, 0.55);
+        dl:AddCircleFilled({ gx, gy }, w * 0.012, u32({ 1, 1, 1, 0.9 }), 12);
+    elseif ph < 0.95 then
+        local a = 1 - (ph - 0.55) / 0.4;
+        local tx, ty = at(0.86, 0.71);
+        actions.fx_star(dl, tx, ty, 3 + 6 * a, a);
+    end
+    -- the eyes
+    local eph = (t + 2.0) % 6;
+    local e = eph < 0.6 and math.sin(eph / 0.6 * math.pi) or 0;
+    if hov then e = math.max(e, 0.6); end
+    if e > 0.02 then
+        local ex, ey = at(0.525, 0.345);
+        actions.fx_glow(dl, ex, ey, w * 0.035, { 0.45, 0.65, 1.0 }, e * 0.8);
+    end
+    -- a spark circling the ring
+    local ang = t * 0.8;
+    local cx, cy = at(0.50, 0.47);
+    local sx, sy = cx + math.cos(ang) * w * 0.36, cy + math.sin(ang) * h * 0.36;
+    actions.fx_glow(dl, sx, sy, w * 0.03, { 0.55, 0.70, 1.0 }, 0.45);
+    actions.fx_star(dl, sx, sy, 2.5 + 1.5 * math.sin(t * 6), 0.8);
+end
+
+-- Blood draining from the katana: a wet line on the end of the blade, and small drops that swell at the tip, fall
+-- and leave a tiny splash below (two drops, staggered, so one is always forming while the other falls).
+function actions.fx_blood(dl, x, y, w, h)
+    local t = actions.fx_time();
+    local red = { 0.66, 0.05, 0.07 };
+    local function col(a) return u32({ red[1], red[2], red[3], a }); end
+    local tx, ty = x + 0.86 * w, y + 0.71 * h;
+    dl:AddLine({ x + 0.77 * w, y + 0.65 * h }, { tx, ty }, col(0.55), math.max(1, w * 0.010));
+    local land = y + 0.97 * h;
+    for i = 0, 1 do
+        local ph = (t + i * 1.3) % 2.6;
+        if ph < 1.1 then                                       -- swelling at the tip
+            local r = w * (0.005 + 0.009 * ph / 1.1);
+            dl:AddLine({ tx, ty }, { tx, ty + r }, col(0.9), r * 0.9);
+            dl:AddCircleFilled({ tx, ty + r * 1.2 }, r, col(0.92), 12);
+        elseif ph < 1.6 then                                   -- falling (speeding up)
+            local u = (ph - 1.1) / 0.5;
+            local fy = ty + w * 0.017 + (land - ty - w * 0.017) * u * u;
+            dl:AddCircleFilled({ tx, fy }, w * 0.013, col(0.92), 12);
+            dl:AddCircleFilled({ tx, fy - w * 0.013 }, w * 0.007, col(0.8), 10);
+        elseif ph < 2.4 then                                   -- tiny splash, fading
+            local a = 1 - (ph - 1.6) / 0.8;
+            dl:AddCircleFilled({ tx, land }, w * 0.012, col(0.85 * a), 12);
+            for _, f in ipairs({ { -1.0, -0.5 }, { 1.1, -0.6 }, { -1.8, 0.1 }, { 1.7, 0.2 } }) do
+                dl:AddCircleFilled({ tx + f[1] * w * 0.02, land + f[2] * w * 0.012 }, w * 0.005, col(0.75 * a), 8);
+            end
+        end
+    end
+end
+
+-- How far the VanaCore picture is floating right now (pixels, up and down)
+function actions.fx_float()
+    return math.sin(actions.fx_time() * 1.6) * 2;
+end
+
 local function draw_header()
     imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
-    if imgui.BeginChild('ygo_header', { 0, 70 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+    if imgui.BeginChild('ygo_header', { 0, 112 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         local dl = imgui.GetWindowDrawList();
         local x, y = imgui.GetWindowPos();
         local w, h = imgui.GetWindowSize();
         -- Flat: no fill or glow, one hairline under the header
         gold_line(dl, x, y + h - 1, x + w);
 
-        -- CatsEyeXI logo, then the title and a single quiet info line
-        local lx = 4;
-        local lg = logo_texture('catseye.png');
-        if lg then
-            imgui.SetCursorPos({ 0, 7 });
-            imgui.Image(lg.ptr, { 92, 56 });
-            if imgui.IsItemHovered() then imgui.SetTooltip('Made for CatsEyeXI'); end
-            lx = 106;
-        end
-        -- VanaCore's logo next to it (the crystal and the moogle)
+        -- Left: the VanaCore crystal, YUNA GEAROPT and, under the title, who and what was scanned
+        local lx = 6;
         local vg = logo_texture('vanacore.png');
+        local VS = 54;
         if vg then
-            imgui.SetCursorPos({ lx - 10, 7 });
-            imgui.Image(vg.ptr, { 56, 56 });
-            if imgui.IsItemHovered() then imgui.SetTooltip('Runs on VanaCore'); end
-            lx = lx - 10 + 56 + 12;
+            local okf, fy = pcall(actions.fx_float);
+            imgui.SetCursorPos({ lx, 28 + (okf and fy or 0) });
+            local vx, vy = imgui.GetCursorScreenPos();
+            pcall(actions.fx_vanacore_back, dl, vx, vy, VS, VS, ui.vc_hov);
+            imgui.Image(vg.ptr, { VS, VS });
+            ui.vc_hov = imgui.IsItemHovered();
+            if ui.vc_hov then imgui.SetTooltip('Runs on VanaCore'); end
+            pcall(actions.fx_vanacore_front, dl, vx, vy, VS, VS, ui.vc_hov);
+            lx = lx + VS + 12;
         end
-
-        imgui.SetCursorPos({ lx, 12 });
-        title_text('YUNA', 1.5, C.text);
-        imgui.SameLine(0, 5);
-        title_text('GEAROPT', 1.5, C.gold);
-        imgui.SetCursorPos({ lx, 42 });
-        imgui.SetWindowFontScale(0.9);
-        imgui.TextColored(C.muted, string.format('%s      %d pieces      %d augmented      scanned %s', player_name(), #owned,
-            ui.augmented, ui.last_scan));
-        if not bis.done then
-            imgui.SameLine(0, 0);
-            imgui.TextColored(C.gold_dim, string.format('      building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
+        imgui.SetCursorPos({ lx, 26 });
+        if not pcall(actions.fx_title, dl) then
+            imgui.SetWindowFontScale(1.0);
+            imgui.SetCursorPos({ lx, 26 });
+            title_text('YUNA', 1.5, C.text);
+            imgui.SameLine(0, 5);
+            title_text('GEAROPT', 1.5, C.gold);
+        end
+        imgui.SetWindowFontScale(0.95);
+        imgui.SetCursorPos({ lx + 1, 62 });
+        imgui.TextColored(C.text, player_name());
+        imgui.SameLine(0, 10);
+        if bis.done then
+            imgui.TextColored(C.muted, string.format('%d pieces  |  %d augmented  |  scanned %s', #owned, ui.augmented, ui.last_scan));
+        else
+            imgui.TextColored(C.gold_dim, string.format('building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
         end
         imgui.SetWindowFontScale(1.0);
 
-        -- LOCKSTYLE: gold like VIEW BIS SET, next to the scan info; solid gold while you're in it
+        -- Middle: the YGO logo
+        local yg = logo_texture('ygo.png');
+        if yg then
+            local YS = 108;
+            imgui.SetCursorPos({ math.floor((w - YS) / 2), 2 });
+            local gx, gy = imgui.GetCursorScreenPos();
+            pcall(actions.fx_ygo_back, dl, gx, gy, YS, YS, ui.ygo_hov);
+            pcall(actions.fx_blood, dl, gx, gy, YS, YS);
+            imgui.Image(yg.ptr, { YS, YS });
+            ui.ygo_hov = imgui.IsItemHovered();
+            if ui.ygo_hov then imgui.SetTooltip('YunaGearOpt ' .. tostring(addon.version)); end
+            pcall(actions.fx_ygo_front, dl, gx, gy, YS, YS, ui.ygo_hov);
+        end
+
+        -- Right: LOCKSTYLE (gold like VIEW BIS SET, solid while you're in it), then _ and X
         for i, d in ipairs(ui.sets) do
             if d.lockstyle then
                 local in_look = i == ui.set_idx;
                 local label = 'LOCKSTYLE  ' .. JOBS[ui.job];
-                imgui.SameLine(0, 18);
-                imgui.SetCursorPosY(37);
+                imgui.SetCursorPos({ imgui.GetWindowWidth() - 92 - btn_w(label) - 14, 43 });
                 if not in_look then
                     imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.12 });
                     imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.22 });
@@ -3848,7 +4016,7 @@ local function draw_header()
         end
 
         local wwidth = imgui.GetWindowWidth();
-        imgui.SetCursorPos({ wwidth - 92, 20 });
+        imgui.SetCursorPos({ wwidth - 92, 41 });
         if ghost_button('_##ygo_compact', { 32, 30 }) then s.compact = true; settings.save(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Lazy mode'); end
         imgui.SameLine(0, 4);
@@ -4792,6 +4960,13 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip(actions.import_xml_tip()); end
         imgui.EndPopup();
     end
+    imgui.SameLine();
+    if imgui.Button('BAG CHECK', { btn_w('BAG CHECK'), 30 }) then
+        ui.bag_open = true;
+        if ui.bag == nil or ui.bag.job ~= ui.job then actions.bag_check(false); end
+    end
+    if imgui.IsItemHovered() then imgui.SetTooltip('Gear your sets use that is in a bag you can\'t equip from\n(Mog Safe, Storage, Locker, Satchel, Sack, Case)'); end
+
     local pins = ui.pins[ui.ctx] or {};
     if next(pins) ~= nil then
         imgui.SameLine();
@@ -5020,8 +5195,116 @@ function actions.push_font()
     return ok;
 end
 
+----------------------------------------------------------------------------------------------------
+-- Tools: BAG CHECK window
+----------------------------------------------------------------------------------------------------
+-- Every piece your sets use that is in a bag you can't equip from (Mog Safe, Storage, Locker, Satchel, Sack, Case).
+-- all = every job you have levels in, else the job open in the window.
+function actions.bag_check(all)
+    if #owned == 0 then scan(); end
+    local jobs = {};
+    if all then
+        for j = 1, #JOBS do if job_level(j) > 0 then table.insert(jobs, j); end end
+    else
+        jobs = { ui.job };
+    end
+    local found, order = {}, {};
+    for _, j in ipairs(jobs) do
+        for _, desc in ipairs(actions.export_sets(j)) do
+            if not desc.lockstyle and not desc.dwpair and not desc.info then
+                local ok, assign = pcall(optimize, j, desc, ui.pins[JOBS[j] .. '|' .. desc.id] or {});
+                if ok and type(assign) == 'table' then
+                    for _, c in pairs(assign) do
+                        local where = c.item and c.item.where;
+                        if where and not EQUIP_BAGS[where] then
+                            local k = c.item.name .. '|' .. where;
+                            local f = found[k];
+                            if f == nil then
+                                f = { name = c.item.name, where = where, sets = {}, seen = {} };
+                                found[k] = f;
+                                table.insert(order, f);
+                            end
+                            local lbl = JOBS[j] .. ' ' .. desc.label;
+                            if not f.seen[lbl] then f.seen[lbl] = true; table.insert(f.sets, lbl); end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(order, function(a, b)
+        if a.where ~= b.where then return a.where < b.where; end
+        return a.name < b.name;
+    end);
+    ui.bag = { list = order, all = all, job = ui.job, time = os.date('%H:%M:%S') };
+end
+
+function actions.draw_bagcheck()
+    if not ui.bag_open then return; end
+    imgui.SetNextWindowSize({ 600, 460 }, ImGuiCond_FirstUseEver);
+    local open = { true };
+    if imgui.Begin('Bag check##ygo_bag', open, ImGuiWindowFlags_NoCollapse) then
+        imgui.TextColored(C.muted, 'Gear your sets use that is in a bag you can\'t equip from. Move it to your inventory or a wardrobe.');
+        imgui.Spacing();
+        if imgui.Button('Check ' .. JOBS[ui.job] .. '##ygo_bc1', { btn_w('Check ' .. JOBS[ui.job]), 28 }) then actions.bag_check(false); end
+        imgui.SameLine();
+        if imgui.Button('Check all jobs##ygo_bc2', { btn_w('Check all jobs'), 28 }) then actions.bag_check(true); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Every job you have levels in (takes a moment)'); end
+        imgui.Spacing();
+        local b = ui.bag;
+        if b == nil then
+            imgui.TextColored(C.muted, 'Press a button to check.');
+        elseif #b.list == 0 then
+            imgui.TextColored(C.green, 'All good: every piece your sets use is in your inventory or a wardrobe.');
+            imgui.TextColored(C.muted, string.format('(%s, checked %s)', b.all and 'all jobs' or JOBS[b.job], b.time));
+        else
+            imgui.TextColored(C.text, string.format('%d piece%s to move', #b.list, #b.list == 1 and '' or 's'));
+            imgui.SameLine(0, 10);
+            imgui.TextColored(C.muted, string.format('(%s, checked %s)', b.all and 'all jobs' or JOBS[b.job], b.time));
+            imgui.Separator();
+            if imgui.BeginChild('ygo_bag_list', { 0, 0 }, false) then
+                local last = nil;
+                for _, f in ipairs(b.list) do
+                    if f.where ~= last then
+                        last = f.where;
+                        imgui.Spacing();
+                        imgui.TextColored(C.red, 'In ' .. f.where);
+                    end
+                    imgui.SetCursorPosX(imgui.GetCursorPosX() + 14);
+                    imgui.TextColored(C.text, f.name);
+                    imgui.SameLine(0, 12);
+                    local used = f.sets[1] .. (#f.sets > 1 and string.format('  +%d more', #f.sets - 1) or '');
+                    imgui.TextColored(C.muted, 'used by ' .. used);
+                    if imgui.IsItemHovered() and #f.sets > 1 then
+                        imgui.SetTooltip((table.concat(f.sets, '\n'):gsub('%%', '%%%%')));
+                    end
+                end
+            end
+            imgui.EndChild();
+        end
+    end
+    imgui.End();
+    if not open[1] then ui.bag_open = false; end
+end
+
+-- Tool windows (drawn even while the main window is closed)
+function actions.draw_tools()
+    actions.draw_bagcheck();
+end
+
 local function draw_ui()
-    if not ui.open[1] or data == nil then return; end
+    if data == nil then return; end
+    if not ui.open[1] then
+        if ui.bag_open then
+            local nc, nv = push_theme();
+            local fp = actions.push_font();
+            actions.draw_tools();
+            if fp then imgui.PopFont(); end
+            imgui.PopStyleVar(nv);
+            imgui.PopStyleColor(nc);
+        end
+        return;
+    end
     if icons.err and not icons.warned then
         icons.warned = true;
         msg('Item icons could not be brightened (' .. icons.err .. '); they show at normal brightness.');
@@ -5034,6 +5317,7 @@ local function draw_ui()
     draw_notice();
     draw_export_confirm();
     actions.draw_import_xml_confirm();
+    actions.draw_tools();
     if fontpushed then imgui.PopFont(); end
     imgui.PopStyleVar(nv);
     imgui.PopStyleColor(nc);
@@ -5055,7 +5339,10 @@ end);
 
 ashita.events.register('load', 'ygo_load', function() load_data(); actions.load_font(); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
-ashita.events.register('d3d_present', 'ygo_present', function() run_timers(); look.watch(); draw_ui(); end);
+ashita.events.register('d3d_present', 'ygo_present', function()
+    run_timers(); look.watch();
+    draw_ui();
+end);
 
 -- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
 -- starts on you the addon locks the PhalanxRcv set on with /la set for a few seconds. Only for jobs whose
@@ -5175,6 +5462,11 @@ ashita.events.register('command', 'ygo_command', function(e)
         equip_current_set();
     elseif sub == 'cancelshadows' then
         actions.cancel_shadows();
+    elseif sub == 'bags' or sub == 'bagcheck' then
+        ui.bag_open = true;
+        if #owned == 0 then scan(); end
+        ui.job = main_job();
+        actions.bag_check(false);
     elseif sub == 'reload' then
         base_cache = {};
         bis_reset();
