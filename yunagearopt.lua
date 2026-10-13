@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.22';   -- the release workflow sets this to the release number
+addon.version = '1.1.23';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -207,7 +207,8 @@ local C = {
 local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact = false, hide_notice = false, xml_phalanx = '', excluded = T{},
                     picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
-                    weapon_mode = 1 };   -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
+                    weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
+                    cure_lead = 1.5 };   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
@@ -757,17 +758,21 @@ function actions.cure_cast_time(name)
     return 2.0;
 end
 
--- /ygo latecure <seconds>: sent by the XML when a Cure starts; after that wait, /la set Cure 2 (Cure set on, held 2 s)
-function actions.late_cure_start(wait)
-    wait = tonumber(wait);
-    if wait == nil then return; end
-    ui.late_cure_at = os.clock() + math.max(0, wait);
+-- /ygo latecure <cast seconds>: sent by the XML when a Cure starts. /la set Cure <n> holds the set n whole seconds,
+-- so the swap is timed for the hold to end 0.25 s after the Cure lands: your normal gear comes straight back.
+-- s.cure_lead (about how early the Cure set goes on) picks n: rounded to whole seconds, at least 1.
+function actions.late_cure_start(cast)
+    cast = tonumber(cast);
+    if cast == nil then return; end
+    local hold = math.max(1, math.floor((tonumber(s.cure_lead) or 1.5) + 0.75));
+    ui.late_cure_hold = hold;
+    ui.late_cure_at = os.clock() + math.max(0, cast - (hold - 0.25));
 end
 
 function actions.late_cure_tick()
     if ui.late_cure_at and os.clock() >= ui.late_cure_at then
         ui.late_cure_at = nil;
-        AshitaCore:GetChatManager():QueueCommand(1, '/la set Cure 2');
+        AshitaCore:GetChatManager():QueueCommand(1, string.format('/la set Cure %d', ui.late_cure_hold or 1));
     end
 end
 
@@ -2024,14 +2029,11 @@ local function build_full_xml(job_id)
     if have.Cure and xlc then
         -- PLD: the safe set (SIR) stays on; YunaGearOpt puts the Cure set on ~1 second before the cast lands
         table.insert(m, { cond = attr('ad_name', R.cure), body = function(o, i)
-            table.insert(o, i .. '<!-- Late Cure: keep YunaGearOpt loaded; it sends /la set Cure 2 about 1 second before the cast lands -->');
+            table.insert(o, i .. '<!-- Late Cure: keep YunaGearOpt loaded; it puts the Cure set on shortly before the cast lands'
+                .. ' (the number = the cast time; change how early with /ygo curelead <seconds>) -->');
             for _, cn in ipairs(actions.CURES) do
-                local wait = actions.cure_cast_time(cn) * (100 - xlc) / 100 - 1.0;
-                if wait > 0.1 then
-                    table.insert(o, i .. string.format('<if ad_name="%s"><command>/ygo latecure %.2f</command></if>', cn, wait));
-                else
-                    table.insert(o, i .. string.format('<if ad_name="%s"><equip set="Cure" /></if>', cn));
-                end
+                local cast = actions.cure_cast_time(cn) * (100 - xlc) / 100;
+                table.insert(o, i .. string.format('<if ad_name="%s"><command>/ygo latecure %.2f</command></if>', cn, cast));
             end
         end });
     elseif have.Cure then table.insert(m, { cond = attr('ad_name', R.cure), body = with_obi('Cure', obis, 'light') }); end
@@ -2432,7 +2434,7 @@ local function build_gearswap(job_id)
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     local lc = actions.late_cure_fc(abbr, built, have);
     add('    -- PLD: Cures stay in the safe set and swap to Cure potency about 1 second before the cast ends (fc = your Cure fast cast %)');
-    add('    late_cure = ' .. (lc and string.format('{ fc = %d, lead = 1.0 }', lc) or 'nil'));
+    add('    late_cure = ' .. (lc and string.format('{ fc = %d, lead = 1.5 }', lc) or 'nil') .. '   -- lead: seconds before the cast lands');
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
     add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
     add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil));   -- only with a picked /NIN /DNC pair
@@ -2939,7 +2941,7 @@ local function build_lac(job_id)
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     local llc = actions.late_cure_fc(abbr, built, have);
     add('-- PLD: Cures stay in the safe set and swap to Cure potency about 1 second before the cast ends (fc = your Cure fast cast %)');
-    add('local late_cure = ' .. (llc and string.format('{ fc = %d, lead = 0.6 }', llc) or 'nil') .. ';   -- lead: LuAshitacast sends ~0.4 s early itself');
+    add('local late_cure = ' .. (llc and string.format('{ fc = %d, lead = 1.1 }', llc) or 'nil') .. ';   -- lead (+ ~0.4 s LuAshitacast adds itself): seconds before the cast lands');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
     add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
     add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil) .. ';');   -- only with a picked /NIN /DNC pair
@@ -5648,6 +5650,17 @@ ashita.events.register('command', 'ygo_command', function(e)
         actions.cancel_shadows();
     elseif sub == 'latecure' then
         actions.late_cure_start(args[3]);
+    elseif sub == 'curelead' then
+        local n = tonumber(args[3]);
+        if n and n >= 0 and n <= 5 then
+            s.cure_lead = n;
+            settings.save();
+            local hold = math.max(1, math.floor(n + 0.75));
+            msg(string.format('Late Cure: the Cure set now goes on %.2f seconds before the cast lands; your gear is back 0.25 s after it.', hold - 0.25));
+        else
+            msg(string.format('Late Cure: the Cure set goes on %.1f seconds before the cast lands. Change it with /ygo curelead <0-5>'
+                .. ' (higher = earlier, safer if Cures land without the Cure set).', tonumber(s.cure_lead) or 1.5));
+        end
     elseif sub == 'bags' or sub == 'bagcheck' then
         ui.bag_open = true;
         if #owned == 0 then scan(); end
