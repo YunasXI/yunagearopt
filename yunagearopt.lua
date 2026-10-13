@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.21';   -- the release workflow sets this to the release number
+addon.version = '1.1.22';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -746,6 +746,29 @@ function actions.legacyac_loaded()
     local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('LegacyAC'); end);
     if ok and loaded then return true; end
     return (addon.path or ''):lower():find('vanacore', 1, true) ~= nil;
+end
+
+-- Late Cure (LegacyAC XML): the Cure spells and their cast time in seconds (from the game's spell data; 2 s if unknown,
+-- which only makes the swap come a little earlier)
+actions.CURES = { 'Cure', 'Cure II', 'Cure III', 'Cure IV', 'Cure V', 'Cure VI' };
+function actions.cure_cast_time(name)
+    local ok, r = pcall(function() return AshitaCore:GetResourceManager():GetSpellByName(name, 0); end);
+    if ok and r ~= nil and r.CastTime ~= nil and r.CastTime > 0 then return r.CastTime / 4; end
+    return 2.0;
+end
+
+-- /ygo latecure <seconds>: sent by the XML when a Cure starts; after that wait, /la set Cure 2 (Cure set on, held 2 s)
+function actions.late_cure_start(wait)
+    wait = tonumber(wait);
+    if wait == nil then return; end
+    ui.late_cure_at = os.clock() + math.max(0, wait);
+end
+
+function actions.late_cure_tick()
+    if ui.late_cure_at and os.clock() >= ui.late_cure_at then
+        ui.late_cure_at = nil;
+        AshitaCore:GetChatManager():QueueCommand(1, '/la set Cure 2');
+    end
 end
 
 -- The job's set ids: data.jobs' list (removed ones are dropped in build_sets). Sets from other jobs can't be
@@ -1626,6 +1649,23 @@ local function spell_set_list(have, abbr)
     return list;
 end
 
+-- Late Cure (data.late_cure): the Fast Cast % your Cure precast set gives (Fast Cast + Cure spellcasting time, max 80),
+-- so the export knows how long a Cure takes. nil = this job doesn't use it (or has no Cure set).
+function actions.late_cure_fc(abbr, built, have)
+    if not ((data.late_cure or {})[abbr] and have.Cure) then return nil; end
+    local pre = have.Precast_Cure and 'Precast_Cure' or (have.Precast and 'Precast' or nil);
+    local fc = 0;
+    for _, b in ipairs(built) do
+        if pre and b.desc.name == pre then
+            for _, c in pairs(b.assign) do
+                local st = (c.item and c.item.stats) or {};
+                fc = fc + (st.fc or 0) + (st.curect or 0);
+            end
+        end
+    end
+    return math.min(80, math.floor(fc));
+end
+
 -- A job's base set for spells / abilities (data.midcast_base, data.ability_base) if this export contains it
 local function job_base(map, abbr, have)
     local name = (map or {})[abbr];
@@ -1980,7 +2020,21 @@ local function build_full_xml(job_id)
     -- Midcast
     local m = {};
     local function pick(a, b2) return have[a] and a or (have[b2] and b2 or nil); end
-    if have.Cure then table.insert(m, { cond = attr('ad_name', R.cure), body = with_obi('Cure', obis, 'light') }); end
+    local xlc = actions.late_cure_fc(abbr, built, have);
+    if have.Cure and xlc then
+        -- PLD: the safe set (SIR) stays on; YunaGearOpt puts the Cure set on ~1 second before the cast lands
+        table.insert(m, { cond = attr('ad_name', R.cure), body = function(o, i)
+            table.insert(o, i .. '<!-- Late Cure: keep YunaGearOpt loaded; it sends /la set Cure 2 about 1 second before the cast lands -->');
+            for _, cn in ipairs(actions.CURES) do
+                local wait = actions.cure_cast_time(cn) * (100 - xlc) / 100 - 1.0;
+                if wait > 0.1 then
+                    table.insert(o, i .. string.format('<if ad_name="%s"><command>/ygo latecure %.2f</command></if>', cn, wait));
+                else
+                    table.insert(o, i .. string.format('<if ad_name="%s"><equip set="Cure" /></if>', cn));
+                end
+            end
+        end });
+    elseif have.Cure then table.insert(m, { cond = attr('ad_name', R.cure), body = with_obi('Cure', obis, 'light') }); end
     if have.Stoneskin then table.insert(m, { cond = attr('ad_name', 'Stoneskin'), body = equip_set('Stoneskin') }); end
     if have.Healing then table.insert(m, { cond = attr('ad_skill', 'healingmagic'), body = equip_set('Healing') }); end
     if have.Enhancing then table.insert(m, { cond = attr('ad_skill', 'enhancingmagic'), body = equip_set('Enhancing') }); end
@@ -2376,6 +2430,9 @@ local function build_gearswap(job_id)
     add('    }');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
+    local lc = actions.late_cure_fc(abbr, built, have);
+    add('    -- PLD: Cures stay in the safe set and swap to Cure potency about 1 second before the cast ends (fc = your Cure fast cast %)');
+    add('    late_cure = ' .. (lc and string.format('{ fc = %d, lead = 1.0 }', lc) or 'nil'));
     add('    ability_base = ' .. (ba and string.format('%q', ba) or 'nil'));
     add('    -- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
     add('    weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil));   -- only with a picked /NIN /DNC pair
@@ -2606,7 +2663,16 @@ function midcast(spell)
             return
         end
     end
-    if matches(name, rules.cure) and eq('Cure') then
+    if matches(name, rules.cure) and late_cure and sets['Cure'] then
+        -- stay in the safe set now; Cure potency about 1 second before the cast ends (only if this cast is still going)
+        cure_token = (cure_token or 0) + 1
+        local wait = (spell.cast_time or 0) * (100 - late_cure.fc) / 100 - late_cure.lead
+        if wait <= 0.1 then
+            eq('Cure') obi('Light')
+        else
+            send_command(('wait %.2f; gs c _curelate %d'):format(wait, cure_token))
+        end
+    elseif matches(name, rules.cure) and eq('Cure') then
         obi('Light')
     elseif name == 'Stoneskin' and eq('Stoneskin') then
     elseif skill == 'Healing Magic' then eq('Healing')
@@ -2684,6 +2750,10 @@ function self_command(command)
     end
     if c == '_phalanx' then
         if not midaction() then idle_gear() end
+        return
+    end
+    if c:match('^_curelate') then                         -- PLD late Cure: the same cast is still going
+        if midaction() and tonumber(c:match('%d+')) == cure_token then eq('Cure') obi('Light') end
         return
     end
     if c == 'pdt' or c == 'mdt' or c == 'hybrid' or c == 'acc' or c == 'petonly' or c == 'eva' then
@@ -2867,6 +2937,9 @@ local function build_lac(job_id)
     add('};');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
+    local llc = actions.late_cure_fc(abbr, built, have);
+    add('-- PLD: Cures stay in the safe set and swap to Cure potency about 1 second before the cast ends (fc = your Cure fast cast %)');
+    add('local late_cure = ' .. (llc and string.format('{ fc = %d, lead = 0.6 }', llc) or 'nil') .. ';   -- lead: LuAshitacast sends ~0.4 s early itself');
     add('local ability_base = ' .. (ba and string.format('%q', ba) or 'nil') .. ';');
     add('-- With /NIN or /DNC: your dual-wield pair instead of a set\'s weapons (none picked = weapons left alone)');
     add('local weapon_auto = ' .. tostring(s.weapon_mode == 1 and actions.dw_pair(abbr) ~= nil) .. ';');   -- only with a picked /NIN /DNC pair
@@ -3157,7 +3230,14 @@ profile.HandleMidcast = function()
             return;
         end
     end
-    if matches(name, rules.cure) and eq('Cure') then
+    if matches(name, rules.cure) and late_cure and sets['Cure'] then
+        -- the safe set goes on now; the Cure set waits until about 1 second before the cast ends
+        if midcast_base and sets[midcast_base] then gFunc.InterimEquipSet(sets[midcast_base]); end
+        eq('Cure');
+        obi('Light');
+        local cast = (spell.CastTime or 0) / 1000 * (100 - late_cure.fc) / 100;
+        gFunc.SetMidDelay(math.max(0, cast - late_cure.lead));
+    elseif matches(name, rules.cure) and eq('Cure') then
         obi('Light');
     elseif name == 'Stoneskin' and eq('Stoneskin') then
     elseif skill == 'Healing Magic' then eq('Healing');
@@ -5444,6 +5524,7 @@ ashita.events.register('load', 'ygo_load', function() load_data(); actions.load_
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
 ashita.events.register('d3d_present', 'ygo_present', function()
     run_timers(); look.watch();
+    if ui.late_cure_at then pcall(actions.late_cure_tick); end
     draw_ui();
 end);
 
@@ -5565,6 +5646,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         equip_current_set();
     elseif sub == 'cancelshadows' then
         actions.cancel_shadows();
+    elseif sub == 'latecure' then
+        actions.late_cure_start(args[3]);
     elseif sub == 'bags' or sub == 'bagcheck' then
         ui.bag_open = true;
         if #owned == 0 then scan(); end

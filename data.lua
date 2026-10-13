@@ -118,6 +118,9 @@ return {
     },
     -- Set put on first for every spell / every job ability, before that spell's or ability's own set (tanks)
     midcast_base = { PLD = 'SIR', BST = 'SIR' },
+    -- Jobs whose Cure set goes on only at the end of the cast (about 1 second before it lands): the rest of the cast
+    -- stays in the safe midcast base (PLD: spell interruption / damage taken / HP). LuAshitacast and GearSwap exports.
+    late_cure = { PLD = true },
     ability_base = { PLD = 'Enmity' },
 
     -- Set names shown for one job only (the export set name stays the same)
