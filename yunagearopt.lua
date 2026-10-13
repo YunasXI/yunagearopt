@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.24';   -- the release workflow sets this to the release number
+addon.version = '1.1.25';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -208,7 +208,8 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
-                    cure_lead = 1.5 };   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
+                    cure_lead = 1.5,
+                    ui_scale = 1.0 };    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
@@ -4167,7 +4168,7 @@ end
 
 local function draw_header()
     imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
-    if imgui.BeginChild('ygo_header', { 0, 124 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+    if imgui.BeginChild('ygo_header', { 0, actions.sc(124) }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         local dl = imgui.GetWindowDrawList();
         local x, y = imgui.GetWindowPos();
         local w, h = imgui.GetWindowSize();
@@ -4178,7 +4179,7 @@ local function draw_header()
         local lx = 4;
         local yg = logo_texture('logo.png') or logo_texture('ygo.png');
         if yg then
-            local YS = 122;
+            local YS = actions.sc(122);
             imgui.SetCursorPos({ 0, 2 });
             local gx, gy = imgui.GetCursorScreenPos();
             -- (no glow circle behind the logo)
@@ -4194,16 +4195,16 @@ local function draw_header()
             pcall(actions.fx_slash, dl, gx, gy, YS, YS);
             lx = YS + 8;
         end
-        imgui.SetCursorPos({ lx, 26 });
+        imgui.SetCursorPos({ lx, actions.sc(26) });
         if not pcall(actions.fx_title, dl) then
             imgui.SetWindowFontScale(1.0);
-            imgui.SetCursorPos({ lx, 26 });
+            imgui.SetCursorPos({ lx, actions.sc(26) });
             title_text('YUNA', 1.5, C.text);
             imgui.SameLine(0, 5);
             title_text('GEAROPT', 1.5, C.gold);
         end
         imgui.SetWindowFontScale(0.95);
-        imgui.SetCursorPos({ lx + 1, 62 });
+        imgui.SetCursorPos({ lx + 1, actions.sc(62) });
         imgui.TextColored(C.text, player_name());
         imgui.SameLine(0, 10);
         if bis.done then
@@ -4263,14 +4264,14 @@ end
 local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
-    if imgui.BeginChild('ygo_side', { 236, -54 }, true) then
+    if imgui.BeginChild('ygo_side', { actions.sc(236), -54 }, true) then
         if imgui.Button('Rescan gear##ygo_rescan', { imgui.GetWindowWidth() - 28, 24 }) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
         if imgui.IsItemHovered() then imgui.SetTooltip('Read your bags again (after you get or move gear)'); end
         caption('JOB');
         for i, abbr in ipairs(JOBS) do
-            if job_button(i, abbr, { 47, 24 }) then select_job(i); end
+            if job_button(i, abbr, { actions.sc(47), actions.sc(24) }) then select_job(i); end
             if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d   (%s)', abbr, job_level(i), ROLE[abbr] or '')); end
             if i % 4 ~= 0 then imgui.SameLine(0, 4); end
         end
@@ -4309,7 +4310,7 @@ local function draw_sidebar()
                     local sx, sy = imgui.GetCursorScreenPos();
                     -- A VanaCore row: 24 px tall, white text; the selected one a navy pill with a thin blue bar
                     local ww = imgui.GetWindowWidth();
-                    local rw, rh = ww - 46, 26;
+                    local rw, rh = ww - 46, actions.sc(26);
                     if imgui.InvisibleButton('##set' .. i, { rw, rh }) then ui.set_idx, ui.dirty = i, true; end
                     local rhov = imgui.IsItemHovered();
                     local rdl = imgui.GetWindowDrawList();
@@ -4495,8 +4496,8 @@ local function draw_picker(def)
     if #list == 0 then
         imgui.TextColored(C.muted, filter ~= '' and 'No piece matches your search.' or 'No wearable piece for this slot.');
     else
-        local h = math.min(#list * 26 + 8, 340);
-        if imgui.BeginChild('pick_list_' .. def.key, { 470, h }, false) then
+        local h = math.min(#list * actions.sc(26) + 8, actions.sc(340));
+        if imgui.BeginChild('pick_list_' .. def.key, { actions.sc(470), h }, false) then
             imgui.SetWindowFontScale(0.85);
             local current = ui.result and ui.result[def.key];
             for i, c in ipairs(list) do
@@ -4543,7 +4544,7 @@ local function draw_bis_card(def)
     local have = b and owns(b.item.name);
     imgui.PushStyleColor(ImGuiCol_ChildBg, b and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
-    imgui.BeginChild('bcard_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    imgui.BeginChild('bcard_' .. def.key, { 0, actions.sc(CARD_H) }, true, CARD_FLAGS);
     hover_shade();
     imgui.SetWindowFontScale(0.95);
     slot_icon(b and b.item, b and TIER_ORANGE or C.muted);
@@ -4607,7 +4608,7 @@ local function draw_card(def, max_score)
     local col = c and tier(r) or C.muted;
     imgui.PushStyleColor(ImGuiCol_ChildBg, c and C.card or { C.card[1], C.card[2], C.card[3], 0.45 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
-    imgui.BeginChild('card_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    imgui.BeginChild('card_' .. def.key, { 0, actions.sc(CARD_H) }, true, CARD_FLAGS);
     hover_shade();
     imgui.SetWindowFontScale(0.95);
     slot_icon(c and c.item, col);
@@ -4666,7 +4667,7 @@ end
 local function draw_unused(def)
     imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.08 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
-    imgui.BeginChild('unused_' .. def.key, { 0, CARD_H }, true, CARD_FLAGS);
+    imgui.BeginChild('unused_' .. def.key, { 0, actions.sc(CARD_H) }, true, CARD_FLAGS);
     actions.dashed_frame({ C.muted[1], C.muted[2], C.muted[3], 0.35 });
     imgui.SetWindowFontScale(0.95);
     slot_icon(nil, C.muted);
@@ -4697,7 +4698,7 @@ function actions.draw_obi_card()
     end
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
-    imgui.BeginChild('card_obi', { 0, CARD_H }, true, CARD_FLAGS);
+    imgui.BeginChild('card_obi', { 0, actions.sc(CARD_H) }, true, CARD_FLAGS);
     hover_shade();
     imgui.SetWindowFontScale(0.95);
     slot_icon(it, it and C.gold or C.muted);
@@ -5213,6 +5214,8 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
+    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52);
+    actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
     if imgui.BeginPopup('ygo_export_menu') then
@@ -5243,7 +5246,7 @@ end
 
 local function draw_full()
     imgui.SetNextWindowSize({ 1180, 860 }, ImGuiCond_FirstUseEver);
-    imgui.SetNextWindowSizeConstraints({ 1120, 600 }, { 4000, 4000 });
+    imgui.SetNextWindowSizeConstraints({ actions.sc(1120), actions.sc(600) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
         draw_header();
         imgui.Spacing();
@@ -5413,24 +5416,67 @@ end
 -- Segoe UI, the font VanaCore's windows use. Windows ships it, so nothing is bundled: it's read from the Fonts folder.
 -- Loaded once when the addon loads (as other addons do); if it isn't there, the game's ImGui font is kept.
 function actions.load_font()
-    ui.font = nil;
+    ui.font, ui.fonts = nil, {};
     local dir = (os.getenv('WINDIR') or 'C:\\Windows') .. '\\Fonts\\';
     for _, name in ipairs({ 'segoeui.ttf', 'SegUIVar.ttf' }) do
         local f = io.open(dir .. name, 'rb');
         if f then
             f:close();
             local ok, font = pcall(imgui.AddFontFromFileTTF, dir .. name, 17);
-            if ok and font then ui.font = font; return; end
+            if ok and font then
+                ui.font = font;
+                ui.fonts[17] = font;
+                -- the other sizes Window scale can pick (older ImGui needs each size loaded once, at load)
+                if font.LegacySize == nil then
+                    for _, sc in ipairs(actions.SCALES) do
+                        local sz = math.floor(17 * sc + 0.5);
+                        if ui.fonts[sz] == nil then
+                            local ok2, f2 = pcall(imgui.AddFontFromFileTTF, dir .. name, sz);
+                            if ok2 and f2 then ui.fonts[sz] = f2; end
+                        end
+                    end
+                end
+                return;
+            end
         end
     end
+end
+
+-- Window scale: the steps, the current factor, and a size scaled by it
+actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 };
+function actions.scale()
+    local v = tonumber(s.ui_scale) or 1.0;
+    if v < 0.8 then v = 0.8; elseif v > 1.5 then v = 1.5; end
+    return v;
+end
+function actions.sc(n) return math.floor(n * actions.scale() + 0.5); end
+
+-- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
+function actions.draw_scale_control()
+    local v = actions.scale();
+    local idx = 3;
+    for i, sc in ipairs(actions.SCALES) do if math.abs(sc - v) < 0.01 then idx = i; end end
+    imgui.AlignTextToFramePadding();
+    imgui.TextColored(C.muted, 'Window scale');
+    imgui.SameLine(0, 10);
+    local bh = actions.sc(30);
+    if imgui.Button('<##ygo_scale_dn', { bh, bh }) and idx > 1 then s.ui_scale = actions.SCALES[idx - 1]; settings.save(); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('Smaller'); end
+    imgui.SameLine(0, 6);
+    imgui.TextColored(C.text, string.format('%d%%', math.floor(v * 100 + 0.5)));
+    imgui.SameLine(0, 6);
+    if imgui.Button('>##ygo_scale_up', { bh, bh }) and idx < #actions.SCALES then s.ui_scale = actions.SCALES[idx + 1]; settings.save(); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('Bigger'); end
 end
 
 -- Push the font for the whole window: newer ImGui (fonts with LegacySize) wants a size, older ones don't
 function actions.push_font()
     local f = ui.font;
     if f == nil then return false; end
+    local size = math.floor(17 * actions.scale() + 0.5);
     local ok = false;
-    if f.LegacySize ~= nil then ok = pcall(imgui.PushFont, f, 17); else ok = pcall(imgui.PushFont, f); end
+    if f.LegacySize ~= nil then ok = pcall(imgui.PushFont, f, size);           -- newer ImGui: any size
+    else ok = pcall(imgui.PushFont, (ui.fonts or {})[size] or f); end         -- older: the size loaded at start
     return ok;
 end
 
