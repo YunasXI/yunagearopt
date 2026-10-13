@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.23';   -- the release workflow sets this to the release number
+addon.version = '1.1.24';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4041,8 +4041,8 @@ function actions.fx_title(dl)
     imgui.SetWindowFontScale(1.0);
 end
 
--- YGO logo: a breathing blue glow behind it, a glint that runs down the katana every few seconds and flashes at the
--- tip, the eyes lighting up now and then, and a spark slowly circling the ink ring. Hover = brighter, faster glint.
+-- Samurai logo: a breathing blue glow behind him, a glint that runs down the katana every few seconds and flashes at
+-- the tip, the eyes lighting up now and then. Hover = brighter, faster glint (and the slash, fx_slash).
 function actions.fx_ygo_back(dl, x, y, w, h, hov)
     local t = actions.fx_time();
     local p = 0.5 + 0.5 * math.sin(t * 1.4);
@@ -4057,12 +4057,12 @@ function actions.fx_ygo_front(dl, x, y, w, h, hov)
     local ph = t % period;
     if ph < 0.55 then
         local u = ph / 0.55;
-        local gx, gy = at(0.34 + (0.86 - 0.34) * u, 0.37 + (0.71 - 0.37) * u);
+        local gx, gy = at(0.263 + (0.958 - 0.263) * u, 0.373 + (0.884 - 0.373) * u);
         actions.fx_glow(dl, gx, gy, w * 0.05, { 0.80, 0.88, 1.0 }, 0.55);
         dl:AddCircleFilled({ gx, gy }, w * 0.012, u32({ 1, 1, 1, 0.9 }), 12);
     elseif ph < 0.95 then
         local a = 1 - (ph - 0.55) / 0.4;
-        local tx, ty = at(0.86, 0.71);
+        local tx, ty = at(0.958, 0.884);
         actions.fx_star(dl, tx, ty, 3 + 6 * a, a);
     end
     -- the eyes
@@ -4070,43 +4070,92 @@ function actions.fx_ygo_front(dl, x, y, w, h, hov)
     local e = eph < 0.6 and math.sin(eph / 0.6 * math.pi) or 0;
     if hov then e = math.max(e, 0.6); end
     if e > 0.02 then
-        local ex, ey = at(0.525, 0.345);
-        actions.fx_glow(dl, ex, ey, w * 0.035, { 0.45, 0.65, 1.0 }, e * 0.8);
+        local ex, ey = at(0.635, 0.237);
+        actions.fx_glow(dl, ex, ey, w * 0.03, { 1.0, 0.15, 0.12 }, e * 0.8);   -- the red eyes under the hat
     end
-    -- a spark circling the ring
-    local ang = t * 0.8;
-    local cx, cy = at(0.50, 0.47);
-    local sx, sy = cx + math.cos(ang) * w * 0.36, cy + math.sin(ang) * h * 0.36;
-    actions.fx_glow(dl, sx, sy, w * 0.03, { 0.55, 0.70, 1.0 }, 0.45);
-    actions.fx_star(dl, sx, sy, 2.5 + 1.5 * math.sin(t * 6), 0.8);
 end
 
--- Blood draining from the katana: a wet line on the end of the blade, and small drops that swell at the tip, fall
--- and leave a tiny splash below (two drops, staggered, so one is always forming while the other falls).
+-- Blood running off the katana: drops swell on the blade's edge (two spots along it and the tip), fall and leave a
+-- tiny splash, each spot on its own rhythm so the blade keeps dripping. Positions are fractions of the logo picture.
+actions.DRIPS = { { 0.958, 0.884, 0.0, 0.14 }, { 0.70, 0.705, 0.9, 0.24 }, { 0.50, 0.565, 1.8, 0.30 } };
 function actions.fx_blood(dl, x, y, w, h)
     local t = actions.fx_time();
     local red = { 0.66, 0.05, 0.07 };
     local function col(a) return u32({ red[1], red[2], red[3], a }); end
-    local tx, ty = x + 0.86 * w, y + 0.71 * h;
-    dl:AddLine({ x + 0.77 * w, y + 0.65 * h }, { tx, ty }, col(0.55), math.max(1, w * 0.010));
-    local land = y + 0.97 * h;
-    for i = 0, 1 do
-        local ph = (t + i * 1.3) % 2.6;
-        if ph < 1.1 then                                       -- swelling at the tip
-            local r = w * (0.005 + 0.009 * ph / 1.1);
-            dl:AddLine({ tx, ty }, { tx, ty + r }, col(0.9), r * 0.9);
+    for _, d in ipairs(actions.DRIPS) do
+        local tx, ty = x + d[1] * w, y + d[2] * h + w * 0.012;      -- just under the blade's edge
+        local land = ty + d[4] * h;
+        local ph = (t + d[3]) % 2.7;
+        if ph < 1.2 then                                          -- swelling on the edge
+            local r = w * (0.004 + 0.008 * ph / 1.2);
+            dl:AddLine({ tx, ty - r }, { tx, ty + r }, col(0.9), r * 0.9);
             dl:AddCircleFilled({ tx, ty + r * 1.2 }, r, col(0.92), 12);
-        elseif ph < 1.6 then                                   -- falling (speeding up)
-            local u = (ph - 1.1) / 0.5;
-            local fy = ty + w * 0.017 + (land - ty - w * 0.017) * u * u;
-            dl:AddCircleFilled({ tx, fy }, w * 0.013, col(0.92), 12);
-            dl:AddCircleFilled({ tx, fy - w * 0.013 }, w * 0.007, col(0.8), 10);
-        elseif ph < 2.4 then                                   -- tiny splash, fading
-            local a = 1 - (ph - 1.6) / 0.8;
-            dl:AddCircleFilled({ tx, land }, w * 0.012, col(0.85 * a), 12);
+        elseif ph < 1.65 then                                     -- falling (speeding up)
+            local u = (ph - 1.2) / 0.45;
+            local fy = ty + w * 0.015 + (land - ty - w * 0.015) * u * u;
+            dl:AddCircleFilled({ tx, fy }, w * 0.011, col(0.92), 12);
+            dl:AddCircleFilled({ tx, fy - w * 0.011 }, w * 0.006, col(0.8), 10);
+        elseif ph < 2.4 then                                      -- tiny splash, fading
+            local a = 1 - (ph - 1.65) / 0.75;
+            dl:AddCircleFilled({ tx, land }, w * 0.010, col(0.85 * a), 12);
             for _, f in ipairs({ { -1.0, -0.5 }, { 1.1, -0.6 }, { -1.8, 0.1 }, { 1.7, 0.2 } }) do
-                dl:AddCircleFilled({ tx + f[1] * w * 0.02, land + f[2] * w * 0.012 }, w * 0.005, col(0.75 * a), 8);
+                dl:AddCircleFilled({ tx + f[1] * w * 0.018, land + f[2] * w * 0.011 }, w * 0.0045, col(0.75 * a), 8);
             end
+        end
+    end
+end
+
+-- Hover the samurai: a sword slash sweeps across him (a bright arc that grows and fades) and blood bursts from the
+-- cut, falling and fading. Started by setting ui.slash_t; about 1.3 seconds long.
+actions.SLASH_DROPS = { { -2.4, 0.9 }, { -1.9, 1.3 }, { -1.3, 1.1 }, { -0.8, 1.5 }, { -0.4, 0.8 }, { 0.1, 1.2 }, { 0.5, 1.4 },
+                        { 0.9, 0.9 }, { 1.4, 1.2 }, { -2.8, 0.7 }, { -1.6, 0.6 }, { 0.3, 0.6 }, { -1.0, 1.7 }, { -2.1, 1.6 } };
+function actions.fx_slash(dl, x, y, w, h)
+    if ui.slash_t == nil then return; end
+    local age = actions.fx_time() - ui.slash_t;
+    if age > 1.3 then ui.slash_t = nil; return; end
+    -- the arc: from top right, curving down across the body to the bottom left
+    local function P(u)
+        local ax, ay, cx, cy, bx, by = 1.02, 0.10, 0.62, 0.42, 0.02, 0.86;
+        local v = 1 - u;
+        return x + (v * v * ax + 2 * v * u * cx + u * u * bx) * w, y + (v * v * ay + 2 * v * u * cy + u * u * by) * h;
+    end
+    local head = math.min(1, age / 0.16);                  -- the blade sweeps through in 0.16 s
+    local fade = age < 0.16 and 1 or math.max(0, 1 - (age - 0.16) / 0.30);
+    if fade > 0 then
+        local tail = math.max(0, head - 0.75);
+        local n = 16;
+        local px, py = P(tail);
+        for k = 1, n do
+            local u = tail + (head - tail) * k / n;
+            local qx, qy = P(u);
+            local f = k / n;                               -- thicker and brighter towards the leading edge
+            dl:AddLine({ px, py }, { qx, qy }, u32({ 0.55 + 0.45 * f, 0.70 + 0.30 * f, 1, (0.25 + 0.75 * f) * fade }), 1 + 6 * f * fade);
+            px, py = qx, qy;
+        end
+        local hx, hy = P(head);
+        actions.fx_glow(dl, hx, hy, w * 0.06, { 0.85, 0.92, 1.0 }, 0.6 * fade);
+    end
+    -- the cut: a thin red line along the arc, fading
+    if age > 0.10 and age < 1.0 then
+        local a = age < 0.3 and 1 or math.max(0, 1 - (age - 0.3) / 0.7);
+        local px, py = P(0.12);
+        for k = 1, 12 do
+            local qx, qy = P(0.12 + 0.76 * k / 12);
+            dl:AddLine({ px, py }, { qx, qy }, u32({ 0.70, 0.04, 0.07, 0.85 * a }), 2.2);
+            px, py = qx, qy;
+        end
+    end
+    -- the blood burst from the middle of the cut: drops fly out, fall with gravity and fade
+    if age > 0.10 then
+        local dt = age - 0.10;
+        local ox, oy = P(0.45);
+        local a = math.max(0, 1 - dt / 1.1);
+        for i, d in ipairs(actions.SLASH_DROPS) do
+            local sp = w * (0.55 + 0.35 * d[2]) * (0.8 + 0.05 * (i % 4));
+            local vx, vy = math.cos(d[1]) * sp, math.sin(d[1]) * sp;
+            local dx, dy = ox + vx * dt, oy + vy * dt + 0.5 * (w * 3.2) * dt * dt;
+            local r = w * (0.010 + 0.006 * (i % 3)) * (1 - 0.4 * math.min(1, dt));
+            dl:AddCircleFilled({ dx, dy }, r, u32({ 0.68, 0.04, 0.07, 0.92 * a }), 10);
         end
     end
 end
@@ -4118,7 +4167,7 @@ end
 
 local function draw_header()
     imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
-    if imgui.BeginChild('ygo_header', { 0, 112 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+    if imgui.BeginChild('ygo_header', { 0, 124 }, false, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         local dl = imgui.GetWindowDrawList();
         local x, y = imgui.GetWindowPos();
         local w, h = imgui.GetWindowSize();
@@ -4127,17 +4176,22 @@ local function draw_header()
 
         -- Left: the YGO logo, YUNA GEAROPT and, under the title, who and what was scanned
         local lx = 4;
-        local yg = logo_texture('ygo.png');
+        local yg = logo_texture('logo.png') or logo_texture('ygo.png');
         if yg then
-            local YS = 108;
+            local YS = 122;
             imgui.SetCursorPos({ 0, 2 });
             local gx, gy = imgui.GetCursorScreenPos();
-            pcall(actions.fx_ygo_back, dl, gx, gy, YS, YS, ui.ygo_hov);
-            pcall(actions.fx_blood, dl, gx, gy, YS, YS);
+            -- (no glow circle behind the logo)
             imgui.Image(yg.ptr, { YS, YS });
+            pcall(actions.fx_blood, dl, gx, gy, YS, YS);              -- on top of the blade
+            local was = ui.ygo_hov;
             ui.ygo_hov = imgui.IsItemHovered();
             if ui.ygo_hov then imgui.SetTooltip('YunaGearOpt ' .. tostring(addon.version)); end
+            -- moving the mouse onto the samurai: he slashes (at most once a second)
+            local now = actions.fx_time();
+            if ui.ygo_hov and not was and now - (ui.slash_last or -9) > 1.0 then ui.slash_t, ui.slash_last = now, now; end
             pcall(actions.fx_ygo_front, dl, gx, gy, YS, YS, ui.ygo_hov);
+            pcall(actions.fx_slash, dl, gx, gy, YS, YS);
             lx = YS + 8;
         end
         imgui.SetCursorPos({ lx, 26 });
