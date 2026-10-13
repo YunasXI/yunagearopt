@@ -76,6 +76,9 @@ return {
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
         { 'Trick Attack', 'TrickAttack' }, 'Flee',
+        -- WHM / GEO: abilities that spend your HP (more HP = more given)
+        { 'Devotion', 'HPMax', jobs = { 'WHM' } }, { 'Martyr', 'HPMax', jobs = { 'WHM' } },
+        { 'Life Cycle', 'HPMax', jobs = { 'GEO' } },
         -- COR
         { 'Random Deal', 'RandomDeal' },
     },
@@ -126,6 +129,8 @@ return {
     -- Set names shown for one job only (the export set name stays the same)
     job_labels = {
         PLD = { TP = 'TP - Offense /NIN /DNC', TP_Hybrid = 'TP - Engaged', Enmity = 'Enmity (Provoke, Flash, Reprisal, Atonement, abilities)' },
+        WHM = { HPMax = 'Max HP (Devotion / Martyr)' },
+        GEO = { HPMax = 'Max HP (Life Cycle)' },
     },
     -- Jobs that tank engaged in TP_Hybrid ("TP - Engaged") and only wear TP ("TP - Offense") with /NIN or /DNC,
     -- together with the two weapons picked in the "/NIN and /DNC weapons" row of that set
@@ -902,6 +907,8 @@ return {
         MDT         = { label = 'Magic defense', caps = DEF, weapons = true,
                         weights = { dt = -10, mdt = -10, mdb = 6, meva = 1, hp = 0.05 } },
         Movement    = { label = 'Movement speed', weights = { move = 20 } },
+        -- Devotion / Martyr (WHM), Life Cycle (GEO): they spend a share of your HP, so as much max HP as possible
+        HPMax       = { label = 'Max HP (Devotion / Martyr / Life Cycle)', weapons = true, weights = { hp = 1, vit = 0.1 } },
         -- NIN evasion tanking (/eva: worn engaged and idle). A NIN player's set; a piece you don't own is filled
         -- automatically from evasion / damage taken gear.
         Evasion     = { label = 'Evasion (toggle /eva)', caps = DEF, weapons = true,
@@ -1132,7 +1139,7 @@ return {
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
-        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Phalanx', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
@@ -1154,7 +1161,7 @@ return {
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         GEO = { 'Idle', 'Idle_Luopan', 'Resting', 'TP', 'WS', 'Precast', 'Precast_Cure', 'Geomancy', 'Cure', 'Enhancing', 'Stoneskin',
-                'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+                'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'PDT', 'MDT', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'RefreshSpell', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
     },
 

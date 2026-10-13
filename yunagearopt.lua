@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.25';   -- the release workflow sets this to the release number
+addon.version = '1.1.26';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1681,12 +1681,14 @@ end
 -- branches: { { cond = 'attr="value"', body = fn }, ... }; default: fn or nil
 -- Job abilities that wear their own set (data.ja_sets), limited to the sets this export contains
 local function ja_list(built)
-    local present = {};
-    for _, b in ipairs(built) do present[b.desc.name] = true; end
+    local present, abbr = {}, nil;
+    for _, b in ipairs(built) do present[b.desc.name] = true; abbr = abbr or b.desc.abbr; end
     local list = {};
     for _, e in ipairs(data.ja_sets or {}) do
         local p = name_set_pair(e);
-        if present[p[2]] then table.insert(list, p); end
+        -- an entry with jobs = { ... } only belongs to those jobs (WHM Devotion / Martyr, GEO Life Cycle)
+        local job_ok = type(e) ~= 'table' or e.jobs == nil or abbr == nil or in_list(e.jobs, abbr);
+        if present[p[2]] and job_ok then table.insert(list, p); end
     end
     return list;
 end
@@ -3596,7 +3598,7 @@ local CATEGORY_OF = {
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     DWPAIR = 'Melee', Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
     Ready_Magic = 'Abilities', SicReady = 'Abilities', Tame = 'Abilities', Idle_Pet = 'Defense & Idle', SIR = 'Precast',
-    Evasion = 'Defense & Idle',
+    Evasion = 'Defense & Idle', HPMax = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle', Idle_Luopan = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
