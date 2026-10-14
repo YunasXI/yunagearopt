@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.28';   -- the release workflow sets this to the release number
+addon.version = '1.1.29';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3892,12 +3892,17 @@ function actions.segmented(id, labels, current, seg_w)
 end
 
 -- The square tile left of a set's title (VanaCore draws an icon there): the set's category initials
-function actions.icon_tile(text)
+function actions.icon_tile(text, cat)
     local x, y = imgui.GetCursorScreenPos();
     local sz = 44;
     local dl = imgui.GetWindowDrawList();
     dl:AddRectFilled({ x, y }, { x + sz, y + sz }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.16 }), 10);
     dl:AddRect({ x, y }, { x + sz, y + sz }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.35 }), 10);
+    -- the section's icon (same as in the sidebar, twice the size) instead of letters
+    if cat and pcall(actions.cat_icon, dl, cat, x + sz / 2, y + sz / 2, C.gold, 2.0) then
+        imgui.Dummy({ sz, sz });
+        return;
+    end
     imgui.SetWindowFontScale(1.15);
     local tw = imgui.CalcTextSize(text);
     if type(tw) == 'table' then tw = tw.x or tw[1]; end
@@ -4284,16 +4289,24 @@ function actions.rescan_button(w, h)
     local total = 14 + 8 + tw;
     local ix, iy = x + (w - total) / 2 + 7, y + h / 2;
     local col = u32(hov and C.text or C.gold_dim);
-    -- refresh icon: an open circle (about 300 degrees) with an arrow head at its end
-    local r, n, a0, a1 = 5.5, 14, 0.6, 0.6 + 5.2;
-    local lxp, lyp = ix + math.cos(a0) * r, iy + math.sin(a0) * r;
-    for k = 1, n do
-        local a = a0 + (a1 - a0) * k / n;
-        local qx, qy = ix + math.cos(a) * r, iy + math.sin(a) * r;
-        dl:AddLine({ lxp, lyp }, { qx, qy }, col, 1.6);
-        lxp, lyp = qx, qy;
+    -- refresh icon: the smooth picture at the exact size (whole pixels); the line drawing only if it can't load
+    local want = 16 * actions.scale();
+    local n = (want <= 17 and 16) or (want <= 21 and 20) or (want <= 25 and 24) or 32;
+    local tex = logo_texture('icons/refresh_' .. n .. '.png');
+    if tex then
+        local px, py = math.floor(ix - n / 2 + 0.5), math.floor(iy - n / 2 + 0.5);
+        local ok = pcall(function() dl:AddImage(tex.ptr, { px, py }, { px + n, py + n }, { 0, 0 }, { 1, 1 }, col); end);
+        if not ok then dl:AddImage(tex.ptr, { px, py }, { px + n, py + n }); end
+    else
+        local r, steps, a0, a1 = 5.5, 14, 0.6, 0.6 + 5.2;
+        local lxp, lyp = ix + math.cos(a0) * r, iy + math.sin(a0) * r;
+        for k = 1, steps do
+            local a = a0 + (a1 - a0) * k / steps;
+            local qx, qy = ix + math.cos(a) * r, iy + math.sin(a) * r;
+            dl:AddLine({ lxp, lyp }, { qx, qy }, col, 1.6);
+            lxp, lyp = qx, qy;
+        end
     end
-    dl:AddTriangleFilled({ lxp + 3.2, lyp - 0.5 }, { lxp - 2.6, lyp - 2.6 }, { lxp - 0.4, lyp + 3.2 }, col);
     dl:AddText({ ix + 7 + 8, y + (h - lh) / 2 }, u32(hov and C.text or { 0.85, 0.87, 0.93, 1 }), label);
     return clicked;
 end
@@ -4431,6 +4444,14 @@ local function draw_header()
         if imgui.IsItemHovered() then imgui.SetTooltip('Lazy mode'); end
         imgui.SameLine(0, 6);
         if actions.header_icon('##ygo_close', 'close') then ui.open[1] = false; end
+
+        -- The version running, top right (so everyone can tell which one they have)
+        imgui.SetWindowFontScale(1.0);
+        local vtext = 'v' .. tostring(addon.version);
+        imgui.SetCursorPos({ wwidth - text_w(vtext) - 22, 8 });
+        imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.85 }, vtext);
+        if imgui.IsItemHovered() then imgui.SetTooltip('YunaGearOpt ' .. vtext); end
+        imgui.SetWindowFontScale(1.0);
     end
     imgui.EndChild();
     imgui.PopStyleColor();
@@ -4439,17 +4460,21 @@ end
 local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
-    if imgui.BeginChild('ygo_side', { actions.sc(236), -54 }, true) then
+    -- The sidebar frame doesn't scroll: Rescan, the jobs and the title stay put; the sets scroll in 'ygo_side_sets'
+    if imgui.BeginChild('ygo_side', { actions.sc(236), -54 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         if actions.rescan_button(imgui.GetWindowWidth() - 28, actions.sc(30)) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
         if imgui.IsItemHovered() then imgui.SetTooltip('Read your bags again (after you get or move gear)'); end
         caption('JOB');
+        -- Job buttons, 4 per row: text in the GEAROPT colours; hover = name and level
         local jf = actions.push_kind('b');
-        imgui.SetWindowFontScale(jf and 0.86 or 1.0);              -- Bahnschrift runs large: job names a bit smaller
+        imgui.SetWindowFontScale(jf and 0.90 or 1.0);
         for i, abbr in ipairs(JOBS) do
-            if job_button(i, abbr, { actions.sc(47), actions.sc(24) }) then select_job(i); end
-            if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d   (%s)', abbr, job_level(i), ROLE[abbr] or '')); end
+            if actions.job_text(i, abbr, actions.sc(47), actions.sc(24)) then select_job(i); end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(string.format('%s  (%s)\nLv.%d   %s', actions.JOB_NAMES[abbr] or abbr, abbr, job_level(i), ROLE[abbr] or ''));
+            end
             if i % 4 ~= 0 then imgui.SameLine(0, 4); end
         end
         imgui.SetWindowFontScale(1.0);
@@ -4460,7 +4485,10 @@ local function draw_sidebar()
         caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 1));
         -- Section names fold (click), right-click folds / opens them all
         ui.cat_folded = ui.cat_folded or {};
-        for _, cat in ipairs(CATEGORY_ORDER) do
+        -- only the sets scroll, in their own area under the fixed part
+        imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
+        local sets_open = imgui.BeginChild('ygo_side_sets', { 0, 0 }, false);
+        for _, cat in ipairs(sets_open and CATEGORY_ORDER or {}) do
             local first = true;
             local last_skill = nil;
             for i, d in ipairs(ui.sets) do
@@ -4539,6 +4567,8 @@ local function draw_sidebar()
                 end
             end
         end
+        imgui.EndChild();                                     -- end of the scrolling sets
+        imgui.PopStyleColor();
     end
     imgui.EndChild();
     imgui.PopStyleVar();
@@ -4569,7 +4599,7 @@ local function draw_set_header()
     local col = ui.show_bis and TIER_ORANGE or (set_ratio() and tier(set_ratio()) or C.text);
     local cat = category(d);
     local initials = { Melee = 'ME', Weaponskills = 'WS', Precast = 'PC', Magic = 'MA', Abilities = 'AB', ['Defense & Idle'] = 'DI' };
-    actions.icon_tile(d.lockstyle and 'LS' or (initials[cat] or 'YG'));
+    actions.icon_tile(d.lockstyle and 'LS' or (initials[cat] or 'YG'), (not d.lockstyle) and cat or nil);
     imgui.SameLine(0, 14);
     imgui.BeginGroup();
     title_text(d.label, 1.35, col);
@@ -5659,37 +5689,90 @@ function actions.push_kind(kind)
     return (pcall(imgui.PushFont, f));
 end
 
--- A small icon for a sidebar section, centred on cx, cy (col = a colour table)
-function actions.cat_icon(dl, cat, cx, cy, col)
-    local c = u32(col);
-    if cat == 'Melee' then                                                       -- sword
-        dl:AddLine({ cx - 4, cy + 4 }, { cx + 5, cy - 5 }, c, 2);
-        dl:AddLine({ cx - 5, cy + 0 }, { cx - 0, cy + 5 }, c, 1.8);
-        dl:AddCircleFilled({ cx - 5.5, cy + 5.5 }, 1.6, c, 8);
-    elseif cat == 'Weaponskills' then                                            -- star
-        local r, k = 6, 1.6;
-        dl:AddTriangleFilled({ cx - r, cy }, { cx, cy - k }, { cx, cy + k }, c);
-        dl:AddTriangleFilled({ cx + r, cy }, { cx, cy + k }, { cx, cy - k }, c);
-        dl:AddTriangleFilled({ cx, cy - r }, { cx + k, cy }, { cx - k, cy }, c);
-        dl:AddTriangleFilled({ cx, cy + r }, { cx - k, cy }, { cx + k, cy }, c);
-    elseif cat == 'Precast' then                                                 -- hourglass
-        dl:AddTriangleFilled({ cx - 4, cy - 5 }, { cx + 4, cy - 5 }, { cx, cy }, c);
-        dl:AddTriangleFilled({ cx, cy }, { cx + 4, cy + 5 }, { cx - 4, cy + 5 }, c);
-        dl:AddLine({ cx - 5, cy - 5.5 }, { cx + 5, cy - 5.5 }, c, 1.4);
-        dl:AddLine({ cx - 5, cy + 5.5 }, { cx + 5, cy + 5.5 }, c, 1.4);
-    elseif cat == 'Magic' then                                                   -- wand with a sparkle
-        dl:AddLine({ cx - 5, cy + 5 }, { cx + 2, cy - 2 }, c, 2);
-        dl:AddTriangleFilled({ cx + 4, cy - 7 }, { cx + 5, cy - 4 }, { cx + 3, cy - 4 }, c);
-        dl:AddTriangleFilled({ cx + 4, cy - 1 }, { cx + 3, cy - 4 }, { cx + 5, cy - 4 }, c);
-        dl:AddTriangleFilled({ cx + 1, cy - 4 }, { cx + 4, cy - 5 }, { cx + 4, cy - 3 }, c);
-        dl:AddTriangleFilled({ cx + 7, cy - 4 }, { cx + 4, cy - 3 }, { cx + 4, cy - 5 }, c);
-    elseif cat == 'Abilities' then                                               -- lightning bolt
-        dl:AddTriangleFilled({ cx + 2, cy - 6 }, { cx - 4, cy + 1 }, { cx + 0.5, cy + 1 }, c);
-        dl:AddTriangleFilled({ cx - 0.5, cy - 1 }, { cx + 4, cy - 1 }, { cx - 2, cy + 6 }, c);
-    else                                                                         -- shield (Defense & Idle)
-        dl:AddRectFilled({ cx - 4.5, cy - 5 }, { cx + 4.5, cy }, c, 1.5);
-        dl:AddTriangleFilled({ cx - 4.5, cy }, { cx + 4.5, cy }, { cx, cy + 6 }, c);
+-- A section icon from the smooth pictures in images/icons (white, tinted to col), at the exact pixel size closest
+-- to 16 * k * Window scale; falls back to the line-drawn icon if a picture can't load.
+actions.ICON_FILE = { Melee = 'melee', Weaponskills = 'ws', Precast = 'precast', Magic = 'magic', Abilities = 'abilities' };
+actions.ICON_SIZES = { 16, 20, 24, 32, 40, 48 };
+function actions.cat_icon(dl, cat, cx, cy, col, k)
+    k = k or 1;
+    local want = 16 * k * actions.scale();
+    local n = actions.ICON_SIZES[#actions.ICON_SIZES];
+    for _, sz in ipairs(actions.ICON_SIZES) do
+        if sz >= want - 1 then n = sz; break; end
     end
+    local tex = logo_texture('icons/' .. (actions.ICON_FILE[cat] or 'defense') .. '_' .. n .. '.png');
+    if tex == nil then return actions.cat_icon_vec(dl, cat, cx, cy, col, k); end
+    local x, y = math.floor(cx - n / 2 + 0.5), math.floor(cy - n / 2 + 0.5);       -- whole pixels: no blur
+    local ok = pcall(function() dl:AddImage(tex.ptr, { x, y }, { x + n, y + n }, { 0, 0 }, { 1, 1 }, u32(col)); end);
+    if not ok then dl:AddImage(tex.ptr, { x, y }, { x + n, y + n }); end
+end
+
+-- The old line-drawn icon (only used if the pictures are missing)
+function actions.cat_icon_vec(dl, cat, cx, cy, col, k)
+    k = k or 1;
+    local c = u32(col);
+    local function P(x, y) return { cx + x * k, cy + y * k }; end
+    local function L(x1, y1, x2, y2, t) dl:AddLine(P(x1, y1), P(x2, y2), c, t * k); end
+    local function T(x1, y1, x2, y2, x3, y3) dl:AddTriangleFilled(P(x1, y1), P(x2, y2), P(x3, y3), c); end
+    if cat == 'Melee' then                                                       -- sword
+        L(-4, 4, 5, -5, 2);
+        L(-5, 0, 0, 5, 1.8);
+        dl:AddCircleFilled(P(-5.5, 5.5), 1.6 * k, c, 10);
+    elseif cat == 'Weaponskills' then                                            -- star
+        T(-6, 0, 0, -1.6, 0, 1.6); T(6, 0, 0, 1.6, 0, -1.6);
+        T(0, -6, 1.6, 0, -1.6, 0); T(0, 6, -1.6, 0, 1.6, 0);
+    elseif cat == 'Precast' then                                                 -- hourglass
+        T(-4, -5, 4, -5, 0, 0); T(0, 0, 4, 5, -4, 5);
+        L(-5, -5.5, 5, -5.5, 1.4); L(-5, 5.5, 5, 5.5, 1.4);
+    elseif cat == 'Magic' then                                                   -- wand with a sparkle
+        L(-5, 5, 2, -2, 2);
+        T(4, -7, 5, -4, 3, -4); T(4, -1, 3, -4, 5, -4);
+        T(1, -4, 4, -5, 4, -3); T(7, -4, 4, -3, 4, -5);
+    elseif cat == 'Abilities' then                                               -- lightning bolt
+        T(2, -6, -4, 1, 0.5, 1); T(-0.5, -1, 4, -1, -2, 6);
+    else                                                                         -- shield (Defense & Idle)
+        dl:AddRectFilled(P(-4.5, -5), P(4.5, 0), c, 1.5 * k);
+        T(-4.5, 0, 4.5, 0, 0, 6);
+    end
+end
+
+-- Job buttons: full names (tooltip)
+actions.JOB_NAMES = { WAR = 'Warrior', MNK = 'Monk', WHM = 'White Mage', BLM = 'Black Mage', RDM = 'Red Mage', THF = 'Thief',
+    PLD = 'Paladin', DRK = 'Dark Knight', BST = 'Beastmaster', BRD = 'Bard', RNG = 'Ranger', SAM = 'Samurai', NIN = 'Ninja',
+    DRG = 'Dragoon', SMN = 'Summoner', BLU = 'Blue Mage', COR = 'Corsair', PUP = 'Puppetmaster', DNC = 'Dancer',
+    SCH = 'Scholar', GEO = 'Geomancer', RUN = 'Rune Fencer' };
+
+-- A job button as GEAROPT-style text: each letter flows periwinkle <-> ice blue (the wave runs across the grid);
+-- the selected job is white in a soft periwinkle pill; hover = a faint backing and brighter letters. Returns clicked.
+function actions.job_text(i, abbr, w, h)
+    local x, y = imgui.GetCursorScreenPos();
+    local clicked = imgui.InvisibleButton('##jt' .. abbr, { w, h });
+    local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
+    local sel = i == ui.job;
+    local dl = imgui.GetWindowDrawList();
+    if sel then
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.28 }), 6);
+        dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.85 }), 6);
+    elseif hov then
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, held and 0.10 or 0.06 }), 6);
+    end
+    local tw, lh = text_w(abbr), imgui.GetTextLineHeight();
+    local tx, ty = x + (w - tw) / 2, y + (h - lh) / 2;
+    local t = actions.fx_time();
+    for k = 1, #abbr do
+        local ch = abbr:sub(k, k);
+        local cx = tx + text_w(abbr:sub(1, k - 1));
+        local col;
+        if sel then
+            col = { 1, 1, 1, 1 };
+        else
+            local u = 0.5 + 0.5 * math.sin(t * 1.2 - (i * 3 + k) * 0.45);    -- one wave across the whole grid
+            col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
+            if hov then col = { col[1] + (1 - col[1]) * 0.4, col[2] + (1 - col[2]) * 0.4, 1, 1 }; end
+        end
+        dl:AddText({ cx, ty }, u32(col), ch);
+    end
+    return clicked;
 end
 
 -- Window scale: the steps, the current factor, and a size scaled by it

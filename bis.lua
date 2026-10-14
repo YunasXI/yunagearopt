@@ -1819,7 +1819,8 @@ return {
         },
     },
     MNK = {
-        ['TP_MNK'] = { -- TP: Aife's Mantle on the back (not Melee Cape); every other slot is picked automatically
+        ['TP_MNK'] = { -- TP: Tpl. Gloves +1 and Aife's Mantle (not Melee Cape); every other slot is picked automatically
+            hands = 'Tpl. Gloves +1',
             back  = "Aife's Mantle",
         },
         ['Focus'] = { -- Temple Crown +1 enhances Focus
