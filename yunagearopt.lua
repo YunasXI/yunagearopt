@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.27';   -- the release workflow sets this to the release number
+addon.version = '1.1.28';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3807,7 +3807,8 @@ end
 
 -- A sidebar section name that folds: the whole row is the button (click = fold / open this section, right-click =
 -- fold / open every section). The arrow at the right edge points down while open, right while folded.
-function actions.fold_header(key, text, col)
+function actions.fold_header(key, text, col, icon)
+    local pushed = actions.push_kind('b');
     local folded = ui.cat_folded[key];
     local x, y = imgui.GetCursorScreenPos();
     local lh = imgui.GetTextLineHeight();
@@ -3820,7 +3821,12 @@ function actions.fold_header(key, text, col)
     local dl = imgui.GetWindowDrawList();
     if hov then dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, held and 0.09 or 0.045 }), 6); end
     local tc = hov and C.text or (folded and C.gold_dim or col);
-    dl:AddText({ x + 4, y + 4 }, u32(tc), text);
+    local tx = x + 4;
+    if icon then
+        actions.cat_icon(dl, icon, x + 12, y + h / 2, hov and C.text or C.gold_dim);
+        tx = x + 26;
+    end
+    dl:AddText({ tx, y + 4 }, u32(tc), text);
     local ax, cy = x + w - 17, y + h / 2;
     local c = u32(hov and C.text or (folded and C.gold_dim or col));
     if folded then
@@ -3828,6 +3834,7 @@ function actions.fold_header(key, text, col)
     else
         dl:AddTriangleFilled({ ax - 5, cy - 3 }, { ax + 5, cy - 3 }, { ax, cy + 3 }, c);
     end
+    if pushed then imgui.PopFont(); end
     if hov then imgui.SetTooltip((folded and 'Click to show' or 'Click to hide') .. '\nRight-click: fold / open every section'); end
     if clicked then ui.cat_folded[key] = not folded; end
     if rclicked then actions.fold_all(); end
@@ -3855,7 +3862,7 @@ function actions.switch(id, on, w, h, quiet)
     -- quiet (the sidebar's long list): a soft "on", and "off" gets a red edge so a switched-off set stands out
     if quiet and on then bg = { C.gold[1], C.gold[2], C.gold[3], hov and 0.65 or 0.42 }; end
     dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(bg), h / 2);
-    if quiet and not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.red[1], C.red[2], C.red[3], 0.75 }), h / 2, 0, 1); end
+    if quiet and not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.red[1], C.red[2], C.red[3], 0.75 }), h / 2); end
     local kx = on and (x + w - h / 2) or (x + h / 2);
     dl:AddCircleFilled({ kx, y + h / 2 }, h / 2 - (h < 18 and 2 or 3), u32({ 1, 1, 1, on and 1 or 0.85 }), 20);
     return clicked;
@@ -3909,7 +3916,7 @@ local function tier_frame(col, strong)
     local w, h = imgui.GetWindowSize();
     -- A child window clips its left/right padding, which cut the frame down to two loose lines: draw on the full card
     dl:PushClipRect({ x, y }, { x + w, y + h }, false);
-    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], strong and 0.75 or 0.22 }), 8, 0, 1);
+    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], strong and 0.75 or 0.22 }), 8);
     dl:PopClipRect();
 end
 
@@ -3922,7 +3929,7 @@ local function slot_icon(item, col)
     dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0.02, 0.03, 0.07, 0.85 }), 6);   -- dark, like the game's slots
     local ic = item and item_icon(item.id);
     if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + 34, y + 34 }); end
-    if item then dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], 0.35 }), 6, 0, 1); end
+    if item then dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], 0.35 }), 6); end
     imgui.Dummy({ ICON, ICON });
 end
 
@@ -3934,8 +3941,10 @@ end
 -- Section title: small, quiet, uppercase - no line, just space around it
 local function caption(title)
     imgui.Spacing();
-    imgui.SetWindowFontScale(0.86);
+    local pushed = actions.push_kind('b');
+    imgui.SetWindowFontScale(pushed and 0.84 or 0.86);
     imgui.TextColored(C.gold, title);
+    if pushed then imgui.PopFont(); end
     local x2, y2 = imgui.GetItemRectMax();
     if type(x2) == 'table' then x2, y2 = x2.x or x2[1], x2.y or x2[2]; end
     local wx = imgui.GetWindowPos();
@@ -4163,44 +4172,193 @@ function actions.fx_slash(dl, x, y, w, h)
     end
 end
 
--- Open a web page in the player's browser (Windows ShellExecute)
+-- Open a web page in the player's browser with Ashita's own function (no direct Windows calls). If it isn't there
+-- or fails, the link goes to the clipboard and a chat line says so.
 function actions.open_url(url)
     if type(url) ~= 'string' or not url:match('^https://') then return false; end
-    local ok = pcall(function()
-        if actions.shell32 == nil then
-            actions.shell32 = false;
-            ffi.cdef('void* ShellExecuteA(void* hwnd, const char* op, const char* file, const char* params, const char* dir, int show);');
-            actions.shell32 = ffi.load('shell32');
-        end
-        if actions.shell32 then actions.shell32.ShellExecuteA(nil, 'open', url, nil, nil, 1); end
-    end);
+    local ok = false;
+    if ashita and ashita.misc and type(ashita.misc.open_url) == 'function' then
+        ok = pcall(ashita.misc.open_url, url);
+    end
+    if not ok then
+        pcall(imgui.SetClipboardText, url);
+        msg('Link copied to your clipboard: ' .. url .. '  (paste it in your browser)');
+    end
     return ok;
 end
 
--- "Support YunaGearOpt": a small heart button that ends at x (header coordinates); hidden without a link
+-- "LOCKSTYLE <JOB>" as text in the GEAROPT style: letters flowing periwinkle <-> ice blue; brighter with an underline
+-- on hover; white while you're in the lockstyle view. Ends at right_x; returns where it starts (for the heart).
+function actions.draw_lockstyle_text(idx, right_x, center_w)
+    local label = 'LOCKSTYLE  ' .. JOBS[ui.job];
+    local in_look = idx == ui.set_idx;
+    imgui.SetWindowFontScale(1.12);
+    local tw, lh = text_w(label), imgui.GetTextLineHeight();
+    local px, py = 14, 6;                                         -- the pill's padding around the text
+    local x0 = center_w and math.floor((center_w - tw) / 2) or (right_x - tw);
+    imgui.SetCursorPos({ x0 - px, 56 - lh / 2 - py });
+    local bx, by = imgui.GetCursorScreenPos();
+    local clicked = imgui.InvisibleButton('##ygo_look', { tw + px * 2, lh + py * 2 });
+    local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
+    local dl = imgui.GetWindowDrawList();
+    -- the pill: faint fill + thin outline; brighter on hover, solid-ish while you're in the lockstyle view
+    local pr = (lh + py * 2) / 2;
+    local fill = in_look and 0.30 or (held and 0.24 or (hov and 0.16 or 0.07));
+    local edge = in_look and 0.95 or (hov and 0.85 or 0.45);
+    dl:AddRectFilled({ bx, by }, { bx + tw + px * 2, by + lh + py * 2 }, u32({ C.gold[1], C.gold[2], C.gold[3], fill }), pr);
+    dl:AddRect({ bx, by }, { bx + tw + px * 2, by + lh + py * 2 }, u32({ C.gold[1], C.gold[2], C.gold[3], edge }), pr);
+    local x, y = bx + px, by + py;
+    local t = actions.fx_time();
+    for i = 1, #label do
+        local ch = label:sub(i, i);
+        if ch ~= ' ' then
+            local cx = x + text_w(label:sub(1, i - 1));
+            local col;
+            if in_look then
+                col = { 1, 1, 1, 1 };
+            else
+                local u = 0.5 + 0.5 * math.sin(t * 1.2 - i * 0.45);
+                col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
+                if hov then col = { col[1] + (1 - col[1]) * 0.35, col[2] + (1 - col[2]) * 0.35, 1, 1 }; end
+            end
+            dl:AddText({ cx, y }, u32(col), ch);
+        end
+    end
+    imgui.SetWindowFontScale(1.0);
+    if clicked and not in_look then ui.set_idx, ui.dirty = idx, true; end
+    if hov then
+        imgui.SetTooltip('Pick the look you want for ' .. JOBS[ui.job] .. ' (or IMPORT EQUIPPED).\nIt locks on by itself after login and every job change.');
+    end
+    return x0 - px;
+end
+
+-- The support button (Ko-fi): "SUPPORT" as text in the LOCKSTYLE style but warm (letters flowing gold <-> pink),
+-- a shine sweeping across every few seconds that ends in a little sparkle; hover = brighter, underline, shine more
+-- often. Hidden without a link. right_x = where it ends (header coordinates).
 function actions.draw_support(right_x)
     local url = data and data.support_url or '';
-    if url == '' then return; end
-    local label = 'Support YunaGearOpt';
-    local bw = btn_w(label) + 16;
-    imgui.SetCursorPos({ right_x - bw, 43 });
+    if url == '' then return right_x; end
+    local label = 'SUPPORT';
+    imgui.SetWindowFontScale(1.12);
+    local tw, lh = text_w(label), imgui.GetTextLineHeight();
+    imgui.SetCursorPos({ right_x - tw, 56 - lh / 2 });
     local x, y = imgui.GetCursorScreenPos();
-    local h = 26;
-    local clicked = imgui.InvisibleButton('##ygo_support', { bw, h });
+    local clicked = imgui.InvisibleButton('##ygo_support', { tw, lh });
     local hov = imgui.IsItemHovered();
     local dl = imgui.GetWindowDrawList();
-    local pink = { 1.0, 0.42, 0.55 };
-    dl:AddRectFilled({ x, y }, { x + bw, y + h }, u32({ pink[1], pink[2], pink[3], hov and 0.22 or 0.10 }), 6);
-    dl:AddRect({ x, y }, { x + bw, y + h }, u32({ pink[1], pink[2], pink[3], hov and 0.75 or 0.40 }), 6, 0, 1);
-    -- a small heart, then the label
-    local hx, hy = x + 12, y + h / 2;
-    local hc = u32({ pink[1], pink[2], pink[3], 1 });
-    dl:AddCircleFilled({ hx - 2.5, hy - 1.5 }, 3, hc, 12);
-    dl:AddCircleFilled({ hx + 2.5, hy - 1.5 }, 3, hc, 12);
-    dl:AddTriangleFilled({ hx - 5.4, hy - 0.5 }, { hx + 5.4, hy - 0.5 }, { hx, hy + 5 }, hc);
-    dl:AddText({ x + 22, y + (h - imgui.GetTextLineHeight()) / 2 }, u32(hov and C.text or { 1.0, 0.75, 0.82, 1 }), label);
-    if hov then imgui.SetTooltip('Thank you! Opens ' .. url .. ' in your browser'); end
+    local t = actions.fx_time();
+    local period = hov and 1.6 or 4.0;
+    local ph = t % period;
+    local sweep = ph < 0.8 and (ph / 0.8) * (tw + 30) - 15 or nil;
+    local gold, pink = { 1.0, 0.80, 0.42 }, { 1.0, 0.45, 0.62 };
+    for i = 1, #label do
+        local ch = label:sub(i, i);
+        local cx = x + text_w(label:sub(1, i - 1));
+        local u = 0.5 + 0.5 * math.sin(t * 1.4 - i * 0.55);
+        local col = { gold[1] + (pink[1] - gold[1]) * u, gold[2] + (pink[2] - gold[2]) * u, gold[3] + (pink[3] - gold[3]) * u };
+        if hov then col = { col[1] + (1 - col[1]) * 0.25, col[2] + (1 - col[2]) * 0.25, col[3] + (1 - col[3]) * 0.25 }; end
+        local k = sweep and math.max(0, 1 - math.abs(cx + text_w(ch) / 2 - x - sweep) / 18) or 0;
+        dl:AddText({ cx, y }, u32({ col[1] + (1 - col[1]) * k, col[2] + (1 - col[2]) * k, col[3] + (1 - col[3]) * k, 1 }), ch);
+    end
+    if ph >= 0.8 and ph < 1.25 then                       -- the sweep's end: a quick sparkle
+        local a = 1 - (ph - 0.8) / 0.45;
+        actions.fx_star(dl, x + tw + 4, y + lh * 0.2, 2 + 4 * a, a);
+    end
+    if hov then dl:AddLine({ x, y + lh + 1 }, { x + tw, y + lh + 1 }, u32({ pink[1], pink[2], pink[3], 0.9 }), 1.5); end
+    imgui.SetWindowFontScale(1.0);
+    if hov then imgui.SetTooltip('Thank you for using YunaGearOpt!\nClick to support YunasXI on Ko-fi.'); end
     if clicked then actions.open_url(url); end
+    return right_x - tw;
+end
+
+-- "Rescan gear" (top of the sidebar): a thin 1 px edge, a small refresh icon and the label, centred; brighter on hover
+function actions.rescan_button(w, h)
+    local x, y = imgui.GetCursorScreenPos();
+    local clicked = imgui.InvisibleButton('##ygo_rescan', { w, h });
+    local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
+    local dl = imgui.GetWindowDrawList();
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(held and C.frame_hi or (hov and C.frame or { C.frame[1], C.frame[2], C.frame[3], 0.55 })), 7);
+    dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], hov and 0.70 or 0.28 }), 7);
+    local label = 'Rescan gear';
+    local tw, lh = text_w(label), imgui.GetTextLineHeight();
+    local total = 14 + 8 + tw;
+    local ix, iy = x + (w - total) / 2 + 7, y + h / 2;
+    local col = u32(hov and C.text or C.gold_dim);
+    -- refresh icon: an open circle (about 300 degrees) with an arrow head at its end
+    local r, n, a0, a1 = 5.5, 14, 0.6, 0.6 + 5.2;
+    local lxp, lyp = ix + math.cos(a0) * r, iy + math.sin(a0) * r;
+    for k = 1, n do
+        local a = a0 + (a1 - a0) * k / n;
+        local qx, qy = ix + math.cos(a) * r, iy + math.sin(a) * r;
+        dl:AddLine({ lxp, lyp }, { qx, qy }, col, 1.6);
+        lxp, lyp = qx, qy;
+    end
+    dl:AddTriangleFilled({ lxp + 3.2, lyp - 0.5 }, { lxp - 2.6, lyp - 2.6 }, { lxp - 0.4, lyp + 3.2 }, col);
+    dl:AddText({ ix + 7 + 8, y + (h - lh) / 2 }, u32(hov and C.text or { 0.85, 0.87, 0.93, 1 }), label);
+    return clicked;
+end
+
+-- Header icons (minimise / close): no box, a thin line or cross that brightens on hover (the cross turns red)
+function actions.header_icon(id, kind)
+    local x, y = imgui.GetCursorScreenPos();
+    local sz = 28;
+    local clicked = imgui.InvisibleButton(id, { sz, sz });
+    local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
+    local dl = imgui.GetWindowDrawList();
+    local red = kind == 'close';
+    if hov then
+        local bg = red and { 1.0, 0.35, 0.35, held and 0.28 or 0.16 } or { 1, 1, 1, held and 0.10 or 0.06 };
+        dl:AddRectFilled({ x, y }, { x + sz, y + sz }, u32(bg), 6);
+    end
+    local col = hov and (red and { 1.0, 0.55, 0.55, 1 } or C.text) or C.muted;
+    local cx, cy, k = x + sz / 2, y + sz / 2, 5.5;
+    if kind == 'min' then
+        dl:AddLine({ cx - k, cy + 3 }, { cx + k, cy + 3 }, u32(col), 1.6);
+    else
+        dl:AddLine({ cx - k, cy - k }, { cx + k, cy + k }, u32(col), 1.6);
+        dl:AddLine({ cx - k, cy + k }, { cx + k, cy - k }, u32(col), 1.6);
+    end
+    return clicked;
+end
+
+-- The people YunaGearOpt thanks (header middle, "Special thanks")
+actions.THANKS = { 'Vekien', 'Carver', 'Tai', 'Ramtough', 'Irondestruction', 'Hax', 'GM Box', 'Rumham', 'Sky',
+                   'Emeria', '[GM] Pie', 'Mod', 'Loxley', 'Tonzoffun', 'Haruuc', 'Shirahime', 'Toots' };
+
+-- "Special thanks" (header, right side, ends at right_x): a twinkling star and quiet text; brighter + underline on
+-- hover; a click opens the thank-you card
+function actions.draw_thanks(right_x)
+    local label = 'Special thanks';
+    local tw, lh = text_w(label), imgui.GetTextLineHeight();
+    local bw = tw + 22;
+    imgui.SetCursorPos({ right_x - bw, 56 - lh / 2 });
+    local x, y = imgui.GetCursorScreenPos();
+    if imgui.InvisibleButton('##ygo_thanks', { bw, lh }) then imgui.OpenPopup('ygo_thanks_card'); end
+    local hov = imgui.IsItemHovered();
+    local dl = imgui.GetWindowDrawList();
+    local t = actions.fx_time();
+    local tw_a = 0.55 + 0.45 * actions.fx_twinkle(t, 1.3, 0.4);
+    actions.fx_star(dl, x + 7, y + lh / 2, hov and 6 or 4 + 1.5 * tw_a, hov and 1 or tw_a);
+    local col = hov and C.text or C.gold_dim;
+    dl:AddText({ x + 20, y }, u32(col), label);
+    if hov then dl:AddLine({ x + 20, y + lh + 1 }, { x + 20 + tw, y + lh + 1 }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.9 }), 1.5); end
+    if imgui.BeginPopup('ygo_thanks_card') then
+        imgui.SetWindowFontScale(1.15);
+        imgui.TextColored(C.gold, 'Special thanks');
+        imgui.SetWindowFontScale(1.0);
+        imgui.Separator();
+        imgui.Spacing();
+        if imgui.BeginTable('ygo_thanks_t', 2, ImGuiTableFlags_SizingStretchSame) then   -- two columns of names
+            for _, n in ipairs(actions.THANKS) do
+                imgui.TableNextColumn();
+                imgui.TextColored(TIER_ORANGE, '  ' .. n);
+            end
+            imgui.EndTable();
+        end
+        imgui.Spacing();
+        imgui.TextColored(C.muted, 'Thank you for your support!');
+        imgui.EndPopup();
+    end
 end
 
 -- How far the VanaCore picture is floating right now (pixels, up and down)
@@ -4256,51 +4414,23 @@ local function draw_header()
         end
         imgui.SetWindowFontScale(1.0);
 
-        -- Middle: the VanaCore crystal, smaller, floating
-        local vg = logo_texture('vanacore.png');
-        if vg then
-            local VS = 42;
-            local okf, fy = pcall(actions.fx_float);
-            imgui.SetCursorPos({ math.floor((w - VS) / 2), 35 + (okf and fy or 0) });
-            local vx, vy = imgui.GetCursorScreenPos();
-            pcall(actions.fx_vanacore_back, dl, vx, vy, VS, VS, ui.vc_hov);
-            imgui.Image(vg.ptr, { VS, VS });
-            ui.vc_hov = imgui.IsItemHovered();
-            if ui.vc_hov then imgui.SetTooltip('Runs on VanaCore'); end
-            pcall(actions.fx_vanacore_front, dl, vx, vy, VS, VS, ui.vc_hov);
-        end
-
-        -- Right: "Support YunaGearOpt" (only with a link in data.support_url), LOCKSTYLE, then _ and X
-        pcall(actions.draw_support, imgui.GetWindowWidth() - 92 - btn_w('LOCKSTYLE  ' .. JOBS[ui.job]) - 14 - 10);
-
-        -- Right: LOCKSTYLE (gold like VIEW BIS SET, solid while you're in it), then _ and X
+        -- Middle: LOCKSTYLE, centred
         for i, d in ipairs(ui.sets) do
-            if d.lockstyle then
-                local in_look = i == ui.set_idx;
-                local label = 'LOCKSTYLE  ' .. JOBS[ui.job];
-                imgui.SetCursorPos({ imgui.GetWindowWidth() - 92 - btn_w(label) - 14, 43 });
-                if not in_look then
-                    imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.12 });
-                    imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.22 });
-                    imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
-                    imgui.PushStyleColor(ImGuiCol_Text, C.gold);
-                end
-                if accent_button(label .. '##ygo_look', { btn_w(label), 26 }, in_look) and not in_look then
-                    ui.set_idx, ui.dirty = i, true;
-                end
-                if not in_look then imgui.PopStyleColor(4); end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip('Pick the look you want for ' .. JOBS[ui.job] .. ' (or IMPORT EQUIPPED).\nIt locks on by itself after login and every job change.');
-                end
-            end
+            if d.lockstyle then pcall(actions.draw_lockstyle_text, i, nil, w); end
         end
+
+        -- Right (from the edge): _ and X, SUPPORT (only with data.support_url), then "Special thanks"
+        local rx = imgui.GetWindowWidth() - 70 - 16;
+        local oks, sx = pcall(actions.draw_support, rx);
+        if oks and sx then rx = sx - 16; end
+        pcall(actions.draw_thanks, rx);
 
         local wwidth = imgui.GetWindowWidth();
-        imgui.SetCursorPos({ wwidth - 92, 41 });
-        if ghost_button('_##ygo_compact', { 32, 30 }) then s.compact = true; settings.save(); end
+        imgui.SetCursorPos({ wwidth - 70, 42 });
+        if actions.header_icon('##ygo_compact', 'min') then s.compact = true; settings.save(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Lazy mode'); end
-        imgui.SameLine(0, 4);
-        if ghost_button('X##ygo_close', { 32, 30 }) then ui.open[1] = false; end
+        imgui.SameLine(0, 6);
+        if actions.header_icon('##ygo_close', 'close') then ui.open[1] = false; end
     end
     imgui.EndChild();
     imgui.PopStyleColor();
@@ -4310,16 +4440,20 @@ local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
     if imgui.BeginChild('ygo_side', { actions.sc(236), -54 }, true) then
-        if imgui.Button('Rescan gear##ygo_rescan', { imgui.GetWindowWidth() - 28, 24 }) then
+        if actions.rescan_button(imgui.GetWindowWidth() - 28, actions.sc(30)) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
         if imgui.IsItemHovered() then imgui.SetTooltip('Read your bags again (after you get or move gear)'); end
         caption('JOB');
+        local jf = actions.push_kind('b');
+        imgui.SetWindowFontScale(jf and 0.86 or 1.0);              -- Bahnschrift runs large: job names a bit smaller
         for i, abbr in ipairs(JOBS) do
             if job_button(i, abbr, { actions.sc(47), actions.sc(24) }) then select_job(i); end
             if imgui.IsItemHovered() then imgui.SetTooltip(string.format('%s  Lv.%d   (%s)', abbr, job_level(i), ROLE[abbr] or '')); end
             if i % 4 ~= 0 then imgui.SameLine(0, 4); end
         end
+        imgui.SetWindowFontScale(1.0);
+        if jf then imgui.PopFont(); end
 
         imgui.Spacing();
         -- (Lockstyle isn't a gear set: its button is in the header, next to the scan info)
@@ -4333,15 +4467,21 @@ local function draw_sidebar()
                 if category(d) == cat then
                     local function header(text)                -- VanaCore's small grey section label; click = fold
                         imgui.Spacing();
-                        imgui.SetWindowFontScale(0.9);
-                        actions.fold_header(cat, text, C.muted);
+                        imgui.SetWindowFontScale(0.86);
+                        actions.fold_header(cat, text, C.muted, cat);
                         imgui.SetWindowFontScale(1.0);
                     end
                     if cat == 'Weaponskills' and d.ws and d.ws.skill and d.ws.skill ~= last_skill then
                         if first then header(cat:upper()); first = false; end
                         last_skill = d.ws.skill;
-                        imgui.SetWindowFontScale(0.98);
-                        if not ui.cat_folded[cat] then actions.fold_header('ws:' .. d.ws.skill, '  ' .. (SKILL_NAMES[d.ws.skill] or ''), C.gold_dim); end
+                        imgui.SetWindowFontScale(0.86);
+                        if not ui.cat_folded[cat] then
+                            local cnt = 0;                               -- how many sets this weapon group holds
+                            for _, d2 in ipairs(ui.sets) do
+                                if d2.kind == 'ws' and d2.id ~= 'WS' and d2.ws and d2.ws.skill == d.ws.skill then cnt = cnt + 1; end
+                            end
+                            actions.fold_header('ws:' .. d.ws.skill, '  ' .. (SKILL_NAMES[d.ws.skill] or '') .. '  (' .. cnt .. ')', C.gold_dim);
+                        end
                         imgui.SetWindowFontScale(1.0);
                     end
                     if first then
@@ -4365,6 +4505,7 @@ local function draw_sidebar()
                     elseif rhov then
                         rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
                     end
+                    local sbf = actions.push_kind('sb');          -- set names in Segoe UI Semibold
                     local tx_end = sx + rw - 10;                 -- text stops 10 px before the switch
                     rdl:PushClipRect({ sx, sy }, { tx_end, sy + rh }, true);
                     local tcol = d.disabled and { C.muted[1], C.muted[2], C.muted[3], 0.55 } or (sel and C.text or { 0.78, 0.80, 0.87, 1 });
@@ -4376,6 +4517,7 @@ local function draw_sidebar()
                         rdl:AddRectFilledMultiColor({ tx_end - 22, sy + 1 }, { tx_end, sy + rh - 1 }, clear, solid, solid, clear);
                     end
                     if rhov and text_w(label) + 14 > rw then imgui.SetTooltip(label); end   -- a name cut off at the edge
+                    if sbf then imgui.PopFont(); end
                     -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
                     imgui.SameLine(ww - 44);
                     imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
@@ -4793,7 +4935,7 @@ local function draw_totals()
         end
         local x, y = imgui.GetCursorScreenPos();
         dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.10 }), h / 2);
-        dl:AddRect({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.30 }), h / 2, 0, 1);
+        dl:AddRect({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.30 }), h / 2);
         dl:AddText({ x + 8, y + 3 }, u32(col), text);
         imgui.Dummy({ w, h });
     end
@@ -5481,9 +5623,72 @@ function actions.load_font()
                         end
                     end
                 end
+                -- Bahnschrift (titles, job buttons) and Segoe UI Semibold (set names): also Windows' own fonts
+                ui.fonts_b, ui.fonts_sb = {}, {};
+                for _, fam in ipairs({ { ui.fonts_b, 'bahnschrift.ttf' }, { ui.fonts_sb, 'seguisb.ttf' } }) do
+                    local fh = io.open(dir .. fam[2], 'rb');
+                    if fh then
+                        fh:close();
+                        local sizes = { 17 };
+                        if font.LegacySize == nil then
+                            for _, sc in ipairs(actions.SCALES) do table.insert(sizes, math.floor(17 * sc + 0.5)); end
+                        end
+                        for _, sz in ipairs(sizes) do
+                            if fam[1][sz] == nil then
+                                local ok3, f3 = pcall(imgui.AddFontFromFileTTF, dir .. fam[2], sz);
+                                if ok3 and f3 then fam[1][sz] = f3; end
+                            end
+                        end
+                    end
+                end
                 return;
             end
         end
+    end
+end
+
+-- Push one of the extra fonts at the current Window scale: 'b' = Bahnschrift, 'sb' = Segoe UI Semibold.
+-- Returns true when pushed (then call imgui.PopFont()); false = the normal font stays.
+function actions.push_kind(kind)
+    local fam = (kind == 'b' and ui.fonts_b) or (kind == 'sb' and ui.fonts_sb) or nil;
+    if fam == nil then return false; end
+    local size = math.floor(17 * actions.scale() + 0.5);
+    local f = fam[size] or fam[17];
+    if f == nil then return false; end
+    if f.LegacySize ~= nil then return (pcall(imgui.PushFont, f, size)); end
+    return (pcall(imgui.PushFont, f));
+end
+
+-- A small icon for a sidebar section, centred on cx, cy (col = a colour table)
+function actions.cat_icon(dl, cat, cx, cy, col)
+    local c = u32(col);
+    if cat == 'Melee' then                                                       -- sword
+        dl:AddLine({ cx - 4, cy + 4 }, { cx + 5, cy - 5 }, c, 2);
+        dl:AddLine({ cx - 5, cy + 0 }, { cx - 0, cy + 5 }, c, 1.8);
+        dl:AddCircleFilled({ cx - 5.5, cy + 5.5 }, 1.6, c, 8);
+    elseif cat == 'Weaponskills' then                                            -- star
+        local r, k = 6, 1.6;
+        dl:AddTriangleFilled({ cx - r, cy }, { cx, cy - k }, { cx, cy + k }, c);
+        dl:AddTriangleFilled({ cx + r, cy }, { cx, cy + k }, { cx, cy - k }, c);
+        dl:AddTriangleFilled({ cx, cy - r }, { cx + k, cy }, { cx - k, cy }, c);
+        dl:AddTriangleFilled({ cx, cy + r }, { cx - k, cy }, { cx + k, cy }, c);
+    elseif cat == 'Precast' then                                                 -- hourglass
+        dl:AddTriangleFilled({ cx - 4, cy - 5 }, { cx + 4, cy - 5 }, { cx, cy }, c);
+        dl:AddTriangleFilled({ cx, cy }, { cx + 4, cy + 5 }, { cx - 4, cy + 5 }, c);
+        dl:AddLine({ cx - 5, cy - 5.5 }, { cx + 5, cy - 5.5 }, c, 1.4);
+        dl:AddLine({ cx - 5, cy + 5.5 }, { cx + 5, cy + 5.5 }, c, 1.4);
+    elseif cat == 'Magic' then                                                   -- wand with a sparkle
+        dl:AddLine({ cx - 5, cy + 5 }, { cx + 2, cy - 2 }, c, 2);
+        dl:AddTriangleFilled({ cx + 4, cy - 7 }, { cx + 5, cy - 4 }, { cx + 3, cy - 4 }, c);
+        dl:AddTriangleFilled({ cx + 4, cy - 1 }, { cx + 3, cy - 4 }, { cx + 5, cy - 4 }, c);
+        dl:AddTriangleFilled({ cx + 1, cy - 4 }, { cx + 4, cy - 5 }, { cx + 4, cy - 3 }, c);
+        dl:AddTriangleFilled({ cx + 7, cy - 4 }, { cx + 4, cy - 3 }, { cx + 4, cy - 5 }, c);
+    elseif cat == 'Abilities' then                                               -- lightning bolt
+        dl:AddTriangleFilled({ cx + 2, cy - 6 }, { cx - 4, cy + 1 }, { cx + 0.5, cy + 1 }, c);
+        dl:AddTriangleFilled({ cx - 0.5, cy - 1 }, { cx + 4, cy - 1 }, { cx - 2, cy + 6 }, c);
+    else                                                                         -- shield (Defense & Idle)
+        dl:AddRectFilled({ cx - 4.5, cy - 5 }, { cx + 4.5, cy }, c, 1.5);
+        dl:AddTriangleFilled({ cx - 4.5, cy }, { cx + 4.5, cy }, { cx, cy + 6 }, c);
     end
 end
 
