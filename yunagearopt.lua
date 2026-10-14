@@ -209,7 +209,8 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
                     cure_lead = 1.5,
-                    ui_scale = 1.0 };    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
+                    ui_scale = 1.0,
+                    mini_logo = false }; -- minimised to the floating logo    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
@@ -4440,8 +4441,8 @@ local function draw_header()
 
         local wwidth = imgui.GetWindowWidth();
         imgui.SetCursorPos({ wwidth - 70, 42 });
-        if actions.header_icon('##ygo_compact', 'min') then s.compact = true; settings.save(); end
-        if imgui.IsItemHovered() then imgui.SetTooltip('Lazy mode'); end
+        if actions.header_icon('##ygo_compact', 'min') then actions.minimise(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Minimise (click the logo to reopen)'); end
         imgui.SameLine(0, 6);
         if actions.header_icon('##ygo_close', 'close') then ui.open[1] = false; end
 
@@ -5910,9 +5911,71 @@ function actions.draw_tools()
     actions.draw_bagcheck();
 end
 
+-- Minimise: close the window, keep only the floating logo
+function actions.minimise()
+    s.mini_logo = true;
+    settings.save();
+    ui.open[1] = false;
+end
+
+-- Reopen from the logo
+function actions.restore()
+    s.mini_logo = false;
+    settings.save();
+    ui.open[1] = true;
+    if #owned == 0 then scan(); end
+end
+
+-- The floating logo while minimised: no background or border; click = reopen, drag = move, the corner = resize
+-- (40 - 320 px, size and place remembered by ImGui); the blood drips and the hover slash play on it too.
+function actions.draw_mini_logo()
+    local tex = logo_texture('logo.png') or logo_texture('ygo.png');
+    if tex == nil then return; end
+    imgui.SetNextWindowSize({ 96, 96 }, ImGuiCond_FirstUseEver);
+    imgui.SetNextWindowSizeConstraints({ 40, 40 }, { 320, 320 });
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+    imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar,
+        ImGuiWindowFlags_NoScrollWithMouse, ImGuiWindowFlags_NoCollapse);
+    if imgui.Begin('YunaGearOpt##mini', nil, flags) then
+        local w, h = imgui.GetWindowWidth(), imgui.GetWindowHeight();
+        local sz = math.floor(math.min(w, h));
+        local x, y = imgui.GetCursorScreenPos();
+        local clicked = imgui.InvisibleButton('##mini_logo', { sz, sz });
+        local hov = imgui.IsItemHovered();
+        -- dragging the logo moves the little window
+        if imgui.IsItemActive() and imgui.IsMouseDragging(0) then
+            local dx, dy = imgui.GetMouseDragDelta(0);
+            if type(dx) == 'table' then dx, dy = dx.x or dx[1], dx.y or dx[2]; end
+            if (dx or 0) ~= 0 or (dy or 0) ~= 0 then
+                local wx, wy = imgui.GetWindowPos();
+                if type(wx) == 'table' then wx, wy = wx.x or wx[1], wx.y or wx[2]; end
+                pcall(imgui.SetWindowPos, { wx + dx, wy + dy });
+                pcall(imgui.ResetMouseDragDelta, 0);
+                ui.mini_dragged = true;
+            end
+        end
+        local dl = imgui.GetWindowDrawList();
+        dl:AddImage(tex.ptr, { x, y }, { x + sz, y + sz });
+        pcall(actions.fx_blood, dl, x, y, sz, sz);
+        local now = actions.fx_time();
+        if hov and not ui.mini_hov and now - (ui.slash_last or -9) > 1.0 then ui.slash_t, ui.slash_last = now, now; end
+        ui.mini_hov = hov;
+        pcall(actions.fx_slash, dl, x, y, sz, sz);
+        if hov and not ui.mini_dragged then
+            imgui.SetTooltip('YunaGearOpt ' .. tostring(addon.version) .. '\nClick to open  |  drag to move  |  drag the corner to resize');
+        end
+        if clicked and not ui.mini_dragged then actions.restore(); end
+        if not imgui.IsMouseDown(0) then ui.mini_dragged = false; end
+    end
+    imgui.End();
+    imgui.PopStyleVar(2);
+end
+
 local function draw_ui()
     if data == nil then return; end
     if not ui.open[1] then
+        if s.mini_logo then actions.draw_mini_logo(); end
         if ui.bag_open then
             local nc, nv = push_theme();
             local fp = actions.push_font();
@@ -6037,7 +6100,7 @@ ashita.events.register('command', 'ygo_command', function(e)
     local sub = (args[2] or ''):lower();
     if sub == '' then
         ui.open[1] = not ui.open[1];
-        if ui.open[1] then ui.job, ui.set_idx = main_job(), 1; scan(); ui.notice = not s.hide_notice; end
+        if ui.open[1] then ui.job, ui.set_idx = main_job(), 1; scan(); ui.notice = not s.hide_notice; s.mini_logo = false; end
     elseif sub == 'notice' then
         s.hide_notice = false;
         ui.open[1], ui.notice = true, true;
