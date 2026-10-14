@@ -570,6 +570,10 @@ return {
     -- (players reported Brutal Earring + Brutal Earring +1 don't stack)
     no_stack = { 'Brutal Earring' },
 
+    -- "Support YunaGearOpt" button in the header: your Ko-fi / GitHub Sponsors / Patreon page.
+    -- Empty = the button is hidden.
+    support_url = 'https://ko-fi.com/yunasxi',
+
     -- Preferred gear: always used in these sets when you own it (and the job can wear it).
     --   sets = set ids, jobs = limit to these jobs (optional),
     --   ws = 'single' / 'multi' / 'any' to target weaponskill sets by hit count,

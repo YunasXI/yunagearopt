@@ -6,6 +6,8 @@ An [Ashita v4](https://www.ashitaxi.com/) addon that scans all the gear on your 
 - **LuAshitacast (LAC)** Lua (Ashita)
 - **GearSwap** Lua (Windower)
 
+YunaGearOpt is free for everyone. If it helps you, you can support it on **[Ko-fi](https://ko-fi.com/yunasxi)** ❤️ (or with the *Support YunaGearOpt* button in the addon).
+
 ## Installation
 
 1. Download the latest `yunagearopt-x.y.z.zip` from [Releases](../../releases).

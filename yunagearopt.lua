@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.26';   -- the release workflow sets this to the release number
+addon.version = '1.1.27';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4163,6 +4163,46 @@ function actions.fx_slash(dl, x, y, w, h)
     end
 end
 
+-- Open a web page in the player's browser (Windows ShellExecute)
+function actions.open_url(url)
+    if type(url) ~= 'string' or not url:match('^https://') then return false; end
+    local ok = pcall(function()
+        if actions.shell32 == nil then
+            actions.shell32 = false;
+            ffi.cdef('void* ShellExecuteA(void* hwnd, const char* op, const char* file, const char* params, const char* dir, int show);');
+            actions.shell32 = ffi.load('shell32');
+        end
+        if actions.shell32 then actions.shell32.ShellExecuteA(nil, 'open', url, nil, nil, 1); end
+    end);
+    return ok;
+end
+
+-- "Support YunaGearOpt": a small heart button that ends at x (header coordinates); hidden without a link
+function actions.draw_support(right_x)
+    local url = data and data.support_url or '';
+    if url == '' then return; end
+    local label = 'Support YunaGearOpt';
+    local bw = btn_w(label) + 16;
+    imgui.SetCursorPos({ right_x - bw, 43 });
+    local x, y = imgui.GetCursorScreenPos();
+    local h = 26;
+    local clicked = imgui.InvisibleButton('##ygo_support', { bw, h });
+    local hov = imgui.IsItemHovered();
+    local dl = imgui.GetWindowDrawList();
+    local pink = { 1.0, 0.42, 0.55 };
+    dl:AddRectFilled({ x, y }, { x + bw, y + h }, u32({ pink[1], pink[2], pink[3], hov and 0.22 or 0.10 }), 6);
+    dl:AddRect({ x, y }, { x + bw, y + h }, u32({ pink[1], pink[2], pink[3], hov and 0.75 or 0.40 }), 6, 0, 1);
+    -- a small heart, then the label
+    local hx, hy = x + 12, y + h / 2;
+    local hc = u32({ pink[1], pink[2], pink[3], 1 });
+    dl:AddCircleFilled({ hx - 2.5, hy - 1.5 }, 3, hc, 12);
+    dl:AddCircleFilled({ hx + 2.5, hy - 1.5 }, 3, hc, 12);
+    dl:AddTriangleFilled({ hx - 5.4, hy - 0.5 }, { hx + 5.4, hy - 0.5 }, { hx, hy + 5 }, hc);
+    dl:AddText({ x + 22, y + (h - imgui.GetTextLineHeight()) / 2 }, u32(hov and C.text or { 1.0, 0.75, 0.82, 1 }), label);
+    if hov then imgui.SetTooltip('Thank you! Opens ' .. url .. ' in your browser'); end
+    if clicked then actions.open_url(url); end
+end
+
 -- How far the VanaCore picture is floating right now (pixels, up and down)
 function actions.fx_float()
     return math.sin(actions.fx_time() * 1.6) * 2;
@@ -4229,6 +4269,9 @@ local function draw_header()
             if ui.vc_hov then imgui.SetTooltip('Runs on VanaCore'); end
             pcall(actions.fx_vanacore_front, dl, vx, vy, VS, VS, ui.vc_hov);
         end
+
+        -- Right: "Support YunaGearOpt" (only with a link in data.support_url), LOCKSTYLE, then _ and X
+        pcall(actions.draw_support, imgui.GetWindowWidth() - 92 - btn_w('LOCKSTYLE  ' .. JOBS[ui.job]) - 14 - 10);
 
         -- Right: LOCKSTYLE (gold like VIEW BIS SET, solid while you're in it), then _ and X
         for i, d in ipairs(ui.sets) do
