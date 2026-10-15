@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.29';   -- the release workflow sets this to the release number
+addon.version = '1.1.30';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -763,9 +763,12 @@ end
 -- /ygo latecure <cast seconds>: sent by the XML when a Cure starts. /la set Cure <n> holds the set n whole seconds,
 -- so the swap is timed for the hold to end 0.25 s after the Cure lands: your normal gear comes straight back.
 -- s.cure_lead (about how early the Cure set goes on) picks n: rounded to whole seconds, at least 1.
-function actions.late_cure_start(cast)
+function actions.late_cure_start(cast, wflag)
     cast = tonumber(cast);
     if cast == nil then return; end
+    -- the Cure set's weapons (Cure_Weapons) too, unless you sub NIN / DNC (then your dual-wield weapons stay)
+    local sj = JOBS[sub_job() or 0];
+    ui.late_cure_w = wflag == 'w' and sj ~= 'NIN' and sj ~= 'DNC';
     local hold = math.max(1, math.floor((tonumber(s.cure_lead) or 1.5) + 0.75));
     ui.late_cure_hold = hold;
     ui.late_cure_at = os.clock() + math.max(0, cast - (hold - 0.25));
@@ -775,6 +778,9 @@ function actions.late_cure_tick()
     if ui.late_cure_at and os.clock() >= ui.late_cure_at then
         ui.late_cure_at = nil;
         AshitaCore:GetChatManager():QueueCommand(1, string.format('/la set Cure %d', ui.late_cure_hold or 1));
+        if ui.late_cure_w then
+            AshitaCore:GetChatManager():QueueCommand(1, string.format('/la set Cure_Weapons %d', ui.late_cure_hold or 1));
+        end
     end
 end
 
@@ -2035,9 +2041,11 @@ local function build_full_xml(job_id)
         table.insert(m, { cond = attr('ad_name', R.cure), body = function(o, i)
             table.insert(o, i .. '<!-- Late Cure: keep YunaGearOpt loaded; it puts the Cure set on shortly before the cast lands'
                 .. ' (the number = the cast time; change how early with /ygo curelead <seconds>) -->');
+            -- ' w' = the Cure set has weapons (written as Cure_Weapons): YunaGearOpt puts those on too
+            local wflag = (actions.wsplit and actions.wsplit['Cure']) and ' w' or '';
             for _, cn in ipairs(actions.CURES) do
                 local cast = actions.cure_cast_time(cn) * (100 - xlc) / 100;
-                table.insert(o, i .. string.format('<if ad_name="%s"><command>/ygo latecure %.2f</command></if>', cn, cast));
+                table.insert(o, i .. string.format('<if ad_name="%s"><command>/ygo latecure %.2f%s</command></if>', cn, cast, wflag));
             end
         end });
     elseif have.Cure then table.insert(m, { cond = attr('ad_name', R.cure), body = with_obi('Cure', obis, 'light') }); end
@@ -6145,7 +6153,7 @@ ashita.events.register('command', 'ygo_command', function(e)
     elseif sub == 'cancelshadows' then
         actions.cancel_shadows();
     elseif sub == 'latecure' then
-        actions.late_cure_start(args[3]);
+        actions.late_cure_start(args[3], args[4]);
     elseif sub == 'curelead' then
         local n = tonumber(args[3]);
         if n and n >= 0 and n <= 5 then
