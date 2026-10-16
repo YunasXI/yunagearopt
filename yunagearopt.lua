@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.30';   -- the release workflow sets this to the release number
+addon.version = '1.1.31';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1007,8 +1007,10 @@ local function build_sets(job_id)
         end
     end
     -- "/NIN /DNC Weapons": the two weapons worn whenever you sub NIN or DNC (picked by hand, never automatic)
-    table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
-                         base_weights = {}, caps = {}, weapons = true, fixed = {} });
+    if not (data.no_dwpair or {})[abbr] then
+        table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
+                             base_weights = {}, caps = {}, weapons = true, fixed = {} });
+    end
     -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
     for _, e in ipairs(list) do
         if actions.set_removed(abbr, e.id) then e.disabled = true; end
@@ -1637,11 +1639,21 @@ local function equip_set(name)
         table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name)));
         -- The set's weapons only when the subjob isn't NIN/DNC (dual wield: the pair or your own weapons)
         if actions.wsplit and actions.wsplit[name] then
-            table.insert(out, string.format('%s<if p_subjob="%s"><equip set="%s_Weapons" /></if>', ind,
-                xml_escape('!NIN&!DNC'), xml_escape(name)));
-            if actions.wpair then
-                table.insert(out, string.format('%s<else><equip set="DualWieldWeapons" /></else>', ind));
+            -- /dw ON: the dual-wield weapons stay, whatever the set; otherwise the set's own weapons
+            local i2 = ind;
+            if actions.wdw then
+                table.insert(out, string.format('%s<if advanced="$DW=on"><equip set="DW" /></if>', ind));
+                table.insert(out, ind .. '<else>');
+                i2 = ind .. '    ';
             end
+            if actions.wpair then
+                table.insert(out, string.format('%s<if p_subjob="%s"><equip set="%s_Weapons" /></if>', i2,
+                    xml_escape('!NIN&!DNC'), xml_escape(name)));
+                table.insert(out, string.format('%s<else><equip set="DualWieldWeapons" /></else>', i2));
+            else
+                table.insert(out, string.format('%s<equip set="%s_Weapons" />', i2, xml_escape(name)));
+            end
+            if actions.wdw then table.insert(out, ind .. '</else>'); end
         end
     end;
 end
@@ -1837,6 +1849,7 @@ local function build_full_xml(job_id)
     -- with /NIN or /DNC the job's dual-wield pair (DualWieldWeapons) goes on instead, if you picked one
     actions.wsplit = {};
     actions.wpair = nil;
+    actions.wdw = have.DW and true or nil;                -- /dw locks the weapons: set weapons only while it's off
     local mage = in_list(data.weapon_jobs, abbr);
     local pair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
     if pair then
@@ -1850,7 +1863,7 @@ local function build_full_xml(job_id)
         add(string.format('        <!-- %s -->', xml_escape(b.desc.label)));
         local a = b.assign;
         -- Set weapons give way to the /NIN /DNC pair only when you picked one; with nothing picked, sets swap weapons as usual
-        if s.weapon_mode == 1 and pair and b.desc.id ~= 'DW' and (a.main or a.sub) then
+        if ((s.weapon_mode == 1 and pair) or actions.wdw) and b.desc.id ~= 'DW' and (a.main or a.sub) then
             local rest, wpn = {}, {};
             for k, v in pairs(a) do
                 if k == 'main' or k == 'sub' then wpn[k] = v; else rest[k] = v; end
@@ -2215,7 +2228,7 @@ local function build_full_xml(job_id)
     end
     for _, o in pairs(obis) do if not EQUIP_BAGS[o.where] then stored[o.name .. ' (' .. o.where .. ')'] = true; end end
 
-    actions.wsplit, actions.wpair = nil, nil;
+    actions.wsplit, actions.wpair, actions.wdw = nil, nil, nil;
     return table.concat(out, '\n') .. '\n', #built, stored;
 end
 
@@ -2503,6 +2516,13 @@ end
 local function eq(name)
     local set = sets[name]
     if not set then return false end
+    -- /dw ON: the dual-wield weapons stay locked, no set changes main / sub
+    if DWOn and name ~= 'DW' then
+        local copy = {}
+        for k, v in pairs(set) do if k ~= 'main' and k ~= 'sub' then copy[k] = v end end
+        equip(copy)
+        return true
+    end
     -- With /NIN or /DNC (dual wield): your dual-wield pair instead of the set's weapons, or your weapons stay
     if weapon_auto and name ~= 'DW' and (player.sub_job == 'NIN' or player.sub_job == 'DNC') then
         local copy, had = {}, false
@@ -2993,6 +3013,13 @@ end
 local function eq(name)
     local set = sets[name];
     if set == nil then return false; end
+    -- /dw ON: the dual-wield weapons stay locked, no set changes Main / Sub
+    if DWOn and name ~= 'DW' then
+        local copy = {};
+        for k, v in pairs(set) do if k ~= 'Main' and k ~= 'Sub' then copy[k] = v; end end
+        gFunc.EquipSet(copy);
+        return true;
+    end
     -- With /NIN or /DNC (dual wield): your dual-wield pair instead of the set's weapons, or your weapons stay
     if weapon_auto and name ~= 'DW' then
         local sj = gData.GetPlayer().SubJob;
@@ -3607,7 +3634,7 @@ local CATEGORY_OF = {
     PetTank = 'Abilities', PetRanged = 'Abilities', Attachments = 'Abilities',
     DWPAIR = 'Melee', Charm = 'Abilities', Reward = 'Abilities', CallBeast = 'Abilities', Ready = 'Abilities',
     Ready_Magic = 'Abilities', SicReady = 'Abilities', Tame = 'Abilities', Idle_Pet = 'Defense & Idle', SIR = 'Precast',
-    Evasion = 'Defense & Idle', HPMax = 'Abilities',
+    Evasion = 'Defense & Idle', HPMax = 'Abilities', Maneuver = 'Abilities', Repair = 'Abilities', Maintenance = 'Abilities',
     Preshot_Gun = 'Abilities', Midshot_Gun = 'Abilities', Refresh = 'Defense & Idle', Idle_Luopan = 'Defense & Idle',
     MightyStrikes = 'Abilities', DW = 'Defense & Idle',
     Jump = 'Abilities', HighJump = 'Abilities', Angon = 'Abilities', AncientCircle = 'Abilities', SpiritLink = 'Abilities', DragonBreaker = 'Abilities',
@@ -4983,6 +5010,7 @@ end
 -- The job's dual-wield pair, used instead of a set's weapons while subbing NIN or DNC.
 -- Picked once per job (saved like other picks, key 'JOB|DWPAIR').
 function actions.dw_pair(abbr)
+    if (data.no_dwpair or {})[abbr] then return nil; end          -- BLU: /dw locks its weapons instead
     local p = ui.pins[abbr .. '|DWPAIR'];
     if type(p) ~= 'table' then return nil; end
     local pair = {};

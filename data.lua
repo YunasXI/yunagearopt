@@ -34,6 +34,8 @@ return {
     no_mp_jobs        = { 'WAR', 'MNK', 'THF', 'BST', 'RNG', 'SAM', 'NIN', 'DRG', 'COR', 'PUP', 'DNC' },
     dual_wield_weight = 5,
     weapon_jobs       = { 'WHM', 'BLM', 'SMN', 'SCH', 'GEO', 'BRD', 'RDM', 'BLU' },
+    -- Jobs without the "/NIN /DNC Weapons" entry (BLU uses the /dw toggle to lock its dual-wield weapons instead)
+    no_dwpair         = { BLU = true },
 
     -- Melee sets where these jobs also swap main/sub. RDM and BLU swap to a staff for casting, so their
     -- melee sets must put the sword back. Only weapons from your BiS reference / preferred list are used
@@ -78,6 +80,12 @@ return {
         { 'Trick Attack', 'TrickAttack' }, 'Flee',
         -- WHM / GEO: abilities that spend your HP (more HP = more given)
         { 'Devotion', 'HPMax', jobs = { 'WHM' } }, { 'Martyr', 'HPMax', jobs = { 'WHM' } },
+        -- PUP: every Maneuver, Repair, Maintenance
+        { 'Fire Maneuver', 'Maneuver', jobs = { 'PUP' } }, { 'Ice Maneuver', 'Maneuver', jobs = { 'PUP' } },
+        { 'Wind Maneuver', 'Maneuver', jobs = { 'PUP' } }, { 'Earth Maneuver', 'Maneuver', jobs = { 'PUP' } },
+        { 'Thunder Maneuver', 'Maneuver', jobs = { 'PUP' } }, { 'Water Maneuver', 'Maneuver', jobs = { 'PUP' } },
+        { 'Light Maneuver', 'Maneuver', jobs = { 'PUP' } }, { 'Dark Maneuver', 'Maneuver', jobs = { 'PUP' } },
+        { 'Repair', 'Repair', jobs = { 'PUP' } }, { 'Maintenance', 'Maintenance', jobs = { 'PUP' } },
         { 'Life Cycle', 'HPMax', jobs = { 'GEO' } },
         -- COR
         { 'Random Deal', 'RandomDeal' },
@@ -709,6 +717,14 @@ return {
         ['Carnwenhan']        = { songdur = 10 },
         -- SCNM Apex Sune-Ate's BRD augment: song recast delay -10 (counted whether or not you own it, so Best in Slot sees it too)
         ['Apex Sune-Ate']     = { songrecast = 10 },
+        -- PUP (CatsEyeXI item database, LandSandBoat mods 504 / 505 / 853 / 854)
+        ['Pup. Dastanas']     = { maneuver = 1, overload = 5 },
+        ['Pup. Dastanas +1']  = { maneuver = 1, overload = 5 },
+        ['Pup. Babouches']    = { repaireff = 1 },
+        ['Pup. Babouches +1'] = { repaireff = 1 },
+        ['Guignol Earring']   = { repairpot = 20 },
+        ["Buffoon's Collar"]  = { overload = 5 },
+        ['Bfn. Collar +1']    = { overload = 5 },
         -- Level-scaled rings (2~5 by level): the value at the level cap (75)
         ['Rajas Ring']        = { str = 5, dex = 5, stp = 5, sb = 5 },
         ['Sattva Ring']       = { hp = 15, vit = 5, agi = 5, enmity = 3 },
@@ -911,6 +927,15 @@ return {
         MDT         = { label = 'Magic defense', caps = DEF, weapons = true,
                         weights = { dt = -10, mdt = -10, mdb = 6, meva = 1, hp = 0.05 } },
         Movement    = { label = 'Movement speed', weights = { move = 20 } },
+        -- PUP abilities (only these slots swap; LandSandBoat item mods, level 75 or lower):
+        --   Maneuvers: Pup. Dastanas (+1) maneuver bonus +1 / overload threshold +5, Buffoon's Collar (+1) overload threshold +5
+        --   Repair: Pup. Babouches (+1) also removes an ailment from the automaton, Guignol Earring Repair potency +20%
+        --   Maintenance: no level-75 gear enhances it; the set starts empty, add your own pieces with the arrows
+        Maneuver    = { label = 'Maneuvers', weights = { maneuver = 10, overload = 1 },
+                        fixed = { hands = { 'Pup. Dastanas +1', 'Pup. Dastanas' }, neck = { 'Bfn. Collar +1', "Buffoon's Collar" } } },
+        Repair      = { label = 'Repair', weights = { repaireff = 10, repairpot = 1 },
+                        fixed = { feet = { 'Pup. Babouches +1', 'Pup. Babouches' }, ear1 = 'Guignol Earring' } },
+        Maintenance = { label = 'Maintenance', weights = {}, fixed = {} },
         -- Devotion / Martyr (WHM), Life Cycle (GEO): they spend a share of your HP, so as much max HP as possible
         HPMax       = { label = 'Max HP (Devotion / Martyr / Life Cycle)', weapons = true, weights = { hp = 1, vit = 0.1 } },
         -- NIN evasion tanking (/eva: worn engaged and idle). A NIN player's set; a piece you don't own is filled
@@ -1161,7 +1186,8 @@ return {
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
-        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments', 'Meditate' },
+        PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments',
+                'Maneuver', 'Repair', 'Maintenance', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         GEO = { 'Idle', 'Idle_Luopan', 'Resting', 'TP', 'WS', 'Precast', 'Precast_Cure', 'Geomancy', 'Cure', 'Enhancing', 'Stoneskin',
