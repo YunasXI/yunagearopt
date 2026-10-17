@@ -912,7 +912,7 @@ local function build_sets(job_id)
                 local entry = {
                     id = id, name = def.name or id, label = ((data.job_labels or {})[abbr] or {})[id] or def.label or id, kind = def.kind or 'other',
                     base_weights = (def.weights_by_job and def.weights_by_job[abbr]) or def.weights, caps = def.caps or {},
-                    weapons = (def.weapons and wjob) or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
+                    weapons = (def.weapons and wjob) or def.always_weapons or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
                     info = def.info, obi = def.obi, instrument = def.instrument,
                 };

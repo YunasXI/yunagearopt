@@ -1144,7 +1144,7 @@ return {
         DesertBoots   = { label = 'Desert Boots (running in earth weather)', weights = {}, fixed = { feet = 'Desert Boots' } },
         -- /dw toggle: your dual-wield weapons, worn on top of whatever set is active while the toggle is ON.
         -- Only the exact weapons listed here are ever used (never an auto-picked weapon).
-        DW = { label = 'Dual wield weapons (/dw toggle)', weights = { dw = 1 },
+        DW = { label = 'Dual wield weapons (/dw toggle)', weights = { dw = 1 }, always_weapons = true,
                fixed_by_job = {
                    BLU = { main = 'Undulant Black', sub = 'Blurred Rod +1' },
                    WAR = { main = 'Brilliance',     sub = 'Blurred Rod +1' },
