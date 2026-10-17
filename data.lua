@@ -1142,13 +1142,9 @@ return {
         BreathPotency = { label = 'Wyvern breath potency (pet skill)', weights = {}, fixed = { head = 'Wyrm Armet' } },
         -- Worn while running in earth weather
         DesertBoots   = { label = 'Desert Boots (running in earth weather)', weights = {}, fixed = { feet = 'Desert Boots' } },
-        -- /dw toggle: your dual-wield weapons, worn on top of whatever set is active while the toggle is ON.
-        -- Only the exact weapons listed here are ever used (never an auto-picked weapon).
-        DW = { label = 'Dual wield weapons (/dw toggle)', weights = { dw = 1 }, always_weapons = true,
-               fixed_by_job = {
-                   BLU = { main = 'Undulant Black', sub = 'Blurred Rod +1' },
-                   WAR = { main = 'Brilliance',     sub = 'Blurred Rod +1' },
-               } },
+        -- /dw toggle: the two weapons YOU pick (arrows on the Main / Sub cards). While /dw is ON they're worn and no other
+        -- set changes main / sub; nothing is ever auto-picked, so with nothing picked there is no /dw.
+        DW = { label = 'Dual wield weapons (/dw toggle)', weights = {}, always_weapons = true, fixed = {} },
         -- PLD spells and abilities (sets from a PLD LuAshitacast profile)
         SIR        = { label = 'Spell interruption (midcast base)', weights = { sird = 6, hp = 0.05, dt = -3, pdt = -3, mdt = -2, enmity = 1 } },
         Phalanx    = { label = 'Phalanx (your own cast)', weapons = true, weights = { phalanx = 10, phalanxrcv = 10, enhancing = 1.5, sird = 1 } },
