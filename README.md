@@ -34,7 +34,7 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo reload` | Reload data files |
 | `/ygo debug <item>` | Dump how an owned item was parsed |
 
-**Look** (bottom bar, next to Window scale): pick how the window looks. **Yuna Neon** (the default) has dark violet panels, pink and violet like YunaUI's HP / MP bars, the AvantGarde font and a light running round the edge. The other choices are Yuna Night, Yuna Glass (see-through), Yuna Rose and Classic (the old navy look).
+**Look**: the window uses YunaUI's style (Yuna Neon): dark violet panels, pink and violet like YunaUI's HP / MP bars, the AvantGarde font and a light running round the edge.
 
 ## Exports
 
@@ -113,7 +113,7 @@ Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory an
 | `stats.lua` | Stat parsing |
 | `augments.lua` | Augment parsing |
 | `server_stats.lua` | Real base stats per item from the CatsEyeXI server, used before reading item descriptions |
-| `fonts/` | AvantGarde (TeX Gyre Adventor, GUST Font License) for the Yuna looks |
+| `fonts/` | AvantGarde (TeX Gyre Adventor, GUST Font License), the window's font |
 
 ## Releases
 

@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.32';   -- the release workflow sets this to the release number
+addon.version = '1.1.33';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -213,7 +213,6 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
                     cure_lead = 1.5,
                     ui_scale = 1.0,
-                    theme = 'neon',      -- Look (bottom bar): classic / night / glass / neon / rose (Yuna Neon by default)
                     mini_logo = false }; -- minimised to the floating logo    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
@@ -5472,7 +5471,7 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
-    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52 - actions.look_w());
+    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52);
     actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
@@ -5827,69 +5826,30 @@ function actions.scale()
 end
 function actions.sc(n) return math.floor(n * actions.scale() + 0.5); end
 
--- Looks (bottom bar "Look  < name >"): Classic is YunaGearOpt's own navy and periwinkle; the others are YunaUI's
--- look: near-black violet panels, the HP / MP bars' pink and violet, the AvantGarde font and a glowing edge.
---   night: solid   glass: see-through   neon: the edge's light runs round   rose: pink first, violet second
-actions.LOOKS = { 'classic', 'night', 'glass', 'neon', 'rose' };
-actions.LOOK_NAME = { classic = 'Classic', night = 'Yuna Night', glass = 'Yuna Glass', neon = 'Yuna Neon', rose = 'Yuna Rose' };
-actions.LOOK_TIP = {
-    classic = "YunaGearOpt's own navy panels and periwinkle.",
-    night = "YunaUI's look: dark violet panels, the HP / MP bars' pink and violet, AvantGarde, a glowing edge.",
-    glass = 'As Yuna Night, but see-through: the game shows behind it.',
-    neon = 'As Yuna Night, with a light running round the edge like the bars.',
-    rose = 'As Yuna Night, with pink as the main colour and violet second.',
-};
-function actions.yuna_palette(over)
-    local p = {
+-- The look (Yuna Neon, YunaUI's style): near-black violet panels, the HP / MP bars' pink and violet, the AvantGarde
+-- font and a glowing edge with a light running round it
+function actions.neon_palette()
+    return {
         bg = { 0.050, 0.045, 0.072, 0.97 }, side = { 0.040, 0.036, 0.058, 0.97 }, card = { 0.085, 0.076, 0.118, 1.00 },
         frame = { 0.120, 0.108, 0.165, 1.00 }, frame_hi = { 0.165, 0.148, 0.225, 1.00 },
         border = { 0.620, 0.400, 1.000, 0.00 }, line = { 0.800, 0.650, 1.000, 0.08 },
         gold = { 0.620, 0.400, 1.000, 1.00 }, gold_dim = { 0.740, 0.600, 1.000, 0.80 }, gold_bg = { 0.550, 0.360, 0.950, 0.95 },
         text = { 0.930, 0.920, 0.980, 1.00 }, muted = { 0.580, 0.560, 0.680, 1.00 }, aug = { 1.000, 0.560, 0.780, 1.00 },
         wave2 = { 1.000, 0.420, 0.700, 1.00 }, popup = { 0.060, 0.054, 0.085, 0.99 }, round = 16,
-        edge1 = { 1.000, 0.360, 0.620 }, edge2 = { 0.620, 0.400, 1.000 }, font = 'adv', fx = 'frame',
+        edge1 = { 1.000, 0.360, 0.620 }, edge2 = { 0.620, 0.400, 1.000 }, fx = 'neon',
     };
-    for k, v in pairs(over or {}) do p[k] = v; end
-    return p;
 end
-function actions.look_palette(name)
-    if name == 'night' then return actions.yuna_palette(); end
-    if name == 'glass' then
-        return actions.yuna_palette({ bg = { 0.040, 0.036, 0.060, 0.78 }, side = { 0.030, 0.028, 0.048, 0.55 },
-            card = { 0.085, 0.076, 0.118, 0.62 }, frame = { 0.120, 0.108, 0.165, 0.80 }, frame_hi = { 0.165, 0.148, 0.225, 0.85 } });
-    end
-    if name == 'neon' then return actions.yuna_palette({ fx = 'neon' }); end
-    if name == 'rose' then
-        return actions.yuna_palette({ gold = { 1.000, 0.360, 0.620, 1.00 }, gold_dim = { 1.000, 0.560, 0.760, 0.80 },
-            gold_bg = { 0.920, 0.320, 0.580, 0.95 }, wave2 = { 0.700, 0.500, 1.000, 1.00 }, aug = { 0.760, 0.600, 1.000, 1.00 },
-            edge1 = { 0.620, 0.400, 1.000 }, edge2 = { 1.000, 0.360, 0.620 } });
-    end
-    return actions.CLASSIC;
-end
--- Puts the chosen look into C (everything reads C as it draws) and picks its fonts
+-- Puts the look into C (everything reads C as it draws) and switches to AvantGarde
 function actions.apply_theme()
-    if actions.CLASSIC == nil then                                   -- the first time: keep Classic's own colours
-        actions.CLASSIC = { font = 'seg' };
-        for k, v in pairs(C) do
-            actions.CLASSIC[k] = (type(v) == 'table') and { v[1], v[2], v[3], v[4] } or v;
-        end
+    for k, v in pairs(actions.neon_palette()) do
+        C[k] = (type(v) == 'table') and { v[1], v[2], v[3], v[4] } or v;
     end
-    local name = s.theme or 'neon';
-    if actions.LOOK_NAME[name] == nil then name = 'classic'; end
-    local p = actions.look_palette(name);
-    for k, v in pairs(p) do
-        if k ~= 'font' and k ~= 'fx' then C[k] = (type(v) == 'table') and { v[1], v[2], v[3], v[4] } or v; end
-    end
-    C.fx, C.edge1, C.edge2 = p.fx, p.edge1, p.edge2;
     local adv = ui.fonts_adv;
-    if p.font == 'adv' and adv and adv[17] then                      -- AvantGarde for everything (as YunaUI)
+    if adv and adv[17] then                                          -- AvantGarde for everything (as YunaUI)
         ui.font, ui.fonts, ui.fonts_b, ui.fonts_sb = adv[17], adv, adv, adv;
         ui.font_k = actions.ADV_K;
-    elseif ui.seg then
-        ui.font, ui.fonts, ui.fonts_b, ui.fonts_sb = ui.seg.font, ui.seg.fonts, ui.seg.b, ui.seg.sb;
-        ui.font_k = 1;
     end
-    ui.theme_applied = name;
+    ui.theme_applied = 'neon';
 end
 -- AvantGarde from fonts\ (the font YunaUI uses), at every Window scale size
 actions.ADV_K = 0.72;
@@ -5978,37 +5938,8 @@ function actions.fx_frame()
         dl:AddCircleFilled({ hx, hy }, 2.6, u32({ 1, 1, 1, 0.95 }), 10);   -- the bright head, like the bars' tip
     end
 end
--- "Look  < name >" (bottom bar, before Window scale)
-function actions.look_w()
-    local longest = 0;
-    for _, k in ipairs(actions.LOOKS) do longest = math.max(longest, text_w(actions.LOOK_NAME[k])); end
-    return text_w('Look') + 10 + actions.sc(30) * 2 + longest + 12 + 28;
-end
-function actions.draw_look_control()
-    local cur = 1;
-    for i, k in ipairs(actions.LOOKS) do if k == (s.theme or 'neon') then cur = i; end end
-    imgui.AlignTextToFramePadding();
-    imgui.TextColored(C.muted, 'Look');
-    imgui.SameLine(0, 10);
-    local bh = actions.sc(30);
-    local n = #actions.LOOKS;
-    if imgui.Button('<##ygo_look_dn', { bh, bh }) then s.theme = actions.LOOKS[(cur - 2) % n + 1]; settings.save(); end
-    imgui.SameLine(0, 6);
-    local name = actions.LOOK_NAME[actions.LOOKS[cur]];
-    local longest = 0;
-    for _, k in ipairs(actions.LOOKS) do longest = math.max(longest, text_w(actions.LOOK_NAME[k])); end
-    local cx = imgui.GetCursorPosX();
-    imgui.SetCursorPosX(cx + (longest - text_w(name)) / 2);
-    imgui.TextColored(C.text, name);
-    if imgui.IsItemHovered() then imgui.SetTooltip(actions.LOOK_TIP[actions.LOOKS[cur]]); end
-    imgui.SameLine(cx + longest + 6);
-    if imgui.Button('>##ygo_look_up', { bh, bh }) then s.theme = actions.LOOKS[cur % n + 1]; settings.save(); end
-    imgui.SameLine(0, 28);
-end
-
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
-    actions.draw_look_control();
     local v = actions.scale();
     local idx = 3;
     for i, sc in ipairs(actions.SCALES) do if math.abs(sc - v) < 0.01 then idx = i; end end
@@ -6027,7 +5958,7 @@ end
 
 -- Push the font for the whole window: newer ImGui (fonts with LegacySize) wants a size, older ones don't
 function actions.push_font()
-    if ui.theme_applied ~= (s.theme or 'neon') then pcall(actions.apply_theme); end
+    if ui.theme_applied ~= 'neon' then pcall(actions.apply_theme); end
     local f = ui.font;
     if f == nil then return false; end
     local size = math.floor(17 * actions.scale() + 0.5);
@@ -6215,7 +6146,7 @@ local function draw_ui()
     end
     if not bis.done then bis_step(); end
     if ui.dirty then recompute(); end
-    if ui.theme_applied ~= (s.theme or 'neon') then pcall(actions.apply_theme); end   -- (the Look, before the colours go in)
+    if ui.theme_applied ~= 'neon' then pcall(actions.apply_theme); end   -- (the look, before the colours go in)
     local nc, nv = push_theme();
     local fontpushed = actions.push_font();
     if s.compact then draw_lazy(); else draw_full(); end
