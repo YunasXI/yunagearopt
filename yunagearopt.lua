@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.31';   -- the release workflow sets this to the release number
+addon.version = '1.1.32';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -199,6 +199,9 @@ local C = {
     green    = { 0.450, 0.900, 0.600, 1.00 },
     red      = { 1.000, 0.450, 0.450, 1.00 },
     dark     = { 0.060, 0.060, 0.070, 1.00 },
+    wave2    = { 0.550, 0.880, 1.000, 1.00 },   -- the letters' colour wave runs gold -> wave2 (periwinkle -> ice blue)
+    popup    = { 0.075, 0.079, 0.092, 0.99 },
+    round    = 8,
 };
 
 ----------------------------------------------------------------------------------------------------
@@ -210,6 +213,7 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
                     cure_lead = 1.5,
                     ui_scale = 1.0,
+                    theme = 'neon',      -- Look (bottom bar): classic / night / glass / neon / rose (Yuna Neon by default)
                     mini_logo = false }; -- minimised to the floating logo    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
@@ -3652,7 +3656,7 @@ end
 
 local function push_theme()
     local cols = {
-        { ImGuiCol_WindowBg, C.bg }, { ImGuiCol_ChildBg, { 0, 0, 0, 0 } }, { ImGuiCol_PopupBg, { 0.075, 0.079, 0.092, 0.99 } },
+        { ImGuiCol_WindowBg, C.bg }, { ImGuiCol_ChildBg, { 0, 0, 0, 0 } }, { ImGuiCol_PopupBg, C.popup },
         { ImGuiCol_Border, C.border }, { ImGuiCol_Text, C.text }, { ImGuiCol_TextDisabled, C.muted },
         { ImGuiCol_FrameBg, C.frame }, { ImGuiCol_FrameBgHovered, C.frame_hi }, { ImGuiCol_FrameBgActive, C.frame_hi },
         { ImGuiCol_Button, { 1, 1, 1, 0.035 } }, { ImGuiCol_ButtonHovered, { 1, 1, 1, 0.08 } }, { ImGuiCol_ButtonActive, { 1, 1, 1, 0.12 } },
@@ -3669,7 +3673,7 @@ local function push_theme()
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
-        { ImGuiStyleVar_WindowRounding, 8 }, { ImGuiStyleVar_ChildRounding, 6 }, { ImGuiStyleVar_FrameRounding, 5 },
+        { ImGuiStyleVar_WindowRounding, C.round or 8 }, { ImGuiStyleVar_ChildRounding, 6 }, { ImGuiStyleVar_FrameRounding, 5 },
         { ImGuiStyleVar_GrabRounding, 8 }, { ImGuiStyleVar_PopupRounding, 6 }, { ImGuiStyleVar_ScrollbarRounding, 6 },
         { ImGuiStyleVar_WindowPadding, { 14, 12 } }, { ImGuiStyleVar_FramePadding, { 10, 5 } },
         { ImGuiStyleVar_ItemSpacing, { 8, 6 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 6 },
@@ -4079,7 +4083,7 @@ function actions.fx_title(dl)
             local col = C.text;
             if i > 5 then                                     -- GEAROPT: a slow colour wave through the letters
                 local u = 0.5 + 0.5 * math.sin(t * 1.2 - i * 0.45);
-                col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
+                col = actions.wave(u);
             end
             local k = sweep and math.max(0, 1 - math.abs(cx + text_w(ch) / 2 - x0 - sweep) / 22) or 0;
             dl:AddText({ cx, y0 }, u32({ col[1] + (1 - col[1]) * k, col[2] + (1 - col[2]) * k, col[3] + (1 - col[3]) * k, 1 }), ch);
@@ -4099,7 +4103,7 @@ end
 function actions.fx_ygo_back(dl, x, y, w, h, hov)
     local t = actions.fx_time();
     local p = 0.5 + 0.5 * math.sin(t * 1.4);
-    actions.fx_glow(dl, x + 0.50 * w, y + 0.48 * h, w * (0.40 + 0.03 * p), { 0.35, 0.50, 1.0 }, (hov and 0.20 or 0.08) + 0.07 * p);
+    actions.fx_glow(dl, x + 0.50 * w, y + 0.48 * h, w * (0.40 + 0.03 * p), C.fx and { C.gold[1], C.gold[2], C.gold[3] } or { 0.35, 0.50, 1.0 }, (hov and 0.20 or 0.08) + 0.07 * p);
 end
 
 function actions.fx_ygo_front(dl, x, y, w, h, hov)
@@ -4259,7 +4263,7 @@ function actions.draw_lockstyle_text(idx, right_x, center_w)
                 col = { 1, 1, 1, 1 };
             else
                 local u = 0.5 + 0.5 * math.sin(t * 1.2 - i * 0.45);
-                col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
+                col = actions.wave(u);
                 if hov then col = { col[1] + (1 - col[1]) * 0.35, col[2] + (1 - col[2]) * 0.35, 1, 1 }; end
             end
             dl:AddText({ cx, y }, u32(col), ch);
@@ -5468,7 +5472,7 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
-    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52);
+    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52 - actions.look_w());
     actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
@@ -5502,6 +5506,7 @@ local function draw_full()
     imgui.SetNextWindowSize({ 1180, 860 }, ImGuiCond_FirstUseEver);
     imgui.SetNextWindowSizeConstraints({ actions.sc(1120), actions.sc(600) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
+        pcall(actions.fx_frame);                                     -- the Look's frame (YunaUI looks: a glowing edge)
         draw_header();
         imgui.Spacing();
         draw_sidebar();
@@ -5690,6 +5695,7 @@ function actions.load_font()
                         end
                     end
                 end
+                pcall(actions.load_adventor, font);                  -- the YunaUI looks' font
                 -- Bahnschrift (titles, job buttons) and Segoe UI Semibold (set names): also Windows' own fonts
                 ui.fonts_b, ui.fonts_sb = {}, {};
                 for _, fam in ipairs({ { ui.fonts_b, 'bahnschrift.ttf' }, { ui.fonts_sb, 'seguisb.ttf' } }) do
@@ -5708,6 +5714,8 @@ function actions.load_font()
                         end
                     end
                 end
+                ui.seg = { font = ui.font, fonts = ui.fonts, b = ui.fonts_b, sb = ui.fonts_sb };   -- (Classic's fonts, to go back to)
+                ui.theme_applied = nil;
                 return;
             end
         end
@@ -5722,7 +5730,7 @@ function actions.push_kind(kind)
     local size = math.floor(17 * actions.scale() + 0.5);
     local f = fam[size] or fam[17];
     if f == nil then return false; end
-    if f.LegacySize ~= nil then return (pcall(imgui.PushFont, f, size)); end
+    if f.LegacySize ~= nil then return (pcall(imgui.PushFont, f, size * (ui.font_k or 1))); end
     return (pcall(imgui.PushFont, f));
 end
 
@@ -5803,9 +5811,7 @@ function actions.job_text(i, abbr, w, h)
         if sel then
             col = { 1, 1, 1, 1 };
         else
-            local u = 0.5 + 0.5 * math.sin(t * 1.2 - (i * 3 + k) * 0.45);    -- one wave across the whole grid
-            col = { C.gold[1] + (0.55 - C.gold[1]) * u, C.gold[2] + (0.88 - C.gold[2]) * u, 1.0, 1 };
-            if hov then col = { col[1] + (1 - col[1]) * 0.4, col[2] + (1 - col[2]) * 0.4, 1, 1 }; end
+            col = hov and { 1, 1, 1, 1 } or { 0.92, 0.91, 0.96, 1 };     -- the job names in white (the chosen one in its pill)
         end
         dl:AddText({ cx, ty }, u32(col), ch);
     end
@@ -5821,8 +5827,188 @@ function actions.scale()
 end
 function actions.sc(n) return math.floor(n * actions.scale() + 0.5); end
 
+-- Looks (bottom bar "Look  < name >"): Classic is YunaGearOpt's own navy and periwinkle; the others are YunaUI's
+-- look: near-black violet panels, the HP / MP bars' pink and violet, the AvantGarde font and a glowing edge.
+--   night: solid   glass: see-through   neon: the edge's light runs round   rose: pink first, violet second
+actions.LOOKS = { 'classic', 'night', 'glass', 'neon', 'rose' };
+actions.LOOK_NAME = { classic = 'Classic', night = 'Yuna Night', glass = 'Yuna Glass', neon = 'Yuna Neon', rose = 'Yuna Rose' };
+actions.LOOK_TIP = {
+    classic = "YunaGearOpt's own navy panels and periwinkle.",
+    night = "YunaUI's look: dark violet panels, the HP / MP bars' pink and violet, AvantGarde, a glowing edge.",
+    glass = 'As Yuna Night, but see-through: the game shows behind it.',
+    neon = 'As Yuna Night, with a light running round the edge like the bars.',
+    rose = 'As Yuna Night, with pink as the main colour and violet second.',
+};
+function actions.yuna_palette(over)
+    local p = {
+        bg = { 0.050, 0.045, 0.072, 0.97 }, side = { 0.040, 0.036, 0.058, 0.97 }, card = { 0.085, 0.076, 0.118, 1.00 },
+        frame = { 0.120, 0.108, 0.165, 1.00 }, frame_hi = { 0.165, 0.148, 0.225, 1.00 },
+        border = { 0.620, 0.400, 1.000, 0.00 }, line = { 0.800, 0.650, 1.000, 0.08 },
+        gold = { 0.620, 0.400, 1.000, 1.00 }, gold_dim = { 0.740, 0.600, 1.000, 0.80 }, gold_bg = { 0.550, 0.360, 0.950, 0.95 },
+        text = { 0.930, 0.920, 0.980, 1.00 }, muted = { 0.580, 0.560, 0.680, 1.00 }, aug = { 1.000, 0.560, 0.780, 1.00 },
+        wave2 = { 1.000, 0.420, 0.700, 1.00 }, popup = { 0.060, 0.054, 0.085, 0.99 }, round = 16,
+        edge1 = { 1.000, 0.360, 0.620 }, edge2 = { 0.620, 0.400, 1.000 }, font = 'adv', fx = 'frame',
+    };
+    for k, v in pairs(over or {}) do p[k] = v; end
+    return p;
+end
+function actions.look_palette(name)
+    if name == 'night' then return actions.yuna_palette(); end
+    if name == 'glass' then
+        return actions.yuna_palette({ bg = { 0.040, 0.036, 0.060, 0.78 }, side = { 0.030, 0.028, 0.048, 0.55 },
+            card = { 0.085, 0.076, 0.118, 0.62 }, frame = { 0.120, 0.108, 0.165, 0.80 }, frame_hi = { 0.165, 0.148, 0.225, 0.85 } });
+    end
+    if name == 'neon' then return actions.yuna_palette({ fx = 'neon' }); end
+    if name == 'rose' then
+        return actions.yuna_palette({ gold = { 1.000, 0.360, 0.620, 1.00 }, gold_dim = { 1.000, 0.560, 0.760, 0.80 },
+            gold_bg = { 0.920, 0.320, 0.580, 0.95 }, wave2 = { 0.700, 0.500, 1.000, 1.00 }, aug = { 0.760, 0.600, 1.000, 1.00 },
+            edge1 = { 0.620, 0.400, 1.000 }, edge2 = { 1.000, 0.360, 0.620 } });
+    end
+    return actions.CLASSIC;
+end
+-- Puts the chosen look into C (everything reads C as it draws) and picks its fonts
+function actions.apply_theme()
+    if actions.CLASSIC == nil then                                   -- the first time: keep Classic's own colours
+        actions.CLASSIC = { font = 'seg' };
+        for k, v in pairs(C) do
+            actions.CLASSIC[k] = (type(v) == 'table') and { v[1], v[2], v[3], v[4] } or v;
+        end
+    end
+    local name = s.theme or 'neon';
+    if actions.LOOK_NAME[name] == nil then name = 'classic'; end
+    local p = actions.look_palette(name);
+    for k, v in pairs(p) do
+        if k ~= 'font' and k ~= 'fx' then C[k] = (type(v) == 'table') and { v[1], v[2], v[3], v[4] } or v; end
+    end
+    C.fx, C.edge1, C.edge2 = p.fx, p.edge1, p.edge2;
+    local adv = ui.fonts_adv;
+    if p.font == 'adv' and adv and adv[17] then                      -- AvantGarde for everything (as YunaUI)
+        ui.font, ui.fonts, ui.fonts_b, ui.fonts_sb = adv[17], adv, adv, adv;
+        ui.font_k = actions.ADV_K;
+    elseif ui.seg then
+        ui.font, ui.fonts, ui.fonts_b, ui.fonts_sb = ui.seg.font, ui.seg.fonts, ui.seg.b, ui.seg.sb;
+        ui.font_k = 1;
+    end
+    ui.theme_applied = name;
+end
+-- AvantGarde from fonts\ (the font YunaUI uses), at every Window scale size
+actions.ADV_K = 0.72;
+function actions.load_adventor(base)
+    ui.fonts_adv = {};
+    local file = nil;
+    for _, n in ipairs({ 'texgyreadventor-regular.otf', 'TeXGyreAdventor-Regular.otf' }) do
+        local f = io.open(addon.path .. '\\fonts\\' .. n, 'rb');
+        if f then f:close(); file = addon.path .. '\\fonts\\' .. n; break; end
+    end
+    if file == nil then return; end
+    local sizes = { 17 };
+    if base == nil or base.LegacySize == nil then
+        for _, sc in ipairs(actions.SCALES) do table.insert(sizes, math.floor(17 * sc + 0.5)); end
+    end
+    for _, sz in ipairs(sizes) do                                   -- (AvantGarde is a bigger face: loaded smaller, so its
+        if ui.fonts_adv[sz] == nil then                              --  text is the same size as Classic's Segoe UI)
+            local ok, f = pcall(imgui.AddFontFromFileTTF, file, math.floor(sz * actions.ADV_K + 0.5));
+            if ok and f then ui.fonts_adv[sz] = f; end
+        end
+    end
+end
+-- The letters' colour wave: u 0..1 between the accent and the look's second colour
+function actions.wave(u)
+    local a, b = C.gold, C.wave2 or { 0.55, 0.88, 1.0 };
+    return { a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u, 1 };
+end
+-- The YunaUI looks' frame: a soft glow on the window's edge, a thin bright line, a pink-to-violet sweep along the
+-- top; Yuna Neon adds a short bright light running round the edge, like the bars' shine
+function actions.fx_frame()
+    if C.fx == nil then return; end
+    local dl = imgui.GetWindowDrawList();
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
+    if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
+    local r = C.round or 16;
+    local all = ImDrawFlags_RoundCornersAll or ImDrawCornerFlags_All or 15;
+    local e1, e2 = C.edge1, C.edge2;
+    local x0, y0, x1, y1 = x + 1.5, y + 1.5, x + w - 1.5, y + h - 1.5;
+    for k = 3, 1, -1 do                                              -- the glow: wide faint strokes just inside the edge
+        dl:AddRect({ x0 + k, y0 + k }, { x1 - k, y1 - k }, u32({ e2[1], e2[2], e2[3], 0.05 * (4 - k) }), r, all, 2 + k * 2);
+    end
+    dl:AddRect({ x0, y0 }, { x1, y1 }, u32({ e2[1], e2[2], e2[3], 0.75 }), r, all, 1.4);
+    pcall(function()                                                  -- the top edge: pink fading into violet, like the HP bar
+        local m = (x0 + x1) / 2;
+        dl:AddRectFilledMultiColor({ x0 + r, y0 - 0.5 }, { m, y0 + 1.5 }, u32({ e1[1], e1[2], e1[3], 0.0 }), u32({ e1[1], e1[2], e1[3], 0.95 }),
+            u32({ e1[1], e1[2], e1[3], 0.95 }), u32({ e1[1], e1[2], e1[3], 0.0 }));
+        dl:AddRectFilledMultiColor({ m, y0 - 0.5 }, { x1 - r, y0 + 1.5 }, u32({ e1[1], e1[2], e1[3], 0.95 }), u32({ e2[1], e2[2], e2[3], 0.0 }),
+            u32({ e2[1], e2[2], e2[3], 0.0 }), u32({ e1[1], e1[2], e1[3], 0.95 }));
+    end);
+    if C.fx == 'neon' then                                           -- a light running round the edge (clockwise, ~6 s a lap)
+        local rr = math.min(r, (x1 - x0) / 2, (y1 - y0) / 2);
+        local wd, hd, q = (x1 - x0) - 2 * rr, (y1 - y0) - 2 * rr, math.pi * rr / 2;   -- straight parts, a quarter arc
+        local per = 2 * wd + 2 * hd + 4 * q;
+        local t = (actions.fx_time() / 6) % 1;
+        local function arc(cx, cy, a0, d)                            -- d along a quarter circle starting at angle a0
+            local a = a0 + (d / q) * (math.pi / 2);
+            return cx + math.cos(a) * rr, cy + math.sin(a) * rr;
+        end
+        local function at(d)                                         -- a point d along the rounded edge, clockwise
+            d = d % per;
+            if d < wd then return x0 + rr + d, y0; end
+            d = d - wd; if d < q then return arc(x1 - rr, y0 + rr, -math.pi / 2, d); end
+            d = d - q; if d < hd then return x1, y0 + rr + d; end
+            d = d - hd; if d < q then return arc(x1 - rr, y1 - rr, 0, d); end
+            d = d - q; if d < wd then return x1 - rr - d, y1; end
+            d = d - wd; if d < q then return arc(x0 + rr, y1 - rr, math.pi / 2, d); end
+            d = d - q; if d < hd then return x0, y1 - rr - d; end
+            d = d - hd; return arc(x0 + rr, y0 + rr, math.pi, d);
+        end
+        local head = t * per;
+        local n = 24;
+        for k = 0, n - 1 do                                          -- the tail: fading, pink to violet
+            local d0, d1 = head - (k + 1) * 7, head - k * 7;
+            local ax, ay = at(d0);
+            local bx, by = at(d1);
+            do                                                       -- (the path is continuous: it rounds the corners)
+                local u = k / n;
+                local c = { e1[1] + (e2[1] - e1[1]) * u, e1[2] + (e2[2] - e1[2]) * u, e1[3] + (e2[3] - e1[3]) * u };
+                dl:AddLine({ ax, ay }, { bx, by }, u32({ c[1], c[2], c[3], 0.35 * (1 - u) }), 6);
+                dl:AddLine({ ax, ay }, { bx, by }, u32({ 1, 0.92, 1, 0.9 * (1 - u) }), 1.6);
+            end
+        end
+        local hx, hy = at(head);
+        dl:AddCircleFilled({ hx, hy }, 2.6, u32({ 1, 1, 1, 0.95 }), 10);   -- the bright head, like the bars' tip
+    end
+end
+-- "Look  < name >" (bottom bar, before Window scale)
+function actions.look_w()
+    local longest = 0;
+    for _, k in ipairs(actions.LOOKS) do longest = math.max(longest, text_w(actions.LOOK_NAME[k])); end
+    return text_w('Look') + 10 + actions.sc(30) * 2 + longest + 12 + 28;
+end
+function actions.draw_look_control()
+    local cur = 1;
+    for i, k in ipairs(actions.LOOKS) do if k == (s.theme or 'neon') then cur = i; end end
+    imgui.AlignTextToFramePadding();
+    imgui.TextColored(C.muted, 'Look');
+    imgui.SameLine(0, 10);
+    local bh = actions.sc(30);
+    local n = #actions.LOOKS;
+    if imgui.Button('<##ygo_look_dn', { bh, bh }) then s.theme = actions.LOOKS[(cur - 2) % n + 1]; settings.save(); end
+    imgui.SameLine(0, 6);
+    local name = actions.LOOK_NAME[actions.LOOKS[cur]];
+    local longest = 0;
+    for _, k in ipairs(actions.LOOKS) do longest = math.max(longest, text_w(actions.LOOK_NAME[k])); end
+    local cx = imgui.GetCursorPosX();
+    imgui.SetCursorPosX(cx + (longest - text_w(name)) / 2);
+    imgui.TextColored(C.text, name);
+    if imgui.IsItemHovered() then imgui.SetTooltip(actions.LOOK_TIP[actions.LOOKS[cur]]); end
+    imgui.SameLine(cx + longest + 6);
+    if imgui.Button('>##ygo_look_up', { bh, bh }) then s.theme = actions.LOOKS[cur % n + 1]; settings.save(); end
+    imgui.SameLine(0, 28);
+end
+
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
+    actions.draw_look_control();
     local v = actions.scale();
     local idx = 3;
     for i, sc in ipairs(actions.SCALES) do if math.abs(sc - v) < 0.01 then idx = i; end end
@@ -5841,11 +6027,12 @@ end
 
 -- Push the font for the whole window: newer ImGui (fonts with LegacySize) wants a size, older ones don't
 function actions.push_font()
+    if ui.theme_applied ~= (s.theme or 'neon') then pcall(actions.apply_theme); end
     local f = ui.font;
     if f == nil then return false; end
     local size = math.floor(17 * actions.scale() + 0.5);
     local ok = false;
-    if f.LegacySize ~= nil then ok = pcall(imgui.PushFont, f, size);           -- newer ImGui: any size
+    if f.LegacySize ~= nil then ok = pcall(imgui.PushFont, f, size * (ui.font_k or 1));   -- newer ImGui: any size
     else ok = pcall(imgui.PushFont, (ui.fonts or {})[size] or f); end         -- older: the size loaded at start
     return ok;
 end
@@ -6028,6 +6215,7 @@ local function draw_ui()
     end
     if not bis.done then bis_step(); end
     if ui.dirty then recompute(); end
+    if ui.theme_applied ~= (s.theme or 'neon') then pcall(actions.apply_theme); end   -- (the Look, before the colours go in)
     local nc, nv = push_theme();
     local fontpushed = actions.push_font();
     if s.compact then draw_lazy(); else draw_full(); end
