@@ -815,8 +815,10 @@ function actions.slash_cmds(have)
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
     if have.DW then table.insert(c, 'dw'); end
+    if have.Leveling then table.insert(c, 'leveling'); end
     if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
     if have.__jugs then table.insert(c, 'jug'); end
+    for _, x in ipairs({ 'echad', 'empress', 'emperor', 'anniversary', 'decennial', 'sprout' }) do table.insert(c, x); end
     local parts = {};
     for _, x in ipairs(c) do table.insert(parts, x .. ' = true'); end
     -- (have.__jugs is a flag, not a set: keep it out of the set checks below this point)
@@ -1016,6 +1018,10 @@ local function build_sets(job_id)
         table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
                              base_weights = {}, caps = {}, weapons = true, fixed = {} });
     end
+    -- Leveling (the LEVELING button, not in the sidebar): your low-level gear, worn on top of everything while you
+    -- are level 30 or below (natural or level sync). Destrier Beret is picked by itself if you own it.
+    table.insert(list, { id = 'Leveling', name = 'Leveling', label = 'Leveling (level 30 and below)', kind = 'leveling',
+                         leveling = true, base_weights = {}, caps = {}, weapons = true, fixed = { head = 'Destrier Beret' } });
     -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
     for _, e in ipairs(list) do
         if actions.set_removed(abbr, e.id) then e.disabled = true; end
@@ -1864,6 +1870,8 @@ local function build_full_xml(job_id)
         set_xml_lines(out, '        ', 'DualWieldWeapons', a);
         actions.wpair = true;
     end
+    add('        <!-- /sprout: Sprout Beret (EXP) -->');
+    set_xml_lines(out, '        ', 'Sprout', { head = { item = { name = 'Sprout Beret' } } });
     for _, b in ipairs(built) do
         add(string.format('        <!-- %s -->', xml_escape(b.desc.label)));
         local a = b.assign;
@@ -1890,6 +1898,8 @@ local function build_full_xml(job_id)
     add('        <var name="TH">off</var>');
     if have.Refresh then add('        <var name="Refresh">off</var>'); end
     if have.DW then add('        <var name="DW">off</var>'); end
+    if have.Leveling then add('        <var name="Leveling">on</var>'); end
+    add('        <var name="Sprout">off</var>');
     if #jugs > 0 then add('        <var name="Jug">1</var>'); end
     add('    </variables>');
     add('');
@@ -1917,6 +1927,7 @@ local function build_full_xml(job_id)
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
+    if have.Leveling then toggle('/leveling', 'Leveling', 'on', 'Leveling gear (level 30 and below)'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
     -- BST /jug: the next jug pet you own (used by Call Beast / Bestial Loyalty)
     if #jugs > 0 then
@@ -1939,6 +1950,14 @@ local function build_full_xml(job_id)
     add('            <addtochat color="158">Mode: normal</addtochat>');
     add('            <doidlegear />');
     add('        </cmd>');
+    -- EXP rings: equip, wait, use (YunaGearOpt does it; the gear stays put meanwhile). /sprout: Sprout Beret on / off
+    for _, k in ipairs({ 'echad', 'empress', 'emperor', 'anniversary', 'decennial' }) do
+        add(string.format('        <cmd input="/%s">', k));
+        add('            <gearlock length="14" />');
+        add(string.format('            <command>/ygo exp %s</command>', k));
+        add('        </cmd>');
+    end
+    toggle('/sprout', 'Sprout', 'on', 'Sprout Beret (head)');
     -- /warp: Instant Warp scroll if you have one, otherwise Warp Ring (needs the YunaGearOpt addon loaded)
     add('        <cmd input="/warp">');
     add('            <gearlock length="25" />');
@@ -2028,6 +2047,12 @@ local function build_full_xml(job_id)
         add('        <!-- /dw ON: your dual-wield weapons on top of whatever set is active -->');
         emit_chain(out, '        ', { { cond = 'advanced="$DW=on"', body = equip_set('DW') } }, nil);
     end
+    if have.Leveling then
+        add('        <!-- Level 30 and below (natural or level sync): your leveling gear on top (/leveling turns it off) -->');
+        emit_chain(out, '        ', { { cond = 'p_joblevel="<31" advanced="$Leveling=on"', body = equip_set('Leveling') } }, nil);
+    end
+    add('        <!-- /sprout ON: Sprout Beret on your head -->');
+    emit_chain(out, '        ', { { cond = 'advanced="$Sprout=on"', body = equip_set('Sprout') } }, nil);
     if actions.wpair then
         add('        <!-- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps) -->');
         emit_chain(out, '        ', { { cond = attr('p_subjob', 'NIN|DNC'), body = equip_set('DualWieldWeapons') } }, nil);
@@ -2506,6 +2531,7 @@ local function build_gearswap(job_id)
     add('    slash_cmds = ' .. actions.slash_cmds(have));
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
     add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
+    add("    LevelingOn = true     -- //gs c leveling: your Leveling set while you are level 30 or below");
     add('    -- BST: your jug pets; /jug picks the one Call Beast / Bestial Loyalty puts in the ammo slot');
     add('    jugs, JugIdx = ' .. actions.jug_literal(jugs) .. ', 1');
     for _, b in ipairs(built) do
@@ -2601,6 +2627,8 @@ function idle_gear()
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
     if DWOn then eq('DW') end
+    -- Level 30 and below (natural or level sync): your leveling gear on top
+    if LevelingOn and sets.Leveling and (player.main_job_level or 99) <= 30 then eq('Leveling') end
     -- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps)
     if dw_pair and (player.sub_job == 'NIN' or player.sub_job == 'DNC') then equip(dw_pair) end
     if phalanx_set and os.clock() < phalanx_until then eq(phalanx_set) end
@@ -2790,6 +2818,29 @@ function self_command(command)
         add_to_chat(167, 'No Scroll of Instant Warp in your inventory and no Warp Ring in Inventory/Wardrobes.')
         return
     end
+    local exp_rings = { echad = 'Echad Ring', empress = 'Empress Band', emperor = 'Emperor Band',
+                        anniversary = 'Anniversary Ring', decennial = 'Decennial Ring' }
+    if exp_rings[c] then                                  -- EXP ring: equip, wait for it to settle, use it
+        local r = exp_rings[c]
+        for _, bag in ipairs({ 'inventory', 'wardrobe', 'wardrobe2', 'wardrobe3', 'wardrobe4', 'wardrobe5', 'wardrobe6', 'wardrobe7', 'wardrobe8' }) do
+            if player[bag] and player[bag][r] then
+                equip({ left_ring = r })
+                disable('left_ring')
+                add_to_chat(158, r .. ' equipped - using it in 8 seconds.')
+                send_command('wait 8; input /item "' .. r .. '" <me>; wait 6; gs enable left_ring')
+                return
+            end
+        end
+        add_to_chat(167, 'No ' .. r .. ' in Inventory/Wardrobes.')
+        return
+    end
+    if c == 'sprout' then                                 -- Sprout Beret on (head locked) / off
+        SproutOn = not SproutOn
+        enable('head')
+        if SproutOn then equip({ head = 'Sprout Beret' }) disable('head') else idle_gear() end
+        add_to_chat(158, 'Sprout Beret: ' .. (SproutOn and 'ON' or 'OFF'))
+        return
+    end
     if c == '_moving' then
         if not midaction() and player.status ~= 'Engaged' then idle_gear() end
         return
@@ -2828,6 +2879,9 @@ function self_command(command)
     elseif c == 'dw' then
         DWOn = not DWOn
         add_to_chat(158, 'Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'))
+    elseif c == 'leveling' then
+        LevelingOn = not LevelingOn
+        add_to_chat(158, 'Leveling gear (level 30 and below): ' .. (LevelingOn and 'ON' or 'OFF'))
     end
     idle_gear()
 end]]);
@@ -3019,6 +3073,7 @@ local function build_lac(job_id)
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
+local LevelingOn = true;     -- /leveling: your Leveling set while you are level 30 or below
 
 local function matches(name, list)
     for _, p in ipairs(list or {}) do
@@ -3083,6 +3138,15 @@ local function warp()
     warp_until = os.time() + 25;
     AshitaCore:GetChatManager():QueueCommand(1, '/ygo warp');
 end
+
+-- EXP rings (/echad, /empress, /emperor, /anniversary, /decennial): lock the ring slot, YunaGearOpt equips and uses it
+local exp_rings = { echad = true, empress = true, emperor = true, anniversary = true, decennial = true };
+local function use_exp(c)
+    gFunc.Disable('Ring1');
+    warp_until = os.time() + 15;
+    AshitaCore:GetChatManager():QueueCommand(1, '/ygo exp ' .. c);
+end
+local SproutOn = false;      -- /sprout: Sprout Beret on your head (locked) until /sprout again
 
 -- Phalanx received (logic from phalanx.lua): reads the action packet and notes when a Phalanx starts on you
 local phalanx_until = 0;
@@ -3185,6 +3249,19 @@ profile.HandleCommand = function(args)
     elseif c == 'dw' then
         DWOn = not DWOn;
         gFunc.Message('Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'));
+    elseif c == 'leveling' then
+        LevelingOn = not LevelingOn;
+        gFunc.Message('Leveling gear (level 30 and below): ' .. (LevelingOn and 'ON' or 'OFF'));
+    elseif exp_rings[c] then
+        use_exp(c);
+    elseif c == 'sprout' then
+        SproutOn = not SproutOn;
+        gFunc.Enable('Head');
+        if SproutOn then
+            AshitaCore:GetChatManager():QueueCommand(1, '/equip head "Sprout Beret"');
+            gFunc.Disable('Head');
+        end
+        gFunc.Message('Sprout Beret: ' .. (SproutOn and 'ON' or 'OFF'));
     elseif c == 'warp' then
         warp();
     end
@@ -3241,6 +3318,11 @@ profile.HandleDefault = function()
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
     if DWOn then eq('DW'); end
+    -- Level 30 and below (natural or level sync): your leveling gear on top
+    if LevelingOn and sets['Leveling'] then
+        local pl = gData.GetPlayer();
+        if (pl.MainJobSync or pl.MainJobLevel or 99) <= 30 then eq('Leveling'); end
+    end
     -- /NIN or /DNC: your weapon pair stays on (no TP lost to weapon swaps)
     local sj = gData.GetPlayer().SubJob;
     if dw_pair and (sj == 'NIN' or sj == 'DNC') then gFunc.EquipSet(dw_pair); end
@@ -3503,6 +3585,22 @@ local function bag_has(name, bag_ids)
     return found;
 end
 
+-- EXP rings (/echad, /empress... in the exported files, or /ygo exp <name>): equip it, wait for it to settle, use it
+actions.EXP_RINGS = { echad = 'Echad Ring', empress = 'Empress Band', emperor = 'Emperor Band',
+                      anniversary = 'Anniversary Ring', decennial = 'Decennial Ring' };
+function actions.use_exp_ring(key)
+    local name = actions.EXP_RINGS[(key or ''):lower()];
+    if name == nil then msg('Usage: /ygo exp echad | empress | emperor | anniversary | decennial'); return; end
+    if not bag_has(name, { 0, 8, 10, 11, 12, 13, 14, 15, 16 }) then
+        msg('No ' .. name .. ' in Inventory/Wardrobes.');
+        return;
+    end
+    local cm = AshitaCore:GetChatManager();
+    cm:QueueCommand(1, '/equip ring1 "' .. name .. '"');
+    msg(name .. ' equipped - using it in 8 seconds (the ring needs to settle first).');
+    after(8, function() cm:QueueCommand(1, '/item "' .. name .. '" <me>'); end);
+end
+
 local function do_warp()
     local cm = AshitaCore:GetChatManager();
     if bag_has('Instant Warp', { 0 }) then
@@ -3674,7 +3772,7 @@ local CATEGORY_OF = {
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
     TrickAttack = 'Abilities', Flee = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
-    Lockstyle = 'Lockstyle',
+    Lockstyle = 'Lockstyle', Leveling = 'Leveling',   -- (not sidebar categories: opened from the header)
 };
 local function category(desc)
     if desc.kind == 'tp' then return 'Melee'; end
@@ -4261,10 +4359,36 @@ function actions.open_url(url)
     return ok;
 end
 
+-- LOCKSTYLE <JOB> and LEVELING side by side in the middle of the header
+function actions.draw_header_pills(w)
+    local ls, lv;
+    for i, d in ipairs(ui.sets) do
+        if d.lockstyle then ls = i; elseif d.leveling then lv = i; end
+    end
+    imgui.SetWindowFontScale(1.12);
+    local w1 = text_w('LOCKSTYLE  ' .. JOBS[ui.job]) + 28;
+    local w2 = text_w('LEVELING') + 28;
+    imgui.SetWindowFontScale(1.0);
+    local gap = 14;
+    local x = math.floor((w - (ls and w1 or 0) - (lv and w2 or 0) - ((ls and lv) and gap or 0)) / 2);
+    if ls then
+        actions.draw_lockstyle_text(ls, x + w1 - 14);
+        x = x + w1 + gap;
+    end
+    if lv then
+        actions.draw_lockstyle_text(lv, x + w2 - 14, nil, { label = 'LEVELING', id = '##ygo_leveling',
+            tip = 'Your ' .. JOBS[ui.job] .. ' leveling gear (Destrier Beret, Reraise gear...).\n'
+                .. 'Your exported file wears it on top of everything while you are level 30 or below\n'
+                .. '(natural or level sync). In game, /leveling turns it off and on.' });
+    end
+end
+
 -- "LOCKSTYLE <JOB>" as text in the GEAROPT style: letters flowing periwinkle <-> ice blue; brighter with an underline
 -- on hover; white while you're in the lockstyle view. Ends at right_x; returns where it starts (for the heart).
-function actions.draw_lockstyle_text(idx, right_x, center_w)
-    local label = 'LOCKSTYLE  ' .. JOBS[ui.job];
+-- o (optional): another pill in the same style - o.label, o.id, o.tip (LEVELING).
+function actions.draw_lockstyle_text(idx, right_x, center_w, o)
+    o = o or {};
+    local label = o.label or ('LOCKSTYLE  ' .. JOBS[ui.job]);
     local in_look = idx == ui.set_idx;
     imgui.SetWindowFontScale(1.12);
     local tw, lh = text_w(label), imgui.GetTextLineHeight();
@@ -4272,7 +4396,7 @@ function actions.draw_lockstyle_text(idx, right_x, center_w)
     local x0 = center_w and math.floor((center_w - tw) / 2) or (right_x - tw);
     imgui.SetCursorPos({ x0 - px, 56 - lh / 2 - py });
     local bx, by = imgui.GetCursorScreenPos();
-    local clicked = imgui.InvisibleButton('##ygo_look', { tw + px * 2, lh + py * 2 });
+    local clicked = imgui.InvisibleButton(o.id or '##ygo_look', { tw + px * 2, lh + py * 2 });
     local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
     local dl = imgui.GetWindowDrawList();
     -- the pill: faint fill + thin outline; brighter on hover, solid-ish while you're in the lockstyle view
@@ -4301,7 +4425,7 @@ function actions.draw_lockstyle_text(idx, right_x, center_w)
     imgui.SetWindowFontScale(1.0);
     if clicked and not in_look then ui.set_idx, ui.dirty = idx, true; end
     if hov then
-        imgui.SetTooltip('Pick the look you want for ' .. JOBS[ui.job] .. ' (or IMPORT EQUIPPED).\nIt locks on by itself after login and every job change.');
+        imgui.SetTooltip(o.tip or ('Pick the look you want for ' .. JOBS[ui.job] .. ' (or IMPORT EQUIPPED).\nIt locks on by itself after login and every job change.'));
     end
     return x0 - px;
 end
@@ -4496,10 +4620,8 @@ local function draw_header()
         end
         imgui.SetWindowFontScale(1.0);
 
-        -- Middle: LOCKSTYLE, centred
-        for i, d in ipairs(ui.sets) do
-            if d.lockstyle then pcall(actions.draw_lockstyle_text, i, nil, w); end
-        end
+        -- Middle: LOCKSTYLE and LEVELING, centred together
+        pcall(actions.draw_header_pills, w);
 
         -- Right (from the edge): _ and X, SUPPORT (only with data.support_url), then "Special thanks"
         local rx = imgui.GetWindowWidth() - 70 - 16;
@@ -4667,7 +4789,8 @@ local function draw_set_header()
     local col = ui.show_bis and TIER_ORANGE or (set_ratio() and tier(set_ratio()) or C.text);
     local cat = category(d);
     local initials = { Melee = 'ME', Weaponskills = 'WS', Precast = 'PC', Magic = 'MA', Abilities = 'AB', ['Defense & Idle'] = 'DI' };
-    actions.icon_tile(d.lockstyle and 'LS' or (initials[cat] or 'YG'), (not d.lockstyle) and cat or nil);
+    actions.icon_tile(d.lockstyle and 'LS' or (d.leveling and 'LV') or (initials[cat] or 'YG'),
+        (not d.lockstyle and not d.leveling) and cat or nil);
     imgui.SameLine(0, 14);
     imgui.BeginGroup();
     title_text(d.label, 1.35, col);
@@ -4676,7 +4799,7 @@ local function draw_set_header()
         score_legend(lines);
         imgui.SetTooltip((table.concat(lines, '\n'):gsub('%%', '%%%%')));
     end
-    imgui.TextColored(C.muted, (d.lockstyle and 'Your look' or cat) .. '   |   exported as ');
+    imgui.TextColored(C.muted, (d.lockstyle and 'Your look' or (d.leveling and 'Worn at level 30 and below') or cat) .. '   |   exported as ');
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold_dim, d.name);
     if d.kind == 'ws' and d.ws then
@@ -4691,7 +4814,7 @@ local function draw_set_header()
     imgui.EndGroup();
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
-    if d.lockstyle or d.dwpair then
+    if d.lockstyle or d.dwpair or d.leveling then
         ui.show_bis = false;
     else
         imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
@@ -5922,6 +6045,21 @@ function actions.draw_settings_bar(d)
     if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
     x = text_at(x + 38 + 10, 'Ignore level', C.text);
     if imgui.IsItemHovered() then imgui.SetTooltip('Use gear above your current level too'); end
+    if d.leveling then                                        -- on = exported and worn at level 30 and below
+        local abbr = JOBS[ui.job];
+        local on = not actions.set_removed(abbr, d.id);
+        divider(x + 18);
+        imgui.SetCursorScreenPos({ x + 36, cy - 10 });
+        if actions.switch('##ygo_lvl_on', on) then
+            -- (not in the job's set list, so not add_set / remove_set: just the switched-off list)
+            s.set_removed[abbr] = actions.list_without(s.set_removed[abbr], d.id);
+            if on then table.insert(s.set_removed[abbr], d.id); end
+            settings.save();
+            d.disabled, ui.dirty = on, true;
+        end
+        x = text_at(x + 36 + 38 + 10, on and 'Wear it automatically at level 30 and below' or 'Off (not in your exported files)',
+            on and C.text or C.muted);
+    end
     -- Dual Wield AUTO / ON / OFF: hidden for now (may come back); while hidden it stays on AUTO
     if not actions.SHOW_DW and s.dw_mode ~= 1 then s.dw_mode, ui.dirty = 1, true; end
     if actions.SHOW_DW and d.kind == 'tp' then
@@ -6458,6 +6596,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         ask_export('xml');            -- same confirmation window as the buttons
     elseif sub == 'warp' then
         do_warp();
+    elseif sub == 'exp' then
+        actions.use_exp_ring(args[3]);
     elseif sub == 'lockstyle' or sub == 'ls' then
         look.apply(main_job(), false);
     elseif sub == 'augcheck' or sub == 'augments' then
