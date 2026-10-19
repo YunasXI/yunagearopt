@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.36';   -- the release workflow sets this to the release number
+addon.version = '1.1.37';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4679,8 +4679,16 @@ local function draw_set_header()
     imgui.TextColored(C.muted, (d.lockstyle and 'Your look' or cat) .. '   |   exported as ');
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold_dim, d.name);
+    if d.kind == 'ws' and d.ws then
+        local mods = {};
+        for k, v in pairs(d.ws.mods or {}) do table.insert(mods, string.format('%s %d%%', k:upper(), math.floor(v * 100 + 0.5))); end
+        imgui.TextColored(C.muted, string.format('%s   |   %d hit%s%s   |   %s', (d.ws.kind or 'physical'):upper(), d.ws.hits or 1,
+            (d.ws.hits or 1) > 1 and 's' or '', d.ws.crit and '   |   CRIT' or '', table.concat(mods, ', ')));
+    end
+    local caps = {};
+    for k, v in pairs(d.caps or {}) do table.insert(caps, string.format('%s %d', label_of(k), v)); end
+    if #caps > 0 then table.sort(caps); imgui.TextColored(C.muted, 'Caps   ' .. table.concat(caps, '   ')); end
     imgui.EndGroup();
-    actions.draw_macro_ctrl();
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
     if d.lockstyle or d.dwpair then
@@ -4702,32 +4710,7 @@ local function draw_set_header()
         end
     end
 
-    if d.kind == 'ws' and d.ws then
-        local mods = {};
-        for k, v in pairs(d.ws.mods or {}) do table.insert(mods, string.format('%s %d%%', k:upper(), math.floor(v * 100 + 0.5))); end
-        imgui.TextColored(C.muted, string.format('%s   |   %d hit%s%s   |   %s', (d.ws.kind or 'physical'):upper(), d.ws.hits or 1,
-            (d.ws.hits or 1) > 1 and 's' or '', d.ws.crit and '   |   CRIT' or '', table.concat(mods, ', ')));
-    end
-    local caps = {};
-    for k, v in pairs(d.caps or {}) do table.insert(caps, string.format('%s %d', label_of(k), v)); end
-    if #caps > 0 then table.sort(caps); imgui.TextColored(C.muted, 'Caps   ' .. table.concat(caps, '   ')); end
-
-    -- Options row
-    imgui.Spacing();
-    if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
-    imgui.SameLine(0, 10);
-    imgui.TextColored(C.text, 'Ignore level');
-    if imgui.IsItemHovered() then imgui.SetTooltip('Use gear above your current level too'); end
-    if d.kind == 'tp' then
-        imgui.SameLine(0, 28);
-        imgui.TextColored(C.text, 'Dual Wield');
-        imgui.SameLine(0, 10);
-        local picked = actions.segmented('dw', DW_MODES, s.dw_mode, 56);
-        if picked then s.dw_mode, ui.dirty = picked, true; end
-        imgui.SameLine(0, 10);
-        local dw = dw_active(ui.job);
-        imgui.TextColored(dw and C.green or C.muted, dw and 'active' or 'not used');
-    end
+    actions.draw_settings_bar(d);
 end
 
 local function draw_picker(def)
@@ -5915,9 +5898,66 @@ function actions.job_text(i, abbr, w, h)
     return clicked;
 end
 
--- "MACROS  Book < n >  Page < n >" in the middle of the set header: the job's macro book (1-40) and page (1-10);
--- '-' = off. Changing them for the job you are on switches the macros right away.
-function actions.draw_macro_ctrl()
+actions.SHOW_DW = false;   -- the Dual Wield control in the settings bar (off for now)
+
+-- The settings bar under the set header: one framed strip, every control centred on the same line.
+-- Left: Ignore level | Dual Wield (TP sets). Right: MACROS (on a second line in the strip when there's no room).
+function actions.draw_settings_bar(d)
+    imgui.Spacing();
+    local x0, y0 = imgui.GetCursorScreenPos();
+    local W = imgui.GetContentRegionAvail();
+    if type(W) == 'table' then W = W.x or W[1]; end
+    local RH = 36;                                            -- one line of the bar
+    local cy = y0 + RH / 2;
+    local lh = imgui.GetTextLineHeight();
+    local dl = imgui.GetWindowDrawList();
+    local function text_at(x, txt, c)                         -- text centred on the line; returns where it ends
+        imgui.SetCursorScreenPos({ x, cy - lh / 2 });
+        imgui.TextColored(c, txt);
+        return x + text_w(txt);
+    end
+    local function divider(x) dl:AddRectFilled({ x, cy - 10 }, { x + 1, cy + 10 }, u32({ 1, 1, 1, 0.10 })); end
+    local x = x0 + 14;
+    imgui.SetCursorScreenPos({ x, cy - 10 });
+    if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
+    x = text_at(x + 38 + 10, 'Ignore level', C.text);
+    if imgui.IsItemHovered() then imgui.SetTooltip('Use gear above your current level too'); end
+    -- Dual Wield AUTO / ON / OFF: hidden for now (may come back); while hidden it stays on AUTO
+    if not actions.SHOW_DW and s.dw_mode ~= 1 then s.dw_mode, ui.dirty = 1, true; end
+    if actions.SHOW_DW and d.kind == 'tp' then
+        divider(x + 18);
+        x = text_at(x + 36, 'Dual Wield', C.text);
+        imgui.SetCursorScreenPos({ x + 12, cy - 16 });
+        local picked = actions.segmented('dw', DW_MODES, s.dw_mode, 56);
+        if picked then s.dw_mode, ui.dirty = picked, true; end
+        local dw = dw_active(ui.job);
+        x = text_at(x + 12 + #DW_MODES * 56 + 6 + 12, dw and 'active' or 'not used', dw and C.green or C.muted);
+    end
+    local mw = actions.macro_w();
+    local mx, rows = x0 + W - 14 - mw, 1;
+    if mx < x + 40 then mx, rows = x0 + 14, 2; end             -- no room: MACROS gets the bar's second line
+    local mcy = cy + (rows - 1) * RH;
+    if rows == 1 then divider(mx - 20); end
+    actions.draw_macro_ctrl(mx, mcy);
+    local H = RH * rows + 4;
+    dl:AddRectFilled({ x0, y0 - 2 }, { x0 + W, y0 + H - 2 }, u32({ 1, 1, 1, 0.025 }), 8);
+    dl:AddRect({ x0, y0 - 2 }, { x0 + W, y0 + H - 2 }, u32({ 1, 1, 1, 0.07 }), 8);
+    imgui.SetCursorScreenPos({ x0, y0 + H });
+    imgui.Dummy({ 0, 2 });
+end
+
+-- The width of "MACROS  Book < n >  Page < n >"
+function actions.macro_w()
+    local big = actions.push_kind('b');
+    local BW, NW = 28, 34;
+    local w = text_w('MACROS') + text_w('Book') + text_w('Page') + 2 * (12 + 6 + BW + 4 + NW + 4 + BW);
+    if big then imgui.PopFont(); end
+    return w;
+end
+
+-- "MACROS  Book < n >  Page < n >" in the settings bar, starting at px and centred on cy: the job's macro book (1-40)
+-- and page (1-10); '-' = off. Changing them for the job you are on switches the macros right away.
+function actions.draw_macro_ctrl(px, cy)
     local abbr = JOBS[ui.job];
     if abbr == nil then return; end
     s.macros = s.macros or {};
@@ -5925,14 +5965,9 @@ function actions.draw_macro_ctrl()
     local book, page = tonumber(m.book) or 0, tonumber(m.page) or 0;
     local big = actions.push_kind('b');                     -- a bit bigger: the Bahnschrift size
     local BW, NW = 28, 34;                                  -- arrow button / number box widths
-    local function stepper_w(label) return 12 + text_w(label) + 6 + BW + 4 + NW + 4 + BW; end
-    local total = text_w('MACROS') + stepper_w('Book') + stepper_w('Page');
-    imgui.SameLine(0, 24);                                  -- after the set title...
-    local want = math.floor((imgui.GetWindowWidth() - total) / 2);
-    if want > imgui.GetCursorPosX() then imgui.SetCursorPosX(want); end   -- ...centred when there's room
-    imgui.BeginGroup();
-    imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
     local fh = imgui.GetFrameHeight() + 4;
+    imgui.SetCursorScreenPos({ px, cy - fh / 2 });
+    imgui.BeginGroup();
     local function label(txt, c)                            -- text centred on the buttons' height, so all sit in line
         imgui.Dummy({ text_w(txt), fh });
         local x0, y0 = imgui.GetItemRectMin();
