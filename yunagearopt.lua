@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.37';   -- the release workflow sets this to the release number
+addon.version = '1.1.38';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1491,7 +1491,38 @@ local function optimize(job_id, desc, pins, pool)
         end
         if not improved then break; end
     end
+    -- The sets you stand / fight in never leave an armor slot bare: a slot nothing scores in gets the piece with the
+    -- most DEF you can wear (a suit like Kupo Suit takes the legs off while running; the Idle legs must come back on).
+    -- A slot you set to "Leave empty" stays empty.
+    if not pure and not desc.fixed and actions.base_set(desc) then
+        local covers, hidden = data.covers or {}, {};
+        for _, c in pairs(assign) do
+            for _, hs in ipairs(covers[c.item.name] or {}) do hidden[hs] = true; end   -- a slot a worn piece covers
+        end
+        for _, def in ipairs(slots) do
+            local k = def.key;
+            if assign[k] == nil and not hidden[k] and pins[k] ~= false and k ~= 'main' and k ~= 'sub' and k ~= 'range' and k ~= 'ammo' then
+                local pick = nil;
+                for _, c in ipairs(full[k]) do
+                    local d0 = c.item.stats and c.item.stats.def or 0;
+                    if not used[c.idx] and d0 > 0 and covers[c.item.name] == nil and not is_excluded(c.item.name) and not set_excluded(job_id, desc, c.item.name)
+                            and slot_candidate_ok(def, c.item, desc) then
+                        local pd = pick and (pick.item.stats.def or 0) or -1;
+                        if pick == nil or d0 > pd or (d0 == pd and (c.item.level or 0) > (pick.item.level or 0)) then pick = c; end
+                    end
+                end
+                if pick then assign[k], used[pick.idx] = pick, true; end
+            end
+        end
+    end
     return assign, best, full, w, forced;
+end
+
+-- Sets you stand or fight in (worn between actions): Idle..., Resting, PDT, MDT, Evasion, Refresh, TP sets
+function actions.base_set(desc)
+    local id = desc.id or '';
+    if desc.kind == 'tp' or id:find('^Idle') or id:find('^TP') then return true; end
+    return id == 'Resting' or id == 'PDT' or id == 'MDT' or id == 'Evasion' or id == 'Refresh';
 end
 
 -- Curated BiS (bis.lua) for this job + set: exact set / weaponskill first, then by WS stats, then the default WS.
