@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.39';   -- the release workflow sets this to the release number
+addon.version = '1.1.40';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -535,7 +535,8 @@ local function scan()
                     if r ~= nil and r.Slots ~= nil and r.Slots ~= 0 then
                         local name = r.Name[1] or '';
                         local desc = r.Description and r.Description[1] or '';
-                      if not is_craft_gear(name, desc) then
+                      -- (gear with its own stat entry in data.lua is never craft gear: Chocobo Shirt mentions digging)
+                      if ui.stat_fix[name:lower()] or not is_craft_gear(name, desc) then
                         local base = compute_base(it.Id, name, desc);
                         local rd = byte_reader(it);
                         local aug, unknown, augmented = decode_augments(rd);
