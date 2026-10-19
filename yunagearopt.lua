@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.40';   -- the release workflow sets this to the release number
+addon.version = '1.1.41';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1836,6 +1836,9 @@ local function ws_ids_for(names)
     return ids;
 end
 
+-- Jobs that shoot while engaged (shots can fire on their own, with no swap): engaged = the Midshot set (TP set with /NIN or /DNC)
+actions.SHOOT_ENGAGED = { RNG = true };
+
 -- RNG shoots a bow or a gun: the gun's name tells the exports which Preshot / Midshot set to use
 local function gun_name_for(abbr)
     local rw = (data.ranged_weapons or {})[abbr];
@@ -1860,6 +1863,7 @@ local function build_full_xml(job_id)
     local obis = owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local out = {};
     local function add(line) table.insert(out, line); end
@@ -2023,6 +2027,21 @@ local function build_full_xml(job_id)
                 if actions.wpair then table.insert(o2, i2 .. '<equip set="DualWieldWeapons" />'); end
             end } }, equip_set('TP_Hybrid'));
         end;
+    end
+    -- RNG: engaged = ranged gear (Midshot, the gun version with the gun); /NIN or /DNC = the TP set (melee)
+    if have.__shoot then
+        local gun = gun_name_for(abbr);
+        local function shoot(o, i)
+            if have.Midshot_Gun and gun then
+                emit_chain(o, i, { { cond = attr('eq_range', gun), body = equip_set('Midshot_Gun') } }, equip_set('Midshot'));
+            else
+                equip_set('Midshot')(o, i);
+            end
+        end
+        local melee = tp_body;
+        tp_body = melee and function(o, i)
+            emit_chain(o, i, { { cond = attr('p_subjob', 'NIN|DNC'), body = melee } }, shoot);
+        end or shoot;
     end
     local idle_branches = {};
     if have.PDT then table.insert(idle_branches, { cond = 'advanced="$Mode=pdt"', body = equip_set('PDT') }); end
@@ -2428,6 +2447,7 @@ local function build_gearswap(job_id)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
@@ -2478,6 +2498,7 @@ local function build_gearswap(job_id)
     add('');
     add('    -- RNG: the gun tells Preshot / Midshot apart from the bow versions');
     add('    gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil'));
+    add('    shoot_engaged = ' .. tostring(have.__shoot == true) .. '   -- RNG: ranged gear when engaged (TP set with /NIN or /DNC)');
     add('');
     add('    -- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
     add('    engaged_buffs = {');
@@ -2634,6 +2655,7 @@ function idle_gear()
         elseif Mode == 'acc' and eq('TP_Acc') then
         elseif Mode == 'petonly' and eq('TP_Pet') then
         elseif Mode == 'eva' and eq('Evasion') then
+        elseif shoot_engaged and player.sub_job ~= 'NIN' and player.sub_job ~= 'DNC' and eq(ranged_set('Midshot')) then
         elseif engaged_dw and player.sub_job ~= 'NIN' and player.sub_job ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle')
         end
@@ -2961,6 +2983,7 @@ local function build_lac(job_id)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
+    have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
@@ -3038,6 +3061,7 @@ local function build_lac(job_id)
     add('');
     add('-- RNG: the gun tells Preshot / Midshot apart from the bow versions');
     add('local gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil') .. ';');
+    add('local shoot_engaged = ' .. tostring(have.__shoot == true) .. ';   -- RNG: ranged gear when engaged (TP set with /NIN or /DNC)');
     add('');
     add('-- Job abilities that wear their own set');
     add('local ja_map = {');
@@ -3325,6 +3349,7 @@ profile.HandleDefault = function()
         elseif Mode == 'acc' and eq('TP_Acc') then
         elseif Mode == 'petonly' and eq('TP_Pet') then
         elseif Mode == 'eva' and eq('Evasion') then
+        elseif shoot_engaged and player.SubJob ~= 'NIN' and player.SubJob ~= 'DNC' and eq(ranged_set('Midshot')) then
         elseif engaged_dw and player.SubJob ~= 'NIN' and player.SubJob ~= 'DNC' and eq('TP_Hybrid') then
         elseif not eq('TP') then eq('Idle');
         end
