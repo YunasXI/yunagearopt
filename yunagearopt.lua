@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.42';   -- the release workflow sets this to the release number
+addon.version = '1.1.43';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3841,7 +3841,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
-    TrickAttack = 'Abilities', Flee = 'Abilities', Scavenge = 'Abilities', Sharpshot = 'Abilities', Shadowbind = 'Abilities', Barrage = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
+    TrickAttack = 'Abilities', Flee = 'Abilities', Steal = 'Abilities', Scavenge = 'Abilities', Sharpshot = 'Abilities', Shadowbind = 'Abilities', Barrage = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
     Lockstyle = 'Lockstyle', Leveling = 'Leveling',   -- (not sidebar categories: opened from the header)
 };
 local function category(desc)

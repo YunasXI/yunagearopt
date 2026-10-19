@@ -77,7 +77,7 @@ return {
         { 'Violent Flourish', 'ViolentFlourish' },
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
-        { 'Trick Attack', 'TrickAttack' }, 'Flee',
+        { 'Trick Attack', 'TrickAttack' }, 'Flee', 'Steal',
         -- RNG: the AF piece that enhances the ability goes on when you use it
         { 'Scavenge', 'Scavenge', jobs = { 'RNG' } }, { 'Sharpshot', 'Sharpshot', jobs = { 'RNG' } },
         { 'Shadowbind', 'Shadowbind', jobs = { 'RNG' } },
@@ -685,6 +685,25 @@ return {
     -- Other stats on the item are still read normally; this value replaces that one stat.
     stat_fix = {
         ['Brutal Earring +1'] = { da = 6 },
+        -- THF Steal (CatsEyeXI item database, mod 298; Rogue's Ring: only at HP 75% or less and TP under 100%)
+        ["Rogue's Bonnet"] = { steal = 1 },
+        ['Rogues Bonnet'] = { steal = 1 },
+        ["Thief's Kote"] = { steal = 3 },
+        ['Thiefs Kote'] = { steal = 3 },
+        ["Rogue's Armlets"] = { steal = 1 },
+        ['Rogues Armlets'] = { steal = 1 },
+        ['Rog. Armlets +1'] = { steal = 1 },
+        ["Rogue's Culottes"] = { steal = 1 },
+        ['Rogues Culottes'] = { steal = 1 },
+        ['Rog. Culottes +1'] = { steal = 1 },
+        ["Assassin's Culottes"] = { steal = 5 },
+        ['Assassins Culottes'] = { steal = 5 },
+        ['Asn. Culottes +1'] = { steal = 5 },
+        ["Rogue's Poulaines"] = { steal = 2 },
+        ['Rogues Poulaines'] = { steal = 2 },
+        ['Rog. Poulaines +1'] = { steal = 2 },
+        ["Rogue's Ring"] = { steal = 3 },
+        ['Rogues Ring'] = { steal = 3 },
         -- Leveling gear (CatsEyeXI item database): bonuses only at level 30 and below go in the *30 stats
         ['Destrier Beret']    = { def = 7, move30 = 12, refresh30 = 1, regen30 = 1, reraise30 = 1 },
         ['Chocobo Shirt']     = { def = 2, acc30 = 50 },
@@ -1041,6 +1060,8 @@ return {
         -- (also put on the moment you use Trick Attack, and kept on engaged or not while the buff is up)
         TrickAttack = { label = 'Trick Attack (buff active)', engaged_buff = 'Trick Attack', buff_any = true, weights = { taagi = 10 } },
         -- THF Flee: Rog. Poulaines +1 (Flee duration +15s) worn when you use Flee; plain Rogue's Poulaines if you lack the +1
+        -- THF Steal: your best Steal pieces (Thief's Kote, Assassin's Culottes, Rogue's Poulaines...), worn when you use Steal
+        Steal       = { label = 'Steal', weights = { steal = 10 } },
         Flee        = { label = 'Flee (duration)', weights = {}, fixed = { feet = 'Rog. Poulaines +1' },
                         fallback = { feet = "Rogue's Poulaines" } },
         -- RNG abilities: the AF piece that enhances each one (CatsEyeXI item database: Scavenge +5 = Socks,
@@ -1184,7 +1205,7 @@ return {
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Phalanx', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
+        THF = { 'TP', 'TP_Hybrid', 'WS', 'TrickAttack', 'Flee', 'Steal', 'TH', 'Idle', 'PDT', 'MDT', 'Preshot', 'Midshot', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
