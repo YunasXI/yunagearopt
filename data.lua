@@ -682,6 +682,12 @@ return {
     -- Other stats on the item are still read normally; this value replaces that one stat.
     stat_fix = {
         ['Brutal Earring +1'] = { da = 6 },
+        -- Leveling gear (CatsEyeXI item database): bonuses only at level 30 and below go in the *30 stats
+        ['Destrier Beret']    = { def = 7, move30 = 12, refresh30 = 1, regen30 = 1, reraise30 = 1 },
+        ['Chocobo Shirt']     = { def = 2, acc30 = 50 },
+        ['Eminence Mail']     = { def = 16, hp = 15, acc30 = 50, str30 = 1, vit30 = 1 },
+        ['Eminence Doublet']  = { def = 15, hp = 10, mp = 5, acc30 = 50, dex30 = 1, agi30 = 1 },
+        ['Eminence Robe']     = { def = 14, mp = 15, acc30 = 50, int30 = 1, mnd30 = 1, chr30 = 1 },
         ['Yetshila +1']       = { dex = 2, crit = 2, critdmg = 3 },
         ['Ultion Mantle']     = { counter = 2 },
         ['Bloodbead Gorget']  = { hp = 60, vit = 3, acc = 5, pdt = -2 },

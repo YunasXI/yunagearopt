@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.38';   -- the release workflow sets this to the release number
+addon.version = '1.1.39';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1019,9 +1019,12 @@ local function build_sets(job_id)
                              base_weights = {}, caps = {}, weapons = true, fixed = {} });
     end
     -- Leveling (the LEVELING button, not in the sidebar): your low-level gear, worn on top of everything while you
-    -- are level 30 or below (natural or level sync). Destrier Beret is picked by itself if you own it.
+    -- are level 30 or below (natural or level sync). Picks the level-30 pieces you own (Destrier Beret, Chocobo Shirt,
+    -- Eminence Mail / Doublet / Robe) by their Lv1-30 bonuses; anything else you add by hand.
     table.insert(list, { id = 'Leveling', name = 'Leveling', label = 'Leveling (level 30 and below)', kind = 'leveling',
-                         leveling = true, base_weights = {}, caps = {}, weapons = true, fixed = { head = 'Destrier Beret' } });
+                         leveling = true, caps = {}, weapons = true,
+                         base_weights = { reraise30 = 100, refresh30 = 20, regen30 = 10, move30 = 2, acc30 = 1, str30 = 1, dex30 = 1,
+                                          vit30 = 1, agi30 = 1, int30 = 1, mnd30 = 1, chr30 = 1 } });
     -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
     for _, e in ipairs(list) do
         if actions.set_removed(abbr, e.id) then e.disabled = true; end
