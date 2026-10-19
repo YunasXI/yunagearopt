@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.35';   -- the release workflow sets this to the release number
+addon.version = '1.1.36';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -15,13 +15,13 @@ do
     imgui.Text = function(t, ...) return raw_text(esc(t), ...); end
     imgui.TextColored = function(c, t, ...) return raw_colored(c, esc(t), ...); end
     if raw_disabled then imgui.TextDisabled = function(t, ...) return raw_disabled(esc(t), ...); end end
-    -- Tooltips 15% smaller so long ones fit on screen (text arrives already %-escaped)
+    -- Tooltips a little bigger than the text so they read easily (text arrives already %-escaped)
     local raw_tooltip = imgui.SetTooltip;
     if imgui.BeginTooltip and imgui.EndTooltip and imgui.SetWindowFontScale then
         imgui.SetTooltip = function(t)
             local opened = imgui.BeginTooltip();
             if opened == false then return; end
-            imgui.SetWindowFontScale(0.85);
+            imgui.SetWindowFontScale(1.05);
             raw_text(tostring(t));
             imgui.EndTooltip();
         end
@@ -211,13 +211,15 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     picks = T{},     -- your slot picks per 'JOB|set', kept between sessions
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
-                    cure_lead = 1.5,
-                    ui_scale = 1.0,
-                    mini_logo = false }; -- minimised to the floating logo    -- Window scale (bottom bar): 0.8 - 1.5   -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
+                    cure_lead = 1.5,     -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
+                    ui_scale = 1.0,      -- Window scale (bottom bar): 0.8 - 1.5
+                    mini_logo = false,   -- minimised to the floating logo
+                    macros = T{} };      -- macro book / page per job: JOB -> { book, page }
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
 s.set_added = actions.plain(s.set_added or {});
+s.macros = actions.plain(s.macros or {});
 
 -- Weapons are always swapped, except while subbing NIN or DNC: then the job's dual-wield pair (picked in the
 -- "/NIN and /DNC weapons" row) goes on instead, or the weapons are left alone if none is picked.
@@ -2377,6 +2379,13 @@ local function build_gearswap(job_id)
     if abbr == 'PUP' then add('-- PUP: while the automaton is out you wear its gear; //gs c petranged switches tank / ranged gear'); end
     add('');
     add('function get_sets()');
+    do                                                       -- the job's macro book / page (YunaGearOpt setting)
+        local mm = (s.macros or {})[abbr] or {};
+        local mb, mp = tonumber(mm.book) or 0, tonumber(mm.page) or 0;
+        if mb > 0 then
+            add(string.format("    send_command('input /macro book %d%s')", mb, mp > 0 and string.format('; wait 0.5; input /macro set %d', mp) or ''));
+        end
+    end
     add('    sets = {}');
     add('');
     for _, b in ipairs(built) do
@@ -2974,6 +2983,11 @@ local function build_lac(job_id)
     add('};');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
+    do
+        local mm = (s.macros or {})[abbr] or {};
+        add(string.format('local macro_book, macro_page = %d, %d;   -- switched to when the profile loads (0 = off)',
+            tonumber(mm.book) or 0, tonumber(mm.page) or 0));
+    end
     local llc = actions.late_cure_fc(abbr, built, have);
     add('-- PLD: Cures stay in the safe set and swap to Cure potency about 1 second before the cast ends (fc = your Cure fast cast %)');
     add('local late_cure = ' .. (llc and string.format('{ fc = %d, lead = 1.1 }', llc) or 'nil') .. ';   -- lead (+ ~0.4 s LuAshitacast adds itself): seconds before the cast lands');
@@ -3120,6 +3134,10 @@ end
 
 profile.OnLoad = function()
     gSettings.AllowAddSet = false;
+    if macro_book > 0 then
+        AshitaCore:GetChatManager():QueueCommand(1, '/macro book ' .. macro_book);
+        if macro_page > 0 then AshitaCore:GetChatManager():QueueCommand(1, '/macro set ' .. macro_page); end
+    end
     ashita.events.register('packet_in', 'ygo_lac_phalanx', function(e)
         if e.id == 0x28 then pcall(on_action, e); end
     end);
@@ -3582,6 +3600,16 @@ function look.apply(job_id, quiet)
 end
 
 -- Lockstyle turns off when you change job: put it back a few seconds after login / every job change
+-- The job's macro book and page (s.macros), sent to the game; nothing when the job has none set
+function actions.apply_macros(j)
+    local m = (s.macros or {})[JOBS[j] or ''];
+    local book, page = tonumber(m and m.book) or 0, tonumber(m and m.page) or 0;
+    if book <= 0 then return; end
+    local cm = AshitaCore:GetChatManager();
+    cm:QueueCommand(1, '/macro book ' .. book);
+    if page > 0 then cm:QueueCommand(1, '/macro set ' .. page); end
+end
+
 function look.watch()
     local now = os.time();
     if now == look.checked then return; end
@@ -3589,6 +3617,7 @@ function look.watch()
     local j = player_call(function(p) return p:GetMainJob(); end, 0);
     if type(j) ~= 'number' or j < 1 or j > #JOBS or j == look.job then return; end
     look.job = j;
+    after(2, function() if look.job == j then pcall(actions.apply_macros, j); end end);   -- the job's macro book / page
     if next(look.picks(j)) ~= nil then
         after(5, function() if look.job == j then look.apply(j, true); end end);
     end
@@ -3666,9 +3695,10 @@ local function push_theme()
         { ImGuiCol_ScrollbarBg, { 0, 0, 0, 0 } }, { ImGuiCol_ScrollbarGrab, { 1, 1, 1, 0.08 } },
         { ImGuiCol_ScrollbarGrabHovered, { 1, 1, 1, 0.16 } }, { ImGuiCol_ScrollbarGrabActive, { 1, 1, 1, 0.22 } },
         { ImGuiCol_TableRowBg, { 0, 0, 0, 0 } },
-        { ImGuiCol_ResizeGrip, { 1, 1, 1, 0.06 } },
-        { ImGuiCol_ResizeGripHovered, { C.gold[1], C.gold[2], C.gold[3], 0.55 } },
-        { ImGuiCol_ResizeGripActive, { C.gold[1], C.gold[2], C.gold[3], 0.85 } },
+        -- resizing still works, but no line on the window edge / grip in the corner (the neon corners are the frame)
+        { ImGuiCol_ResizeGrip, { 0, 0, 0, 0 } }, { ImGuiCol_ResizeGripHovered, { 0, 0, 0, 0 } },
+        { ImGuiCol_ResizeGripActive, { 0, 0, 0, 0 } },
+        { ImGuiCol_SeparatorHovered, { 0, 0, 0, 0 } }, { ImGuiCol_SeparatorActive, { 0, 0, 0, 0 } },
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
@@ -4567,19 +4597,18 @@ local function draw_sidebar()
                     local rhov = imgui.IsItemHovered();
                     local rdl = imgui.GetWindowDrawList();
                     if sel then
-                        rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32(C.frame), 6);
-                        rdl:AddRectFilled({ sx, sy + 4 }, { sx + 3, sy + rh - 4 }, u32(C.gold), 1);
+                        actions.neon_corner(rdl, sx, sy, rw + 26, rh);   -- the neon corner, like the jobs and buttons
                     elseif rhov then
                         rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
                     end
                     local sbf = actions.push_kind('sb');          -- set names in Segoe UI Semibold
                     local tx_end = sx + rw - 10;                 -- text stops 10 px before the switch
                     rdl:PushClipRect({ sx, sy }, { tx_end, sy + rh }, true);
-                    local tcol = d.disabled and { C.muted[1], C.muted[2], C.muted[3], 0.55 } or (sel and C.text or { 0.78, 0.80, 0.87, 1 });
+                    local tcol = d.disabled and { C.muted[1], C.muted[2], C.muted[3], 0.55 } or (sel and { 1, 1, 1, 1 } or { 0.95, 0.95, 0.98, 1 });
                     rdl:AddText({ sx + 14, sy + (rh - imgui.GetTextLineHeight()) / 2 }, u32(tcol), label);
                     rdl:PopClipRect();
                     if text_w(label) + 14 > rw - 10 then              -- a long name fades out instead of ending in a hard cut
-                        local bg = sel and C.frame or C.side;
+                        local bg = C.side;
                         local clear, solid = u32({ bg[1], bg[2], bg[3], 0 }), u32({ bg[1], bg[2], bg[3], 1 });
                         rdl:AddRectFilledMultiColor({ tx_end - 22, sy + 1 }, { tx_end, sy + rh - 1 }, clear, solid, solid, clear);
                     end
@@ -4651,6 +4680,7 @@ local function draw_set_header()
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold_dim, d.name);
     imgui.EndGroup();
+    actions.draw_macro_ctrl();
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
     if d.lockstyle or d.dwpair then
@@ -4754,7 +4784,7 @@ local function draw_picker(def)
     else
         local h = math.min(#list * actions.sc(26) + 8, actions.sc(340));
         if imgui.BeginChild('pick_list_' .. def.key, { actions.sc(470), h }, false) then
-            imgui.SetWindowFontScale(0.85);
+            imgui.SetWindowFontScale(1.05);
             local current = ui.result and ui.result[def.key];
             for i, c in ipairs(list) do
                 local bis_piece = ui.bis and ui.bis.assign and ui.bis.assign[def.key];
@@ -5042,7 +5072,7 @@ function actions.draw_dw_pair()
             imgui.OpenPopup('dwpick_' .. slot.k);
         end
         if imgui.BeginPopup('dwpick_' .. slot.k) then
-            imgui.SetWindowFontScale(0.85);
+            imgui.SetWindowFontScale(1.05);
             imgui.TextColored(C.gold, slot.label .. '  (/NIN and /DNC)');
             imgui.Separator();
             imgui.TextColored(C.gold_dim, 'Search');
@@ -5067,7 +5097,7 @@ function actions.draw_dw_pair()
             end
             table.sort(list, function(a, b) return a.name < b.name; end);
             if imgui.BeginChild('dwp_list_' .. slot.k, { 420, math.min(#list * 24 + 8, 300) }, false) then
-                imgui.SetWindowFontScale(0.85);
+                imgui.SetWindowFontScale(1.05);
                 for i, it in ipairs(list) do
                     if imgui.Selectable(string.format('%-26s   %s##dwi%d', it.name, it.where, i), cur == it.name) then
                         pair[slot.k] = { name = it.name, where = it.where };
@@ -5413,13 +5443,13 @@ function actions.menu_button(label, id, w, accent)
         imgui.PushStyleColor(ImGuiCol_Button, { C.gold[1], C.gold[2], C.gold[3], 0.14 });
         imgui.PushStyleColor(ImGuiCol_ButtonHovered, { C.gold[1], C.gold[2], C.gold[3], 0.24 });
         imgui.PushStyleColor(ImGuiCol_ButtonActive, { C.gold[1], C.gold[2], C.gold[3], 0.32 });
-        imgui.PushStyleColor(ImGuiCol_Text, C.gold);
+        imgui.PushStyleColor(ImGuiCol_Text, { 1, 1, 1, 1 });
     end
     local x, y = imgui.GetCursorScreenPos();
     local clicked = imgui.Button(label .. '      ##' .. id, { w, 30 });
     if accent then imgui.PopStyleColor(4); end
     local dl, cx, cy = imgui.GetWindowDrawList(), x + w - 16, y + 15;
-    local col = u32(accent and C.gold or C.muted);
+    local col = u32(accent and { 1, 1, 1, 1 } or C.muted);
     dl:AddLine({ cx - 4, cy - 2 }, { cx, cy + 2 }, col, 1.5);
     dl:AddLine({ cx, cy + 2 }, { cx + 4, cy - 2 }, col, 1.5);
     if clicked then imgui.OpenPopup(id); end
@@ -5440,13 +5470,16 @@ local function draw_footer()
             if ui.job == main_job() then look.apply(ui.job, false);
             else msg('Change to ' .. JOBS[ui.job] .. ' to lock this look on (it goes on by itself when you do).'); end
         end
+        actions.neon_item();
         if imgui.IsItemHovered() then imgui.SetTooltip('Locks this look on your character (/ygo lockstyle).\nIt also goes back on by itself after login and every job change.'); end
     else
         if imgui.Button('EQUIP IN GAME', { btn_w('EQUIP IN GAME'), 30 }) then equip_current_set(); end
+        actions.neon_item();
         if imgui.IsItemHovered() then imgui.SetTooltip('Puts this set on your character right now (/equip),\nso you can see it. Weapons in the set reset TP.'); end
     end
     imgui.SameLine();
     actions.menu_button('IMPORT', 'ygo_import_menu', btn_w('IMPORT') + 30, false);
+    actions.neon_item();
     if imgui.BeginPopup('ygo_import_menu') then
         if imgui.Selectable('Gear I am wearing  (this set)') then actions.import_equipped(); end
         if imgui.IsItemHovered() then
@@ -5462,12 +5495,14 @@ local function draw_footer()
         ui.bag_open = true;
         if ui.bag == nil or ui.bag.job ~= ui.job then actions.bag_check(false); end
     end
+    actions.neon_item();
     if imgui.IsItemHovered() then imgui.SetTooltip('Gear your sets use that is in a bag you can\'t equip from\n(Mog Safe, Storage, Locker, Satchel, Sack, Case)'); end
 
     local pins = ui.pins[ui.ctx] or {};
     if next(pins) ~= nil then
         imgui.SameLine();
         if imgui.Button('Reset picks', { btn_w('Reset picks'), 30 }) then ui.pins[ui.ctx] = nil; ui.dirty = true; settings.save(); end
+        actions.neon_item();
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
@@ -5475,6 +5510,7 @@ local function draw_footer()
     actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
+    actions.neon_item();
     if imgui.BeginPopup('ygo_export_menu') then
         imgui.TextColored(C.muted, 'Export every ' .. JOBS[ui.job] .. ' set + rules');
         imgui.Separator();
@@ -5583,7 +5619,7 @@ local function draw_lazy()
         imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
         local slots = ui.desc and active_slots(ui.desc) or {};
         if imgui.BeginChild('ygo_lazy_set', { 0, #slots * 19 + 14 }, true, ImGuiWindowFlags_NoScrollbar) then
-            imgui.SetWindowFontScale(0.85);
+            imgui.SetWindowFontScale(1.05);
             for _, def in ipairs(slots) do
                 local c = ui.result and ui.result[def.key];
                 imgui.TextColored(C.gold_dim, def.label);
@@ -5787,6 +5823,69 @@ actions.JOB_NAMES = { WAR = 'Warrior', MNK = 'Monk', WHM = 'White Mage', BLM = '
     SCH = 'Scholar', GEO = 'Geomancer', RUN = 'Rune Fencer' };
 
 -- A job button as GEAROPT-style text: each letter flows periwinkle <-> ice blue (the wave runs across the grid);
+-- Neon bottom-left 'L' (selected job, bottom-bar buttons): bar brightening downwards, slanted foot, glossy highlight,
+-- glow, and a thin line running off along the bottom
+function actions.neon_corner(dl, x, y, w, h, o)
+    o = o or {};
+    local function col(r, g, b, al) return u32({ r, g, b, al }); end
+    -- drawn as a bottom-left corner, then mirrored: fx = the right side, fy = the top
+    local function P(px, py) return o.fx and (2 * x + w - px) or px, o.fy and (2 * y + h - py) or py; end
+    local function rect(ax, ay, bx, by, cul, cur, cbr, cbl)
+        local x0, y0 = P(ax, ay);
+        local x1, y1 = P(bx, by);
+        if o.fx then x0, x1 = x1, x0; cul, cur = cur, cul; cbl, cbr = cbr, cbl; end
+        if o.fy then y0, y1 = y1, y0; cul, cbl = cbl, cul; cur, cbr = cbr, cur; end
+        dl:AddRectFilledMultiColor({ x0, y0 }, { x1, y1 }, cul, cur, cbr, cbl);
+    end
+    local k = o.k or h / 26;
+    local bx0, bx1 = x - 1, x - 1 + math.max(3, math.floor(4 * k));   -- bar left / right (sits on the left edge)
+    local yt, yb, ye = y + 3 * k, y + h - 6 * k, y + h;               -- bar top, bar bottom, tile bottom
+    local foot = { { bx0, yb }, { bx1, yb - 3 * k }, { bx1 + 11 * k, ye - 1 }, { bx1 + 5 * k, ye + 1 } };
+    local function quad(q, c, grow)
+        local g = grow or 0;
+        local a1, a2 = P(q[1][1] - g, q[1][2]);
+        local b1, b2 = P(q[2][1] + g, q[2][2] - g);
+        local c1, c2 = P(q[3][1] + g, q[3][2]);
+        local d1, d2 = P(q[4][1], q[4][2] + g);
+        if (o.fx and true or false) ~= (o.fy and true or false) then   -- one mirror flips the winding: keep it clockwise
+            a1, a2, b1, b2, c1, c2, d1, d2 = d1, d2, c1, c2, b1, b2, a1, a2;
+        end
+        pcall(function() dl:AddQuadFilled({ a1, a2 }, { b1, b2 }, { c1, c2 }, { d1, d2 }, c); end);
+    end
+    if not o.bare then                                              -- faint backing, strongest at the corner
+        rect(x, y, x + w, y + h, col(0.55, 0.30, 0.95, 0.05), col(0.55, 0.30, 0.95, 0),
+            col(0.55, 0.30, 0.95, 0.05), col(0.60, 0.35, 1.0, 0.15));
+    end
+    -- glow behind the shape
+    for _, gp in ipairs({ { 4, 0.05 }, { 2, 0.10 } }) do
+        rect(bx0 - gp[1], yt + 4 * k, bx1 + gp[1], yb, col(0.6, 0.3, 1, 0), col(0.6, 0.3, 1, 0),
+            col(0.7, 0.4, 1, gp[2]), col(0.7, 0.4, 1, gp[2]));
+        quad(foot, col(0.75, 0.45, 1, gp[2]), gp[1]);
+    end
+    local gx, gy = P(bx1 + 4 * k, ye - 2 * k);
+    dl:AddCircleFilled({ gx, gy }, 6 * k, col(0.75, 0.45, 1, 0.06));
+    -- the bar (dark violet at the top -> bright at the bottom) and the foot
+    rect(bx0, yt, bx1, yb, col(0.40, 0.18, 0.75, 0.0), col(0.40, 0.18, 0.75, 0.0),
+        col(0.80, 0.52, 1.0, 1.0), col(0.70, 0.42, 1.0, 1.0));
+    quad(foot, col(0.82, 0.56, 1.0, 1.0));
+    -- glossy highlight down the inner edge and along the foot
+    rect(bx1 - 1.5, y + h * 0.35, bx1 - 0.5, yb - 2 * k, col(1, 0.9, 1, 0), col(1, 0.9, 1, 0),
+        col(1, 0.92, 1, 0.9), col(1, 0.92, 1, 0.9));
+    local l1, l2 = P(bx1 - 1, yb - 2.5 * k);
+    local m1, m2 = P(bx1 + 8 * k, ye - 1.5);
+    dl:AddLine({ l1, l2 }, { m1, m2 }, col(1, 0.94, 1, 0.85), 1.2);
+    -- thin line along the bottom, fading to the right
+    rect(bx1 + 8 * k, ye - 1, x + w, ye, col(0.75, 0.45, 1, 0.9), col(0.6, 0.3, 1, 0.0),
+        col(0.6, 0.3, 1, 0.0), col(0.75, 0.45, 1, 0.9));
+end
+
+-- the same on the item just drawn (a button)
+function actions.neon_item()
+    local x0, y0 = imgui.GetItemRectMin();
+    local x1, y1 = imgui.GetItemRectMax();
+    actions.neon_corner(imgui.GetWindowDrawList(), x0, y0, x1 - x0, y1 - y0);
+end
+
 -- the selected job is white in a soft periwinkle pill; hover = a faint backing and brighter letters. Returns clicked.
 function actions.job_text(i, abbr, w, h)
     local x, y = imgui.GetCursorScreenPos();
@@ -5795,8 +5894,7 @@ function actions.job_text(i, abbr, w, h)
     local sel = i == ui.job;
     local dl = imgui.GetWindowDrawList();
     if sel then
-        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.28 }), 6);
-        dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.85 }), 6);
+        actions.neon_corner(dl, x, y, w, h);
     elseif hov then
         dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, held and 0.10 or 0.06 }), 6);
     end
@@ -5817,6 +5915,61 @@ function actions.job_text(i, abbr, w, h)
     return clicked;
 end
 
+-- "MACROS  Book < n >  Page < n >" in the middle of the set header: the job's macro book (1-40) and page (1-10);
+-- '-' = off. Changing them for the job you are on switches the macros right away.
+function actions.draw_macro_ctrl()
+    local abbr = JOBS[ui.job];
+    if abbr == nil then return; end
+    s.macros = s.macros or {};
+    local m = s.macros[abbr] or {};
+    local book, page = tonumber(m.book) or 0, tonumber(m.page) or 0;
+    local big = actions.push_kind('b');                     -- a bit bigger: the Bahnschrift size
+    local BW, NW = 28, 34;                                  -- arrow button / number box widths
+    local function stepper_w(label) return 12 + text_w(label) + 6 + BW + 4 + NW + 4 + BW; end
+    local total = text_w('MACROS') + stepper_w('Book') + stepper_w('Page');
+    imgui.SameLine(0, 24);                                  -- after the set title...
+    local want = math.floor((imgui.GetWindowWidth() - total) / 2);
+    if want > imgui.GetCursorPosX() then imgui.SetCursorPosX(want); end   -- ...centred when there's room
+    imgui.BeginGroup();
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
+    local fh = imgui.GetFrameHeight() + 4;
+    local function label(txt, c)                            -- text centred on the buttons' height, so all sit in line
+        imgui.Dummy({ text_w(txt), fh });
+        local x0, y0 = imgui.GetItemRectMin();
+        imgui.GetWindowDrawList():AddText({ x0, y0 + (fh - imgui.GetTextLineHeight()) / 2 }, u32(c), txt);
+    end
+    label('MACROS', C.gold);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Your ' .. abbr .. ' macro book and page: switched to automatically when you change to ' .. abbr ..
+            '\n(also by your exported LuAshitacast / GearSwap file).  - = off');
+    end
+    local function stepper(name, v, hi, id)
+        imgui.SameLine(0, 12);
+        label(name, { 0.86, 0.84, 0.94, 1 });
+        imgui.SameLine(0, 6);
+        if imgui.Button('<##' .. id, { BW, fh }) then v = math.max(0, v - 1); end
+        imgui.SameLine(0, 4);
+        imgui.Dummy({ NW, fh });                            -- the number, centred in its own box
+        local x0, y0 = imgui.GetItemRectMin();
+        local txt = v > 0 and tostring(v) or '-';
+        local c = v > 0 and { 1, 1, 1, 1 } or { 0.80, 0.78, 0.88, 1 };
+        imgui.GetWindowDrawList():AddText({ x0 + (NW - text_w(txt)) / 2, y0 + (fh - imgui.GetTextLineHeight()) / 2 },
+            u32(c), txt);
+        imgui.SameLine(0, 4);
+        if imgui.Button('>##' .. id, { BW, fh }) then v = math.min(hi, v + 1); end
+        return v;
+    end
+    local nb = stepper('Book', book, 40, 'ygo_mbook');
+    local np = stepper('Page', page, 10, 'ygo_mpage');
+    imgui.EndGroup();
+    if big then imgui.PopFont(); end
+    if nb ~= book or np ~= page then
+        s.macros[abbr] = { book = nb, page = np };
+        settings.save();
+        if ui.job == main_job() then pcall(actions.apply_macros, ui.job); end
+    end
+end
+
 -- Window scale: the steps, the current factor, and a size scaled by it
 actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 };
 function actions.scale()
@@ -5835,7 +5988,7 @@ function actions.neon_palette()
         border = { 0.620, 0.400, 1.000, 0.00 }, line = { 0.800, 0.650, 1.000, 0.08 },
         gold = { 0.620, 0.400, 1.000, 1.00 }, gold_dim = { 0.740, 0.600, 1.000, 0.80 }, gold_bg = { 0.550, 0.360, 0.950, 0.95 },
         text = { 0.930, 0.920, 0.980, 1.00 }, muted = { 0.580, 0.560, 0.680, 1.00 }, aug = { 1.000, 0.560, 0.780, 1.00 },
-        wave2 = { 1.000, 0.420, 0.700, 1.00 }, popup = { 0.060, 0.054, 0.085, 0.99 }, round = 16,
+        wave2 = { 1.000, 0.420, 0.700, 1.00 }, popup = { 0.060, 0.054, 0.085, 0.99 }, round = 0,
         edge1 = { 1.000, 0.360, 0.620 }, edge2 = { 0.620, 0.400, 1.000 }, fx = 'neon',
     };
 end
@@ -5877,8 +6030,49 @@ function actions.wave(u)
     local a, b = C.gold, C.wave2 or { 0.55, 0.88, 1.0 };
     return { a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u, 1 };
 end
--- The YunaUI looks' frame: a soft glow on the window's edge, a thin bright line, a pink-to-violet sweep along the
--- top; Yuna Neon adds a short bright light running round the edge, like the bars' shine
+-- One window corner: (cx, cy) the corner, sx / sy = +1 or -1 pointing into the window; arms lx along the top /
+-- bottom edge and ly along the side, t thick, joined by a 45-degree cut; bright at the corner, fading along the arms
+function actions.frame_corner(dl, cx, cy, sx, sy, lx, ly, t)
+    local function col(r, g, b, al) return u32({ r, g, b, al }); end
+    local c = 0;                                                     -- a square corner (no cut: no dark notch outside it)
+    local function arm(nx0, ny0, nx1, ny1, horiz, near, far)       -- a rect whose 'near' end is at (nx0, ny0)'s side
+        local x0, x1, y0, y1 = math.min(nx0, nx1), math.max(nx0, nx1), math.min(ny0, ny1), math.max(ny0, ny1);
+        local ul, ur, br, bl;
+        if horiz then
+            local left_near = nx0 <= nx1;
+            ul = left_near and near or far; bl = ul; ur = left_near and far or near; br = ur;
+        else
+            local top_near = ny0 <= ny1;
+            ul = top_near and near or far; ur = ul; bl = top_near and far or near; br = bl;
+        end
+        dl:AddRectFilledMultiColor({ x0, y0 }, { x1, y1 }, ul, ur, br, bl);
+    end
+    local function poly(pts, colr)                                   -- a convex quad, wound the way ImGui wants it
+        local a = 0;
+        for k = 1, 4 do
+            local p1, p2 = pts[k], pts[k % 4 + 1];
+            a = a + p1[1] * p2[2] - p2[1] * p1[2];
+        end
+        if a < 0 then pts = { pts[4], pts[3], pts[2], pts[1] }; end
+        pcall(function() dl:AddQuadFilled(pts[1], pts[2], pts[3], pts[4], colr); end);
+    end
+    local function shape(g, near, far)                               -- the two arms + the cut, grown by g for the glow
+        arm(cx + sx * c, cy - sy * g, cx + sx * lx, cy + sy * (t + g), true, near, far);
+        arm(cx - sx * g, cy + sy * c, cx + sx * (t + g), cy + sy * ly, false, near, far);
+        if c > 0 then
+            poly({ { cx - sx * g, cy + sy * c }, { cx + sx * c, cy - sy * g },
+                   { cx + sx * c, cy + sy * (t + g) }, { cx + sx * (t + g), cy + sy * c } }, near);
+        end
+    end
+    shape(3, col(0.70, 0.40, 1.0, 0.07), col(0.6, 0.3, 1, 0));      -- glow
+    shape(0, col(0.85, 0.62, 1.0, 1.0), col(0.55, 0.30, 1.0, 0));   -- the frame
+    -- a fine bright line on the outer edge, near the corner
+    if c > 0 then dl:AddLine({ cx, cy + sy * c }, { cx + sx * c, cy }, col(1, 0.92, 1, 0.9), 1); end
+    arm(cx + sx * c, cy, cx + sx * lx * 0.5, cy + sy * 1, true, col(1, 0.92, 1, 0.7), col(1, 0.92, 1, 0));
+    arm(cx, cy + sy * c, cx + sx * 1, cy + sy * ly * 0.5, false, col(1, 0.92, 1, 0.7), col(1, 0.92, 1, 0));
+end
+
+-- The window frame: a neon corner on each of the 4 corners, nothing else (no outline)
 function actions.fx_frame()
     if C.fx == nil then return; end
     local dl = imgui.GetWindowDrawList();
@@ -5886,57 +6080,12 @@ function actions.fx_frame()
     local w, h = imgui.GetWindowSize();
     if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
     if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
-    local r = C.round or 16;
-    local all = ImDrawFlags_RoundCornersAll or ImDrawCornerFlags_All or 15;
-    local e1, e2 = C.edge1, C.edge2;
-    local x0, y0, x1, y1 = x + 1.5, y + 1.5, x + w - 1.5, y + h - 1.5;
-    for k = 3, 1, -1 do                                              -- the glow: wide faint strokes just inside the edge
-        dl:AddRect({ x0 + k, y0 + k }, { x1 - k, y1 - k }, u32({ e2[1], e2[2], e2[3], 0.05 * (4 - k) }), r, all, 2 + k * 2);
-    end
-    dl:AddRect({ x0, y0 }, { x1, y1 }, u32({ e2[1], e2[2], e2[3], 0.75 }), r, all, 1.4);
-    pcall(function()                                                  -- the top edge: pink fading into violet, like the HP bar
-        local m = (x0 + x1) / 2;
-        dl:AddRectFilledMultiColor({ x0 + r, y0 - 0.5 }, { m, y0 + 1.5 }, u32({ e1[1], e1[2], e1[3], 0.0 }), u32({ e1[1], e1[2], e1[3], 0.95 }),
-            u32({ e1[1], e1[2], e1[3], 0.95 }), u32({ e1[1], e1[2], e1[3], 0.0 }));
-        dl:AddRectFilledMultiColor({ m, y0 - 0.5 }, { x1 - r, y0 + 1.5 }, u32({ e1[1], e1[2], e1[3], 0.95 }), u32({ e2[1], e2[2], e2[3], 0.0 }),
-            u32({ e2[1], e2[2], e2[3], 0.0 }), u32({ e1[1], e1[2], e1[3], 0.95 }));
-    end);
-    if C.fx == 'neon' then                                           -- a light running round the edge (clockwise, ~6 s a lap)
-        local rr = math.min(r, (x1 - x0) / 2, (y1 - y0) / 2);
-        local wd, hd, q = (x1 - x0) - 2 * rr, (y1 - y0) - 2 * rr, math.pi * rr / 2;   -- straight parts, a quarter arc
-        local per = 2 * wd + 2 * hd + 4 * q;
-        local t = (actions.fx_time() / 6) % 1;
-        local function arc(cx, cy, a0, d)                            -- d along a quarter circle starting at angle a0
-            local a = a0 + (d / q) * (math.pi / 2);
-            return cx + math.cos(a) * rr, cy + math.sin(a) * rr;
-        end
-        local function at(d)                                         -- a point d along the rounded edge, clockwise
-            d = d % per;
-            if d < wd then return x0 + rr + d, y0; end
-            d = d - wd; if d < q then return arc(x1 - rr, y0 + rr, -math.pi / 2, d); end
-            d = d - q; if d < hd then return x1, y0 + rr + d; end
-            d = d - hd; if d < q then return arc(x1 - rr, y1 - rr, 0, d); end
-            d = d - q; if d < wd then return x1 - rr - d, y1; end
-            d = d - wd; if d < q then return arc(x0 + rr, y1 - rr, math.pi / 2, d); end
-            d = d - q; if d < hd then return x0, y1 - rr - d; end
-            d = d - hd; return arc(x0 + rr, y0 + rr, math.pi, d);
-        end
-        local head = t * per;
-        local n = 24;
-        for k = 0, n - 1 do                                          -- the tail: fading, pink to violet
-            local d0, d1 = head - (k + 1) * 7, head - k * 7;
-            local ax, ay = at(d0);
-            local bx, by = at(d1);
-            do                                                       -- (the path is continuous: it rounds the corners)
-                local u = k / n;
-                local c = { e1[1] + (e2[1] - e1[1]) * u, e1[2] + (e2[2] - e1[2]) * u, e1[3] + (e2[3] - e1[3]) * u };
-                dl:AddLine({ ax, ay }, { bx, by }, u32({ c[1], c[2], c[3], 0.35 * (1 - u) }), 6);
-                dl:AddLine({ ax, ay }, { bx, by }, u32({ 1, 0.92, 1, 0.9 * (1 - u) }), 1.6);
-            end
-        end
-        local hx, hy = at(head);
-        dl:AddCircleFilled({ hx, hy }, 2.6, u32({ 1, 1, 1, 0.95 }), 10);   -- the bright head, like the bars' tip
-    end
+    local lx, ly, t = math.min(150, w * 0.22), math.min(80, h * 0.18), 2;
+    local x1, y1 = x + w, y + h;
+    actions.frame_corner(dl, x, y, 1, 1, lx, ly, t);                -- top-left
+    actions.frame_corner(dl, x1, y, -1, 1, lx, ly, t);              -- top-right
+    actions.frame_corner(dl, x, y1, 1, -1, lx, ly, t);              -- bottom-left
+    actions.frame_corner(dl, x1, y1, -1, -1, lx, ly, t);            -- bottom-right
 end
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
@@ -6168,6 +6317,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
         s.picks = actions.plain(s.picks or {});
         s.set_removed = actions.plain(s.set_removed or {});
         s.set_added = actions.plain(s.set_added or {});
+        s.macros = actions.plain(s.macros or {});
         actions.fix_weapon_mode();
         ui.pins, ui.dirty = s.picks, true;
     end
