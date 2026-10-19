@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.41';   -- the release workflow sets this to the release number
+addon.version = '1.1.42';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -1836,8 +1836,8 @@ local function ws_ids_for(names)
     return ids;
 end
 
--- Jobs that shoot while engaged (shots can fire on their own, with no swap): engaged = the Midshot set (TP set with /NIN or /DNC)
-actions.SHOOT_ENGAGED = { RNG = true };
+-- Jobs that shoot while engaged (RNG, COR: shots can fire on their own, with no swap): engaged = the Midshot set (TP set with /NIN or /DNC)
+actions.SHOOT_ENGAGED = { RNG = true, COR = true };
 
 -- RNG shoots a bow or a gun: the gun's name tells the exports which Preshot / Midshot set to use
 local function gun_name_for(abbr)
@@ -2246,6 +2246,9 @@ local function build_full_xml(job_id)
             emit_chain(out, '        ', { { cond = attr('eq_range', gun), body = equip_set(base .. '_Gun') } }, equip_set(base));
         else
             equip_set(base)(out, '        ');
+        end
+        if have.Barrage then                             -- RNG: Barrage up -> the AF hands on the shot
+            emit_chain(out, '        ', { { cond = attr('buffactive', 'Barrage'), body = equip_set('Barrage') } }, nil);
         end
         add('    </' .. tag .. '>');
         add('');
@@ -2758,6 +2761,7 @@ function precast(spell)
         if matches(spell.english, rules.breath) then eq('Breath') end
     elseif spell.action_type == 'Ranged Attack' then
         eq(ranged_set('Preshot'))
+        if buffactive['Barrage'] then eq('Barrage') end
     elseif spell.type == 'CorsairRoll' or spell.english == 'Double-Up' then
         eq('PhantomRoll')
     elseif spell.type == 'CorsairShot' then
@@ -2783,7 +2787,11 @@ function midcast(spell)
             if buffactive[id] then windower.ffxi.cancel_buff(id) end
         end
     end
-    if spell.action_type == 'Ranged Attack' then eq(ranged_set('Midshot')) return end
+    if spell.action_type == 'Ranged Attack' then
+        eq(ranged_set('Midshot'))
+        if buffactive['Barrage'] then eq('Barrage') end   -- RNG: the AF hands on a Barrage shot
+        return
+    end
     if spell.action_type ~= 'Magic' then return end
     local name, skill = spell.english, spell.skill
     if midcast_base then eq(midcast_base) end
@@ -3475,10 +3483,12 @@ end
 
 profile.HandlePreshot = function()
     eq(ranged_set('Preshot'));
+    if buff('Barrage') then eq('Barrage'); end
 end
 
 profile.HandleMidshot = function()
     eq(ranged_set('Midshot'));
+    if buff('Barrage') then eq('Barrage'); end   -- RNG: the AF hands on a Barrage shot
 end
 
 profile.HandleWeaponskill = function()
@@ -3831,7 +3841,7 @@ local CATEGORY_OF = {
     Breath = 'Abilities', BreathPotency = 'Abilities', DesertBoots = 'Defense & Idle',
     PhalanxRcv = 'Abilities', Sentinel = 'Abilities', ShieldBash = 'Abilities', Rampart = 'Abilities', Cover = 'Abilities',
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
-    TrickAttack = 'Abilities', Flee = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
+    TrickAttack = 'Abilities', Flee = 'Abilities', Scavenge = 'Abilities', Sharpshot = 'Abilities', Shadowbind = 'Abilities', Barrage = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
     Lockstyle = 'Lockstyle', Leveling = 'Leveling',   -- (not sidebar categories: opened from the header)
 };
 local function category(desc)
