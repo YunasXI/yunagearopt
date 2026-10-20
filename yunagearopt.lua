@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.45';   -- the release workflow sets this to the release number
+addon.version = '1.1.46';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -330,6 +330,12 @@ local function load_data()
     for name, sets in pairs(d.set_restrict or {}) do ui.set_restrict[name:lower()] = sets; end
     ui.stat_fix = {};
     for name, fix in pairs(d.stat_fix or {}) do ui.stat_fix[name:lower()] = fix; end
+    -- Every job gets the Treasure Hunter set (/th): with no TH piece you can wear it stays empty and isn't exported
+    for _, list in pairs(d.jobs or {}) do
+        local has = false;
+        for _, id in ipairs(list) do if id == 'TH' then has = true; end end
+        if not has then table.insert(list, 'TH'); end
+    end
     ui.stat_remove = {};
     for name, keys in pairs(d.stat_remove or {}) do ui.stat_remove[name:lower()] = keys; end
     ui.covers = {};
@@ -2022,10 +2028,7 @@ local function build_full_xml(job_id)
     if have.TP_Acc then table.insert(engaged, { cond = 'advanced="$Mode=acc"', body = equip_set('TP_Acc') }); end
     if have.TP_Pet then table.insert(engaged, { cond = 'advanced="$Mode=petonly"', body = equip_set('TP_Pet') }); end
     if have.Evasion then table.insert(engaged, { cond = 'advanced="$Mode=eva"', body = equip_set('Evasion') }); end
-    local tp_body = have.TP and function(o, i)
-        equip_set('TP')(o, i);
-        if have.TH then emit_chain(o, i, { { cond = 'advanced="$TH=on"', body = equip_set('TH') } }, nil); end
-    end or (have.Idle and equip_set('Idle'));
+    local tp_body = have.TP and equip_set('TP') or (have.Idle and equip_set('Idle'));
     -- PLD: tanks in TP_Hybrid ("TP - Engaged"); with /NIN or /DNC it wears TP ("TP - Offense") and the weapon pair
     if (data.engaged_dw or {})[abbr] and have.TP_Hybrid then
         local offense = tp_body;
@@ -2080,6 +2083,8 @@ local function build_full_xml(job_id)
     if tp_body then
         table.insert(top, { cond = attr('p_status', 'engaged'), body = function(o, i)
             emit_chain(o, i, engaged, tp_body);
+            -- /th ON: the TH pieces on top of whatever engaged set / mode (like GearSwap / LuAshitacast)
+            if have.TH then emit_chain(o, i, { { cond = 'advanced="$TH=on"', body = equip_set('TH') } }, nil); end
             buff_overlays(o, i);
         end });
     end
