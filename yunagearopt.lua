@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.44';   -- the release workflow sets this to the release number
+addon.version = '1.1.45';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4157,7 +4157,8 @@ local function tier_frame(col, strong)
     local x, y = imgui.GetWindowPos();
     local w, h = imgui.GetWindowSize();
     -- A child window clips its left/right padding, which cut the frame down to two loose lines: draw on the full card
-    dl:PushClipRect({ x, y }, { x + w, y + h }, false);
+    -- (but only inside the visible content area, or a scrolled card's frame shows over the footer)
+    actions.push_card_clip(dl, x, y, w, h);
     dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], strong and 0.75 or 0.22 }), 8);
     dl:PopClipRect();
 end
@@ -4722,7 +4723,7 @@ local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
     -- The sidebar frame doesn't scroll: Rescan, the jobs and the title stay put; the sets scroll in 'ygo_side_sets'
-    if imgui.BeginChild('ygo_side', { actions.sc(236), -54 }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+    if imgui.BeginChild('ygo_side', { actions.sc(236), -actions.sc(54) }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         if actions.rescan_button(imgui.GetWindowWidth() - 28, actions.sc(30)) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
@@ -5044,13 +5045,25 @@ function actions.tag(text, col, first)
     imgui.SetWindowFontScale(0.95);
 end
 
+-- Clip to the whole card, but never outside the visible content area (Window scale 140-150%: cards scroll)
+function actions.push_card_clip(dl, x, y, w, h)
+    local x0, y0, x1, y1 = x, y, x + w, y + h;
+    local cc = ui.content_clip;
+    if cc then
+        x0, y0, x1, y1 = math.max(x0, cc[1]), math.max(y0, cc[2]), math.min(x1, cc[3]), math.min(y1, cc[4]);
+        if x1 < x0 then x1 = x0; end
+        if y1 < y0 then y1 = y0; end
+    end
+    dl:PushClipRect({ x0, y0 }, { x1, y1 }, false);
+end
+
 -- Dashed edge around the current card (a slot the set doesn't swap)
 function actions.dashed_frame(col)
     local dl = imgui.GetWindowDrawList();
     local x, y = imgui.GetWindowPos();
     local w, h = imgui.GetWindowSize();
     local c = u32(col);
-    dl:PushClipRect({ x, y }, { x + w, y + h }, false);
+    actions.push_card_clip(dl, x, y, w, h);
     for px = x + 8, x + w - 8, 10 do
         dl:AddLine({ px, y + 0.5 }, { math.min(px + 5, x + w - 8), y + 0.5 }, c, 1);
         dl:AddLine({ px, y + h - 0.5 }, { math.min(px + 5, x + w - 8), y + h - 0.5 }, c, 1);
@@ -5290,7 +5303,14 @@ function actions.draw_dw_pair()
 end
 
 local function draw_content()
-    if imgui.BeginChild('ygo_content', { 0, -60 }, false) then
+    if imgui.BeginChild('ygo_content', { 0, -actions.sc(60) }, false) then
+        do                                                  -- the visible content area: card frames stay inside it
+            local cx, cy = imgui.GetWindowPos();
+            local cw, ch = imgui.GetWindowSize();
+            if type(cx) == 'table' then cx, cy = cx.x or cx[1], cx.y or cx[2]; end
+            if type(cw) == 'table' then cw, ch = cw.x or cw[1], cw.y or cw[2]; end
+            ui.content_clip = { cx, cy, cx + cw, cy + ch };
+        end
         if ui.desc == nil then
             imgui.TextColored(C.muted, 'No sets defined for this job in data.lua.');
         else
