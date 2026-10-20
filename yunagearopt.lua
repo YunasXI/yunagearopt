@@ -214,12 +214,14 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     cure_lead = 1.5,     -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
                     ui_scale = 1.0,      -- Window scale (bottom bar): 0.8 - 1.5
                     mini_logo = false,   -- minimised to the floating logo
-                    macros = T{} };      -- macro book / page per job: JOB -> { book, page }
+                    macros = T{},        -- macro book / page per job: JOB -> { book, page }
+                    ammo_swap = T{} };   -- "Swap ammo" per job: JOB -> true / false (unset = the job's default)
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
 s.set_added = actions.plain(s.set_added or {});
 s.macros = actions.plain(s.macros or {});
+s.ammo_swap = actions.plain(s.ammo_swap or {});
 
 -- Weapons are always swapped, except while subbing NIN or DNC: then the job's dual-wield pair (picked in the
 -- "/NIN and /DNC weapons" row) goes on instead, or the weapons are left alone if none is picked.
@@ -1267,6 +1269,12 @@ local function optimize(job_id, desc, pins, pool)
     local slots = active_slots(desc, pure);
     pool = pool or owned;
     pins = pure and {} or (pins or {});
+    if not pure and not desc.ammo_item and not actions.ammo_swap(JOBS[job_id]) then
+        local p2 = {};                                   -- (a copy: the saved picks stay as they are)
+        for k, v in pairs(pins) do p2[k] = v; end
+        p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
+        pins = p2;
+    end
     if desc.fixed and not pure then
         local merged = {};
         -- The listed pieces; every other slot stays empty (so the set only swaps what it needs)
@@ -6113,6 +6121,14 @@ end
 
 actions.SHOW_DW = false;   -- the Dual Wield control in the settings bar (off for now)
 
+-- "Swap ammo" for a job: your choice, or the default (off for RNG / COR: a stat ammo knocks the bow / gun off)
+actions.AMMO_OFF_DEFAULT = { RNG = true, COR = true };
+function actions.ammo_swap(abbr)
+    local v = (s.ammo_swap or {})[abbr or ''];
+    if v == nil then return not actions.AMMO_OFF_DEFAULT[abbr or '']; end
+    return v and true or false;
+end
+
 -- The settings bar under the set header: one framed strip, every control centred on the same line.
 -- Left: Ignore level | Dual Wield (TP sets). Right: MACROS (on a second line in the strip when there's no room).
 function actions.draw_settings_bar(d)
@@ -6135,6 +6151,23 @@ function actions.draw_settings_bar(d)
     if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
     x = text_at(x + 38 + 10, 'Ignore level', C.text);
     if imgui.IsItemHovered() then imgui.SetTooltip('Use gear above your current level too'); end
+    do                                                       -- "Swap ammo" for this job
+        local abbr = JOBS[ui.job];
+        local on = actions.ammo_swap(abbr);
+        divider(x + 18);
+        imgui.SetCursorScreenPos({ x + 36, cy - 10 });
+        if actions.switch('##ygo_ammo_swap', on) then
+            s.ammo_swap[abbr] = not on;
+            settings.save();
+            ui.dirty = true;
+        end
+        x = text_at(x + 36 + 38 + 10, 'Swap ammo', on and C.text or C.muted);
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('On: ' .. abbr .. ' sets put an ammo item on (White Tathlum...).\n'
+                .. 'Off: ' .. abbr .. ' sets never touch the ammo slot, so your arrows / bullets stay\n'
+                .. 'and a stat ammo can\'t knock your bow or gun off. Re-export after changing it.');
+        end
+    end
     if d.leveling then                                        -- on = exported and worn at level 30 and below
         local abbr = JOBS[ui.job];
         local on = not actions.set_removed(abbr, d.id);
@@ -6590,6 +6623,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
         s.set_removed = actions.plain(s.set_removed or {});
         s.set_added = actions.plain(s.set_added or {});
         s.macros = actions.plain(s.macros or {});
+        s.ammo_swap = actions.plain(s.ammo_swap or {});
         actions.fix_weapon_mode();
         ui.pins, ui.dirty = s.picks, true;
     end
