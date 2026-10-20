@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.43';   -- the release workflow sets this to the release number
+addon.version = '1.1.44';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -6481,9 +6481,17 @@ function actions.draw_mini_logo()
     imgui.SetNextWindowSizeConstraints({ 40, 40 }, { 320, 320 });
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
     imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    -- no resize triangle or edge lines (the corner still resizes: the mouse cursor shows the resize arrow there)
+    imgui.PushStyleColor(ImGuiCol_ResizeGrip, { 0, 0, 0, 0 });
+    imgui.PushStyleColor(ImGuiCol_ResizeGripHovered, { 0, 0, 0, 0 });
+    imgui.PushStyleColor(ImGuiCol_ResizeGripActive, { 0, 0, 0, 0 });
+    imgui.PushStyleColor(ImGuiCol_SeparatorHovered, { 0, 0, 0, 0 });   -- no line on the edges while resizing
+    imgui.PushStyleColor(ImGuiCol_SeparatorActive, { 0, 0, 0, 0 });
     local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar,
         ImGuiWindowFlags_NoScrollWithMouse, ImGuiWindowFlags_NoCollapse);
-    if imgui.Begin('YunaGearOpt##mini', nil, flags) then
+    ui.mini_open = ui.mini_open or { true };            -- a real open flag: with nil some ImGui builds drop the flags
+    ui.mini_open[1] = true;
+    if imgui.Begin('YunaGearOpt##mini', ui.mini_open, flags) then
         local w, h = imgui.GetWindowWidth(), imgui.GetWindowHeight();
         local sz = math.floor(math.min(w, h));
         local x, y = imgui.GetCursorScreenPos();
@@ -6515,6 +6523,7 @@ function actions.draw_mini_logo()
         if not imgui.IsMouseDown(0) then ui.mini_dragged = false; end
     end
     imgui.End();
+    imgui.PopStyleColor(5);
     imgui.PopStyleVar(2);
 end
 
