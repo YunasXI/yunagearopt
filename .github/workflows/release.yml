@@ -35,28 +35,14 @@ jobs:
           echo "previous=$latest" >> "$GITHUB_OUTPUT"
           echo "version=$major.$minor.$patch" >> "$GITHUB_OUTPUT"
 
-      - name: Package addon
+      - name: Package addon (VanaCore)
         run: |
+          # YunaGearOpt is a VanaCore addon: it goes in VanaCore\addons\vanacore\yunagearopt
           mkdir -p dist/yunagearopt
-          cp *.lua dist/yunagearopt/
-          # The addon compares this number with the latest release to show its update notice
-          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/yunagearopt.lua
-          mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac dist/yunagearopt/lac
-          cp gearswap/README.txt dist/yunagearopt/gearswap/
-          cp legacyac/README.txt dist/yunagearopt/legacyac/
-          cp lac/README.txt dist/yunagearopt/lac/
-          cp README.md dist/yunagearopt/
-          cp -r images dist/yunagearopt/
-          cp -r fonts dist/yunagearopt/
+          python3 native/build.py dist/yunagearopt
+          # The version shown in the window
+          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/core.lua
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
-
-      - name: Package VanaCore (native) version
-        run: |
-          # The same YunaGearOpt as a native VanaCore addon: it goes in VanaCore\addons\vanacore\yunagearopt
-          mkdir -p dist-native/yunagearopt
-          python3 native/build.py dist-native/yunagearopt
-          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist-native/yunagearopt/core.lua
-          (cd dist-native && zip -r "../dist/yunagearopt-vanacore-${{ steps.version.outputs.version }}.zip" yunagearopt)
 
       - name: Create release
         env:
@@ -67,4 +53,4 @@ jobs:
           # The notes are the commit titles since the last release: the addon shows them in its update pop-up
           if [ "$prev" != "0.0.0" ]; then notes=$(git log --no-merges --format='- %s' "$prev"..HEAD); fi
           notes=${notes:-"- Maintenance build"}
-          gh release create "$v" "dist/yunagearopt-$v.zip" "dist/yunagearopt-vanacore-$v.zip" --title "v$v" --target "$GITHUB_SHA" --notes "$notes"
+          gh release create "$v" "dist/yunagearopt-$v.zip" --title "v$v" --target "$GITHUB_SHA" --notes "$notes"

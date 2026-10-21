@@ -1,8 +1,15 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.47';   -- the release workflow sets this to the release number
+addon.version = '1.1.48';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
+
+-- VanaCore only: this file runs as core.lua under the native VanaCore entry (native/yunagearopt.lua sets YGO_NATIVE).
+-- Loaded any other way (plain Ashita, or as an Ashita addon inside VanaCore) it says so and does nothing.
+if not rawget(_G, 'YGO_NATIVE') then
+    print('[YunaGearOpt] YunaGearOpt now runs only on VanaCore, as a VanaCore addon: /addon load yunagearopt');
+    return;
+end
 
 require('common');
 local imgui    = require('imgui');

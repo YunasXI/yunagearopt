@@ -5,7 +5,7 @@ GetPlayerEntity) on top of vana.*: items, bags and the player come from the Ashi
 (vana.ashita.object, called through their vtables like VanaCore's own compatibility layer does), the rest from
 vana.game, vana.chat, vana.packets, vana.fs and vana.imgui. Then it loads core.lua, unchanged.
 
-In game:   /addon load yunagearopt vanacore      (the Ashita version: /addon load yunagearopt ashita)
+In game:   /addon load yunagearopt      (YunaGearOpt is VanaCore only: core.lua refuses to run any other way)
 --]]
 
 local vana = vana
@@ -403,6 +403,7 @@ end, 'ygo_native_joblevels')
 -------------------------------------------------------------------------------
 -- YunaGearOpt itself
 -------------------------------------------------------------------------------
+YGO_NATIVE = true   -- core.lua runs only when loaded through this file (VanaCore only)
 local chunk, err = loadfile(HERE .. '\\core.lua')
 if chunk == nil then
     print('YunaGearOpt (VanaCore): core.lua could not be read: ' .. tostring(err))
