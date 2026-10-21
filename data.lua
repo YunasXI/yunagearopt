@@ -807,7 +807,7 @@ return {
         Apex     = { head = 'Apex Hatsuburi',  body = 'Apex Togi',       hands = 'Apex Kote',
                      legs = 'Apex Haidate',    feet = 'Apex Sune-Ate' },
     },
-    -- Job -> { 2-hour ability, Summit family }
+    -- Job -> { 2-hour ability, Summit family, [extra pieces worn with it] }
     sp_abilities = {
         WAR = { 'Mighty Strikes', 'Pinnacle' },   MNK = { 'Hundred Fists', 'Apex' },
         WHM = { 'Benediction', 'Apogee' },        BLM = { 'Manafont', 'Apogee' },
@@ -815,7 +815,7 @@ return {
         PLD = { 'Invincible', 'Pinnacle' },       DRK = { 'Blood Weapon', 'Pinnacle' },
         BST = { 'Familiar', 'Pinnacle' },         BRD = { 'Soul Voice', 'Apex' },
         RNG = { 'Eagle Eye Shot', 'Apex' },       SAM = { 'Meikyo Shisui', 'Pinnacle' },
-        NIN = { 'Mijin Gakure', 'Apex' },         DRG = { 'Call Wyvern', 'Pinnacle' },
+        NIN = { 'Mijin Gakure', 'Apex' },         DRG = { 'Dragon Breaker', 'Pinnacle', { ammo = 'Fjoturangon' } },   -- CatsEyeXI: Dragon Breaker is DRG's 2-hour
         SMN = { 'Astral Flow', 'Apogee' },        BLU = { 'Azure Lore', 'Apogee' },
         COR = { 'Wild Card', 'Apex' },            PUP = { 'Overdrive', 'Apex' },
         DNC = { 'Trance', 'Apex' },               SCH = { 'Tabula Rasa', 'Apogee' },
@@ -1217,7 +1217,7 @@ return {
                 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
-        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'DragonBreaker', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
+        DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },

@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.48';   -- the release workflow sets this to the release number
+addon.version = '1.1.49';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -900,6 +900,7 @@ local function build_sets(job_id)
             if sp and fam then
                 local fixed = {};
                 for k, v in pairs(fam) do fixed[k] = v; end
+                for k, v in pairs(sp[3] or {}) do fixed[k] = v; end   -- pieces for the ability itself (DRG: Fjoturangon)
                 table.insert(list, { id = 'SP', name = 'SP_' .. xml_set_name(sp[1]), label = sp[1] .. ' (2-hour, ' .. sp[2] .. ' set)',
                                      kind = 'other', base_weights = {}, caps = {}, weapons = false,
                                      fixed = fixed, sp_ability = sp[1] });
@@ -3812,15 +3813,11 @@ function look.watch()
 end
 
 -- Zoning: the server keeps the lockstyle, but the game client doesn't know we set it, so right after every zone
--- it sends "lockstyle off" (0x53 mode 0). For 10 seconds after a zone-in that message is turned into
--- "keep it on" (mode 1), like LuAshitacast does, so the look never drops. Off by your own /lockstyle off = stays off.
+-- it sends "lockstyle off" (0x53 mode 0). For 30 seconds after a zone-in (a slow "Downloading data" included) that
+-- message is turned into "keep it on" (mode 1), like LuAshitacast does, so the look never drops. Nothing is sent
+-- again on zoning: the lockstyle is set on login and job change only. Off by your own /lockstyle off = stays off.
 function look.zoned()
-    look.zone_until = os.clock() + 10;
-    -- Fallback in case the server dropped it anyway: put it back once you're in (only while our lockstyle is on)
-    after(8, function()
-        local j = player_call(function(p) return p:GetMainJob(); end, 0);
-        if look.on and type(j) == 'number' and j >= 1 and j <= #JOBS and next(look.picks(j)) ~= nil then look.apply(j, true); end
-    end);
+    look.zone_until = os.clock() + 30;
 end
 
 -- The client's own lockstyle messages (not ours: those are injected)
