@@ -50,6 +50,14 @@ jobs:
           cp -r fonts dist/yunagearopt/
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
 
+      - name: Package VanaCore (native) version
+        run: |
+          # The same YunaGearOpt as a native VanaCore addon: it goes in VanaCore\addons\vanacore\yunagearopt
+          mkdir -p dist-native/yunagearopt
+          python3 native/build.py dist-native/yunagearopt
+          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist-native/yunagearopt/core.lua
+          (cd dist-native && zip -r "../dist/yunagearopt-vanacore-${{ steps.version.outputs.version }}.zip" yunagearopt)
+
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,4 +67,4 @@ jobs:
           # The notes are the commit titles since the last release: the addon shows them in its update pop-up
           if [ "$prev" != "0.0.0" ]; then notes=$(git log --no-merges --format='- %s' "$prev"..HEAD); fi
           notes=${notes:-"- Maintenance build"}
-          gh release create "$v" "dist/yunagearopt-$v.zip" --title "v$v" --target "$GITHUB_SHA" --notes "$notes"
+          gh release create "$v" "dist/yunagearopt-$v.zip" "dist/yunagearopt-vanacore-$v.zip" --title "v$v" --target "$GITHUB_SHA" --notes "$notes"

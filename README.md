@@ -10,9 +10,21 @@ YunaGearOpt is free for everyone. If it helps you, you can support it on **[Ko-f
 
 ## Installation
 
+**Ashita**
+
 1. Download the latest `yunagearopt-x.y.z.zip` from [Releases](../../releases).
 2. Extract it so you have `Ashita\addons\yunagearopt\`.
 3. In game: `/addon load yunagearopt` (or add it to your default script).
+
+**VanaCore (native addon)**
+
+1. Download the latest `yunagearopt-vanacore-x.y.z.zip` from [Releases](../../releases).
+2. Extract it so you have `VanaCore\addons\vanacore\yunagearopt\`.
+3. In game: `/addon load yunagearopt vanacore`. Your settings, picks and exports are the same ones the Ashita version
+   uses under VanaCore.
+
+Both are the same YunaGearOpt: the VanaCore version runs the Ashita one's files (`core.lua` = `yunagearopt.lua`)
+through a small layer on VanaCore's own API (`native/yunagearopt.lua`; `native/build.py` makes the folder).
 
 ## Usage
 
