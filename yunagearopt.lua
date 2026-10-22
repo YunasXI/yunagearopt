@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.50';   -- the release workflow sets this to the release number
+addon.version = '1.1.51';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -3749,7 +3749,8 @@ function look.picks(job_id)
     return ui.pins[JOBS[job_id] .. '|Lockstyle'] or {};
 end
 
-function look.apply(job_id, quiet)
+-- wait_all: send nothing unless every piece is found (the bags may still be loading); returns found, missing
+function look.apply(job_id, quiet, wait_all)
     local picks, packet, count, missing = look.picks(job_id), {}, 0, {};
     for i = 1, 136 do packet[i] = 0; end
     packet[0x05 + 1], packet[0x06 + 1] = 3, 1;
@@ -3780,18 +3781,31 @@ function look.apply(job_id, quiet)
             end
         end
         packet[0x04 + 1] = count;
+        if wait_all and #missing > 0 then count = 0; return; end    -- not all there yet: try again later
         if count > 0 then
             AshitaCore:GetPacketManager():AddOutgoingPacket(0x53, packet);
             look.on = true;                                    -- ours: keep it through zoning (look.outgoing)
         end
     end);
-    if not ok then msg('Lockstyle error: ' .. tostring(err)); return; end
+    if not ok then msg('Lockstyle error: ' .. tostring(err)); return 0, 0; end
+    if wait_all and #missing > 0 then return 0, #missing; end
     if count == 0 then
         if not quiet then msg(JOBS[job_id] .. ' has no Lockstyle set yet: pick pieces in the Lockstyle section (or import what you wear).'); end
         return;
     end
     if not quiet then msg(string.format('Lockstyle on: %d pieces (%s).', count, JOBS[job_id])); end
     if #missing > 0 then msg('  Lockstyle pieces not found in your bags: ' .. table.concat(missing, ', ')); end
+    return count, #missing;
+end
+
+-- The automatic lockstyle (login / job change): waits for the bags to load. Every 3 s, up to `tries` times, it
+-- applies only once every piece is found; the last try applies what it has and names what's missing.
+function actions.look_when_ready(j, tries)
+    if look.job ~= j then return; end                             -- changed job meanwhile
+    local last = tries <= 1;
+    local ok, found, missing = pcall(look.apply, j, true, not last);
+    if not ok or last or ((found or 0) > 0 and (missing or 0) == 0) then return; end
+    after(3, function() actions.look_when_ready(j, tries - 1); end);
 end
 
 -- Lockstyle turns off when you change job: put it back a few seconds after login / every job change
@@ -3814,7 +3828,7 @@ function look.watch()
     look.job = j;
     after(2, function() if look.job == j then pcall(actions.apply_macros, j); end end);   -- the job's macro book / page
     if next(look.picks(j)) ~= nil then
-        after(5, function() if look.job == j then look.apply(j, true); end end);
+        after(5, function() actions.look_when_ready(j, 11); end);   -- tries for about 30 s while the bags load
     end
 end
 
