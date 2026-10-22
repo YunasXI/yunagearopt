@@ -1,0 +1,2 @@
+# Left out of GitHub's "Source code" downloads (the launcher packages from them): build tooling only
+native/build.py export-ignore
