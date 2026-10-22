@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.49';   -- the release workflow sets this to the release number
+addon.version = '1.1.50';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -936,6 +936,7 @@ local function build_sets(job_id)
                     weapons = (def.weapons and wjob) or def.always_weapons or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
                     info = def.info, obi = def.obi, instrument = def.instrument,
+                    keeps_ammo = def.keeps_ammo, mp_sub = def.mp_sub,
                 };
                 local pref = {};
                 if in_wset then pref.main, pref.sub = true, true; end          -- melee weapons only from your list
@@ -1080,7 +1081,7 @@ local function weights_for(job_id, desc)
     end
     -- Jobs with no MP of their own: MP / Refresh are worth nothing (no Royal Cloak, Wivre Hairpin on MNK).
     -- Magic accuracy, MAB and Fast Cast stay: NIN Ninjutsu / Utsusemi and COR Quick Draw use them.
-    if in_list(data.no_mp_jobs, JOBS[job_id]) then
+    if in_list(data.no_mp_jobs, JOBS[job_id]) and not desc.mp_sub then
         for _, k in ipairs({ 'mp', 'refresh', 'hmp', 'cmp' }) do w[k] = nil; end
     end
     return w;
@@ -1283,7 +1284,7 @@ local function optimize(job_id, desc, pins, pool)
     local slots = active_slots(desc, pure);
     pool = pool or owned;
     pins = pure and {} or (pins or {});
-    if not pure and not desc.ammo_item and not actions.ammo_swap(JOBS[job_id]) then
+    if not pure and not desc.ammo_item and not desc.keeps_ammo and not actions.ammo_swap(JOBS[job_id]) then
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
         p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
@@ -2068,6 +2069,7 @@ local function build_full_xml(job_id)
     if have.Evasion then table.insert(idle_branches, { cond = 'advanced="$Mode=eva"', body = equip_set('Evasion') }); end
     if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
     if have.Idle_NIN then table.insert(idle_branches, { cond = attr('p_subjob', 'NIN'), body = equip_set('Idle_NIN') }); end
+    if have.Idle_Mage then table.insert(idle_branches, { cond = attr('p_subjob', 'WHM|BLM|RDM|SMN|SCH|GEO'), body = equip_set('Idle_Mage') }); end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
     -- PUP: automaton out -> its gear (tank, or ranged while /petranged is on)
     if have.PetTank or have.PetRanged then
@@ -2523,6 +2525,7 @@ local function build_gearswap(job_id)
     add('    -- RNG: the gun tells Preshot / Midshot apart from the bow versions');
     add('    gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil'));
     add('    shoot_engaged = ' .. tostring(have.__shoot == true) .. '   -- RNG: ranged gear when engaged (TP set with /NIN or /DNC)');
+    add('    mage_sub = { WHM = true, BLM = true, RDM = true, SMN = true, SCH = true, GEO = true }   -- Idle_Mage with these subjobs');
     add('');
     add('    -- Sets worn on top of TP while a buff is active (e.g. Counterstance)');
     add('    engaged_buffs = {');
@@ -2695,6 +2698,7 @@ function idle_gear()
         elseif Mode == 'eva' and eq('Evasion') then
         elseif RefreshOn and eq('Refresh') then
         elseif player.sub_job == 'NIN' and eq('Idle_NIN') then
+        elseif mage_sub[player.sub_job] and eq('Idle_Mage') then
         elseif pet.isvalid and eq('Idle_Avatar') then
         elseif pet.isvalid and PetRangedOn and eq('PetRanged') then
         elseif pet.isvalid and eq('PetTank') then
@@ -3091,6 +3095,7 @@ local function build_lac(job_id)
     add('-- RNG: the gun tells Preshot / Midshot apart from the bow versions');
     add('local gun_range = ' .. (gun_name_for(abbr) and string.format('%q', gun_name_for(abbr)) or 'nil') .. ';');
     add('local shoot_engaged = ' .. tostring(have.__shoot == true) .. ';   -- RNG: ranged gear when engaged (TP set with /NIN or /DNC)');
+    add('local mage_sub = { WHM = true, BLM = true, RDM = true, SMN = true, SCH = true, GEO = true };   -- Idle_Mage with these subjobs');
     add('');
     add('-- Job abilities that wear their own set');
     add('local ja_map = {');
@@ -3394,6 +3399,7 @@ profile.HandleDefault = function()
         elseif Mode == 'eva' and eq('Evasion') then
         elseif RefreshOn and eq('Refresh') then
         elseif player.SubJob == 'NIN' and eq('Idle_NIN') then
+        elseif mage_sub[player.SubJob] and eq('Idle_Mage') then
         elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
         elseif gData.GetPet() ~= nil and PetRangedOn and eq('PetRanged') then
         elseif gData.GetPet() ~= nil and eq('PetTank') then
@@ -3842,7 +3848,7 @@ end
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
-    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', RandomDeal = 'Abilities',
+    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
     PhantomRoll = 'Abilities', BP_Delay = 'Abilities', BloodPact = 'Abilities',

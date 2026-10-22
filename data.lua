@@ -78,6 +78,7 @@ return {
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
         { 'Trick Attack', 'TrickAttack' }, 'Flee', 'Steal',
+        { 'Tomahawk', 'Tomahawk', jobs = { 'WAR' } },
         -- RNG: the AF piece that enhances the ability goes on when you use it
         { 'Scavenge', 'Scavenge', jobs = { 'RNG' } }, { 'Sharpshot', 'Sharpshot', jobs = { 'RNG' } },
         { 'Shadowbind', 'Shadowbind', jobs = { 'RNG' } },
@@ -949,6 +950,10 @@ return {
         -- Idle while your support job is NIN: damage taken down instead of Refresh (worn in place of Idle)
         Idle_NIN    = { label = 'Idle - /NIN (DT)', caps = DEF, weapons = true,
                         weights = { dt = -10, pdt = -10, mdt = -4, mdb = 2, regen = 3, eva = 0.3, hp = 0.05 } },
+        -- Idle while your support job is a mage (COR /WHM /BLM /RDM...): Refresh and MP, worn in place of Idle.
+        -- mp_sub: counts MP / Refresh even on a job without MP of its own (the subjob gives it MP)
+        Idle_Mage   = { label = 'Idle - /mage (Refresh)', caps = DEF, weapons = true, mp_sub = true,
+                        weights = { refresh = 30, regen = 8, mp = 0.05, dt = -4, pdt = -3, mdt = -2, hp = 0.02 } },
         Resting     = { label = 'Resting (MP)', weapons = true, weights = { hmp = 10, hhp = 2, refresh = 3 } },
         PDT         = { label = 'Physical defense', caps = DEF, weapons = true,
                         weights = { dt = -10, pdt = -10, bdt = -3, def = 0.1, hp = 0.05, eva = 0.3, curercv = 0.3 } },
@@ -1062,6 +1067,8 @@ return {
         -- THF Flee: Rog. Poulaines +1 (Flee duration +15s) worn when you use Flee; plain Rogue's Poulaines if you lack the +1
         -- THF Steal: your best Steal pieces (Thief's Kote, Assassin's Culottes, Rogue's Poulaines...), worn when you use Steal
         Steal       = { label = 'Steal', weights = { steal = 10 } },
+        -- WAR Tomahawk: the throwing axe it needs goes in the ammo slot (kept even with "Swap ammo" off)
+        Tomahawk    = { label = 'Tomahawk', weights = {}, fixed = { ammo = 'Thr. Tomahawk' }, keeps_ammo = true },
         Flee        = { label = 'Flee (duration)', weights = {}, fixed = { feet = 'Rog. Poulaines +1' },
                         fallback = { feet = "Rogue's Poulaines" } },
         -- RNG abilities: the AF piece that enhances each one (CatsEyeXI item database: Scavenge +5 = Socks,
@@ -1200,7 +1207,7 @@ return {
     },
 
     jobs = {
-        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
+        WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Tomahawk', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
         MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
@@ -1220,7 +1227,7 @@ return {
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
-        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'Idle_Mage', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments',
                 'Maneuver', 'Repair', 'Maintenance', 'Meditate' },
         DNC = { 'TP', 'TP_Hybrid', 'WS', 'Waltz', 'Steps', 'Samba', 'Jig', 'ViolentFlourish', 'Idle', 'PDT', 'MDT', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
