@@ -79,6 +79,7 @@ return {
         'Rampart', 'Cover',
         { 'Trick Attack', 'TrickAttack' }, 'Flee', 'Steal',
         { 'Tomahawk', 'Tomahawk', jobs = { 'WAR' } },
+        { 'Weapon Bash', 'WeaponBash', jobs = { 'DRK' } },
         -- RNG: the AF piece that enhances the ability goes on when you use it
         { 'Scavenge', 'Scavenge', jobs = { 'RNG' } }, { 'Sharpshot', 'Sharpshot', jobs = { 'RNG' } },
         { 'Shadowbind', 'Shadowbind', jobs = { 'RNG' } },
@@ -686,6 +687,9 @@ return {
     -- Other stats on the item are still read normally; this value replaces that one stat.
     stat_fix = {
         ['Brutal Earring +1'] = { da = 6 },
+        -- DRK AF hands: Weapon Bash +10 (CatsEyeXI item database, mod 392)
+        ['Chaos Gauntlets']   = { wbash = 10 },
+        ['Chs. Gauntlets +1'] = { wbash = 10 },
         -- THF Steal (CatsEyeXI item database, mod 298; Rogue's Ring: only at HP 75% or less and TP under 100%)
         ["Rogue's Bonnet"] = { steal = 1 },
         ['Rogues Bonnet'] = { steal = 1 },
@@ -1069,6 +1073,9 @@ return {
         Steal       = { label = 'Steal', weights = { steal = 10 } },
         -- WAR Tomahawk: the throwing axe it needs goes in the ammo slot (kept even with "Swap ammo" off)
         Tomahawk    = { label = 'Tomahawk', weights = {}, fixed = { ammo = 'Thr. Tomahawk' }, keeps_ammo = true },
+        -- DRK Weapon Bash: the AF gloves (Weapon Bash +10); plain Chaos Gauntlets if you lack the +1
+        WeaponBash  = { label = 'Weapon Bash', weights = {}, fixed = { hands = 'Chs. Gauntlets +1' },
+                        fallback = { hands = 'Chaos Gauntlets' } },
         Flee        = { label = 'Flee (duration)', weights = {}, fixed = { feet = 'Rog. Poulaines +1' },
                         fallback = { feet = "Rogue's Poulaines" } },
         -- RNG abilities: the AF piece that enhances each one (CatsEyeXI item database: Scavenge +5 = Socks,
@@ -1216,7 +1223,7 @@ return {
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
-        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
+        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'WeaponBash', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
                 'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Ballad', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
