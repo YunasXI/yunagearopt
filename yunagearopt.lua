@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.52';   -- the release workflow sets this to the release number
+addon.version = '1.1.53';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -4637,7 +4637,7 @@ end
 
 -- The people YunaGearOpt thanks (header middle, "Special thanks")
 actions.THANKS = { 'Vekien', 'Carver', 'Tai', 'Ramtough', 'Irondestruction', 'Hax', 'GM Box', 'Rumham', 'Sky',
-                   'Emeria', '[GM] Pie', 'Mod', 'Loxley', 'Tonzoffun', 'Haruuc', 'Shirahime', 'Toots' };
+                   'Emeria', '[GM] Pie', 'Mod', 'Loxley', 'Tonzoffun', 'Haruuc', 'Shirahime', 'Toots', 'Happyfists' };
 
 -- "Special thanks" (header, right side, ends at right_x): a twinkling star and quiet text; brighter + underline on
 -- hover; a click opens the thank-you card
