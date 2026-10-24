@@ -1,3 +1,9 @@
+addon.name    = 'yunagearopt';
+addon.author  = 'Yunas';
+addon.version = '1.1.53';   -- the release workflow sets this to the release number (build.py copies it from core.lua)
+addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
+addon.link    = 'https://github.com/YunasXI/yunagearopt';
+
 --[[
 YunaGearOpt for VanaCore (native addon): runs the same YunaGearOpt as the Ashita version (core.lua, data.lua, ...) on
 VanaCore's own addon API. This file gives YunaGearOpt the few Ashita names it uses (AshitaCore, ashita.*, struct,
@@ -22,7 +28,6 @@ local HERE = (function ()
     return dir
 end)()
 
-addon = addon or {}
 addon.path = HERE .. '\\'
 
 -- Ashita's addon libraries (common, chat, settings, imgui, d3d8 ...), the copies VanaCore ships for Ashita addons

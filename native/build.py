@@ -7,6 +7,7 @@ The target defaults to VanaCore's native addons folder next to this Ashita insta
 folder's yunagearopt.lua (the VanaCore entry) loads it. Settings and exports stay where they were: nothing in the
 target's settings or generated exports is removed."""
 import os
+import re
 import shutil
 import sys
 
@@ -21,7 +22,12 @@ READMES = ['gearswap', 'legacyac', 'lac']
 
 def build(target):
     os.makedirs(target, exist_ok=True)
-    shutil.copyfile(os.path.join(HERE, 'yunagearopt.lua'), os.path.join(target, 'yunagearopt.lua'))
+    # the entry (with the addon's metadata) gets the version of the main file
+    core_text = open(os.path.join(ROOT, 'yunagearopt.lua'), encoding='utf-8').read()
+    version = re.search(r"^addon\.version\s*=\s*'([^']*)'", core_text, re.M).group(1)
+    entry = open(os.path.join(HERE, 'yunagearopt.lua'), encoding='utf-8', newline='').read()
+    entry = re.sub(r"^(addon\.version\s*=\s*)'[^']*'", lambda m: m.group(1) + "'" + version + "'", entry, count=1, flags=re.M)
+    open(os.path.join(target, 'yunagearopt.lua'), 'w', encoding='utf-8', newline='').write(entry)
     shutil.copyfile(os.path.join(ROOT, 'yunagearopt.lua'), os.path.join(target, 'core.lua'))
     for f in LUA:
         shutil.copyfile(os.path.join(ROOT, f), os.path.join(target, f))

@@ -41,7 +41,7 @@ jobs:
           mkdir -p dist/yunagearopt
           python3 native/build.py dist/yunagearopt
           # The version shown in the window
-          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/core.lua
+          sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/core.lua dist/yunagearopt/yunagearopt.lua
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
 
       - name: Create release
