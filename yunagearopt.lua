@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.53';   -- the release workflow sets this to the release number (core.lua too)
+addon.version = '1.1.54';   -- the release workflow sets this to the release number (core.lua too)
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = 'https://github.com/YunasXI/yunagearopt';
 
