@@ -37,10 +37,15 @@ jobs:
 
       - name: Package addon (VanaCore)
         run: |
-          # YunaGearOpt is a VanaCore addon: it goes in VanaCore\addons\vanacore\yunagearopt
+          # The repo is the addon as installed: VanaCore\addons\vanacore\yunagearopt
           mkdir -p dist/yunagearopt
-          python3 native/build.py dist/yunagearopt
-          # The version shown in the window
+          cp *.lua README.md dist/yunagearopt/
+          cp -r images fonts dist/yunagearopt/
+          mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac dist/yunagearopt/lac
+          cp gearswap/README.txt dist/yunagearopt/gearswap/
+          cp legacyac/README.txt dist/yunagearopt/legacyac/
+          cp lac/README.txt dist/yunagearopt/lac/
+          # The version shown in the window and in the addon list
           sed -i "s/^addon.version *= *'[^']*';/addon.version = '${{ steps.version.outputs.version }}';/" dist/yunagearopt/core.lua dist/yunagearopt/yunagearopt.lua
           (cd dist && zip -r "yunagearopt-${{ steps.version.outputs.version }}.zip" yunagearopt)
 

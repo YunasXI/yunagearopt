@@ -16,9 +16,9 @@ YunaGearOpt runs on **VanaCore** (as a VanaCore addon).
 2. Extract it so you have `VanaCore\addons\vanacore\yunagearopt\`.
 3. In game: `/addon load yunagearopt` (or add `//addon load yunagearopt` to VanaCore's `scripts\boot.txt`).
 
-The code: `native/yunagearopt.lua` is the VanaCore entry (a small layer over VanaCore's API); it loads `core.lua`,
-which is this repo's `yunagearopt.lua`. `native/build.py` makes the addon folder. Releases up to 1.1.47 also ran on
-Ashita; from 1.1.48 on it's VanaCore only.
+The repo is the addon exactly as installed: `yunagearopt.lua` is the VanaCore entry (the addon's metadata and a small
+layer over VanaCore's API), which loads `core.lua`, the main code. Releases up to 1.1.47 also ran on Ashita; from
+1.1.48 on it's VanaCore only.
 
 ## Usage
 
