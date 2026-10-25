@@ -39,7 +39,7 @@ jobs:
         run: |
           # The repo is the addon as installed: VanaCore\addons\vanacore\yunagearopt
           mkdir -p dist/yunagearopt
-          cp *.lua README.md dist/yunagearopt/
+          cp *.lua README.md LICENSE NOTICE dist/yunagearopt/
           cp -r images fonts dist/yunagearopt/
           mkdir -p dist/yunagearopt/gearswap dist/yunagearopt/legacyac dist/yunagearopt/lac
           cp gearswap/README.txt dist/yunagearopt/gearswap/

@@ -114,13 +114,32 @@ Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory an
 
 | File | Purpose |
 | --- | --- |
-| `yunagearopt.lua` | Addon entry point, UI, set builder and exporters |
+| `yunagearopt.lua` | VanaCore entry: the addon's metadata and a small layer over VanaCore's API |
+| `core.lua` | UI, set builder and exporters |
 | `data.lua` | Item/stat data |
 | `stats.lua` | Stat parsing |
 | `augments.lua` | Augment parsing |
 | `server_stats.lua` | Real base stats per item from the CatsEyeXI server, used before reading item descriptions |
 | `fonts/` | AvantGarde (TeX Gyre Adventor, GUST Font License), the window's font |
+| `LICENSE`, `NOTICE` | GNU GPL v3.0 and the author-credit term |
 
 ## Releases
 
 Releases are created manually from the **Actions → Release** workflow. It bumps the version (patch by default; choose minor/major), tags it, and attaches `yunagearopt-<version>.zip`.
+
+## Using YunaGearOpt in your own work
+
+YunaGearOpt is made by **Yunas**. You are welcome to build on it, as long as you credit it:
+
+- **Using its code or files** (code, gear data, layouts, artwork, in whole or in part): credit is **required**. Keep
+  the `NOTICE` file and the credits in the files, and put this in your README:
+  `Based on YunaGearOpt by Yunas - https://github.com/YunasXI/yunagearopt`
+- **Inspired by its look or ideas** (your own code): please credit it the same way.
+
+## Licence
+
+YunaGearOpt is released under the GNU General Public License v3.0 (see `LICENSE`), with one additional term
+(GPL-3.0 section 7(b)): the author credit must be kept (see `NOTICE`). The font in `fonts/` keeps its own licence
+(GUST Font License).
+
+Copyright (C) 2026 Yunas.

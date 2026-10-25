@@ -3,6 +3,7 @@ addon.author  = 'Yunas';
 addon.version = '1.1.55';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
+-- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
 
 -- VanaCore only: this file (core.lua) runs under the VanaCore entry, yunagearopt.lua, which sets YGO_NATIVE.
 -- Loaded any other way (plain Ashita, or as an Ashita addon inside VanaCore) it says so and does nothing.
