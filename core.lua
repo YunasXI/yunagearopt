@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.54';   -- the release workflow sets this to the release number
+addon.version = '1.1.55';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 
@@ -708,7 +708,7 @@ function actions.owned_jugs(job_id)
     local list, seen, lvl = {}, {}, job_level(job_id);
     for _, it in ipairs(owned) do
         if bit.band(it.slots, 0x0008) ~= 0 and it.jobs == bit.lshift(1, job_id) and not seen[it.name]
-            and (s.ignore_level or it.level <= lvl) then
+            and (s.ignore_level or it.level <= lvl) and not in_list(data.jug_exclude or {}, it.name) then
             seen[it.name] = true;
             table.insert(list, it);
         end

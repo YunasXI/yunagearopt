@@ -812,6 +812,9 @@ return {
         Apex     = { head = 'Apex Hatsuburi',  body = 'Apex Togi',       hands = 'Apex Kote',
                      legs = 'Apex Haidate',    feet = 'Apex Sune-Ate' },
     },
+    -- BST: precious jugs never put in the /jug list (Call Beast / Bestial Loyalty would use them up)
+    jug_exclude = { 'Sun Water', 'Fun Dip' },
+
     -- Job -> { 2-hour ability, Summit family, [extra pieces worn with it] }
     sp_abilities = {
         WAR = { 'Mighty Strikes', 'Pinnacle' },   MNK = { 'Hundred Fists', 'Apex' },
