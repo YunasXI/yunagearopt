@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.55';   -- the release workflow sets this to the release number
+addon.version = '1.1.56';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -223,13 +223,15 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     ui_scale = 1.0,      -- Window scale (bottom bar): 0.8 - 1.5
                     mini_logo = false,   -- minimised to the floating logo
                     macros = T{},        -- macro book / page per job: JOB -> { book, page }
-                    ammo_swap = T{} };   -- "Swap ammo" per job: JOB -> true / false (unset = the job's default)
+                    ammo_swap = T{},     -- "Swap ammo" per job: JOB -> true / false (unset = the job's default)
+                    weapon_swap = T{} }; -- "Swap weapons" per job: JOB -> true / false (unset = on)
 local s = settings.load(defaults);
 s.picks = actions.plain(s.picks or {});
 s.set_removed = actions.plain(s.set_removed or {});
 s.set_added = actions.plain(s.set_added or {});
 s.macros = actions.plain(s.macros or {});
 s.ammo_swap = actions.plain(s.ammo_swap or {});
+s.weapon_swap = actions.plain(s.weapon_swap or {});
 
 -- Weapons are always swapped, except while subbing NIN or DNC: then the job's dual-wield pair (picked in the
 -- "/NIN and /DNC weapons" row) goes on instead, or the weapons are left alone if none is picked.
@@ -1289,6 +1291,12 @@ local function optimize(job_id, desc, pins, pool)
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
         p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
+        pins = p2;
+    end
+    if not pure and not desc.lockstyle and not desc.dwpair and desc.id ~= 'DW' and not actions.weapon_swap(JOBS[job_id]) then
+        local p2 = {};                                   -- (a copy: the saved picks stay as they are)
+        for k, v in pairs(pins) do p2[k] = v; end
+        p2.main, p2.sub = false, false;                  -- "Swap weapons" off: this job's sets leave Main / Sub alone
         pins = p2;
     end
     if desc.fixed and not pure then
@@ -6153,6 +6161,13 @@ actions.SHOW_DW = false;   -- the Dual Wield control in the settings bar (off fo
 
 -- "Swap ammo" for a job: your choice, or the default (off for RNG / COR: a stat ammo knocks the bow / gun off)
 actions.AMMO_OFF_DEFAULT = { RNG = true, COR = true };
+-- "Swap weapons" for a job: on unless you switched it off
+function actions.weapon_swap(abbr)
+    local v = (s.weapon_swap or {})[abbr or ''];
+    if v == nil then return true; end
+    return v and true or false;
+end
+
 function actions.ammo_swap(abbr)
     local v = (s.ammo_swap or {})[abbr or ''];
     if v == nil then return not actions.AMMO_OFF_DEFAULT[abbr or '']; end
@@ -6196,6 +6211,23 @@ function actions.draw_settings_bar(d)
             imgui.SetTooltip('On: ' .. abbr .. ' sets put an ammo item on (White Tathlum...).\n'
                 .. 'Off: ' .. abbr .. ' sets never touch the ammo slot, so your arrows / bullets stay\n'
                 .. 'and a stat ammo can\'t knock your bow or gun off. Re-export after changing it.');
+        end
+    end
+    do                                                       -- "Swap weapons" for this job
+        local abbr = JOBS[ui.job];
+        local on = actions.weapon_swap(abbr);
+        divider(x + 18);
+        imgui.SetCursorScreenPos({ x + 36, cy - 10 });
+        if actions.switch('##ygo_weapon_swap', on) then
+            s.weapon_swap[abbr] = not on;
+            settings.save();
+            ui.dirty = true;
+        end
+        x = text_at(x + 36 + 38 + 10, 'Swap weapons', on and C.text or C.muted);
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('On: ' .. abbr .. ' sets can change your weapons (a staff for nukes, a Refresh weapon in Idle...).\n'
+                .. 'Off: ' .. abbr .. ' sets never touch Main / Sub, so the weapon you hold stays and your TP is kept\n'
+                .. '(your /dw weapons and /NIN /DNC pair still work). Re-export after changing it.');
         end
     end
     if d.leveling then                                        -- on = exported and worn at level 30 and below
@@ -6654,6 +6686,7 @@ settings.register('settings', 'ygo_settings_update', function(e)
         s.set_added = actions.plain(s.set_added or {});
         s.macros = actions.plain(s.macros or {});
         s.ammo_swap = actions.plain(s.ammo_swap or {});
+        s.weapon_swap = actions.plain(s.weapon_swap or {});
         actions.fix_weapon_mode();
         ui.pins, ui.dirty = s.picks, true;
     end
