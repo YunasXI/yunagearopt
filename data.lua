@@ -80,6 +80,11 @@ return {
         { 'Trick Attack', 'TrickAttack' }, 'Flee', 'Steal',
         { 'Tomahawk', 'Tomahawk', jobs = { 'WAR' } },
         { 'Weapon Bash', 'WeaponBash', jobs = { 'DRK' } },
+        -- RUN
+        { 'Vallation', 'Vallation', jobs = { 'RUN' } }, { 'Valiance', 'Vallation', jobs = { 'RUN' } },
+        { 'Gambit', 'Gambit', jobs = { 'RUN' } }, { 'Pflug', 'Pflug', jobs = { 'RUN' } },
+        { 'Battuta', 'Battuta', jobs = { 'RUN' } }, { 'Swordplay', 'Swordplay', jobs = { 'RUN' } },
+        { 'Lunge', 'Lunge', jobs = { 'RUN' } }, { 'Swipe', 'Lunge', jobs = { 'RUN' } },
         -- RNG: the AF piece that enhances the ability goes on when you use it
         { 'Scavenge', 'Scavenge', jobs = { 'RNG' } }, { 'Sharpshot', 'Sharpshot', jobs = { 'RNG' } },
         { 'Shadowbind', 'Shadowbind', jobs = { 'RNG' } },
@@ -692,6 +697,14 @@ return {
     -- Other stats on the item are still read normally; this value replaces that one stat.
     stat_fix = {
         ['Brutal Earring +1'] = { da = 6 },
+        -- RUN ability gear (CatsEyeXI item database, mods 1010 / 1018 / 1011 / 1004 / 1008)
+        ['Runeist Coat']      = { vallation = 10 },
+        ['Runeist Mitons']    = { gambit = 10 },
+        ['Runeist Bottes']    = { pflug = 10 },
+        ['Futhark Bandeau']   = { battuta = 10 },
+        ['Fu. Bandeau +1']    = { battuta = 10 },
+        ['Futhark Mitons']    = { swordplay = 3 },
+        ['Futhark Mitons +1'] = { swordplay = 4 },
         -- DRK AF hands: Weapon Bash +10 (CatsEyeXI item database, mod 392)
         ['Chaos Gauntlets']   = { wbash = 10 },
         ['Chs. Gauntlets +1'] = { wbash = 10 },
@@ -1084,6 +1097,13 @@ return {
         -- DRK Weapon Bash: the AF gloves (Weapon Bash +10); plain Chaos Gauntlets if you lack the +1
         WeaponBash  = { label = 'Weapon Bash', weights = {}, fixed = { hands = 'Chs. Gauntlets +1' },
                         fallback = { hands = 'Chaos Gauntlets' } },
+        -- RUN abilities: the piece that enhances each (your best one is picked)
+        Vallation   = { label = 'Vallation / Valiance', weights = { vallation = 10 } },
+        Gambit      = { label = 'Gambit', weights = { gambit = 10 } },
+        Pflug       = { label = 'Pflug', weights = { pflug = 10 } },
+        Battuta     = { label = 'Battuta', weights = { battuta = 10 } },
+        Swordplay   = { label = 'Swordplay', weights = { swordplay = 10 } },
+        Lunge       = { label = 'Lunge / Swipe (magic damage)', weights = { mab = 10, int = 2, macc = 2, mdmg = 1 } },
         Flee        = { label = 'Flee (duration)', weights = {}, fixed = { feet = 'Rog. Poulaines +1' },
                         fallback = { feet = "Rogue's Poulaines" } },
         -- RNG abilities: the AF piece that enhances each one (CatsEyeXI item database: Scavenge +5 = Socks,
@@ -1249,7 +1269,8 @@ return {
         SCH = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'PDT', 'MDT', 'Sublimation', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         GEO = { 'Idle', 'Idle_Luopan', 'Resting', 'TP', 'WS', 'Precast', 'Precast_Cure', 'Geomancy', 'Cure', 'Enhancing', 'Stoneskin',
                 'Nuke', 'Nuke_MB', 'Enfeebling_INT', 'PDT', 'MDT', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'RefreshSpell', 'Precast', 'Berserk', 'Warcry', 'SP', 'Movement' },
+        RUN = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Enhancing', 'RefreshSpell', 'Precast',
+                'Vallation', 'Gambit', 'Pflug', 'Battuta', 'Swordplay', 'Lunge', 'Berserk', 'Warcry', 'SP', 'Movement' },
     },
 
     -- Weapon types whose weaponskills get a set in each job's XML (skill names as in the list below).
