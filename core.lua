@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.56';   -- the release workflow sets this to the release number
+addon.version = '1.1.57';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -340,6 +340,13 @@ local function load_data()
     for name, sets in pairs(d.set_restrict or {}) do ui.set_restrict[name:lower()] = sets; end
     ui.stat_fix = {};
     for name, fix in pairs(d.stat_fix or {}) do ui.stat_fix[name:lower()] = fix; end
+    -- Mage jobs get the weapon-lock set (the DW set, shown as "Melee weapons (/tp toggle)")
+    for abbr in pairs(d.tp_lock_jobs or {}) do
+        local list = (d.jobs or {})[abbr];
+        local has = false;
+        for _, id in ipairs(list or {}) do if id == 'DW' then has = true; end end
+        if list and not has then table.insert(list, 'DW'); end
+    end
     -- Every job gets the Treasure Hunter set (/th): with no TH piece you can wear it stays empty and isn't exported
     for _, list in pairs(d.jobs or {}) do
         local has = false;
@@ -833,7 +840,7 @@ function actions.slash_cmds(have)
     if have.Nuke_MB then table.insert(c, 'mb'); end
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
-    if have.DW then table.insert(c, 'dw'); end
+    if have.DW then table.insert(c, have.__lockcmd or 'dw'); end
     if have.Leveling then table.insert(c, 'leveling'); end
     if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
     if have.__jugs then table.insert(c, 'jug'); end
@@ -1896,6 +1903,7 @@ local function build_full_xml(job_id)
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
     have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
+    have.__lockcmd = ((data.tp_lock_jobs or {})[abbr]) and 'tp' or 'dw';            -- the weapon lock's command
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local out = {};
     local function add(line) table.insert(out, line); end
@@ -1997,7 +2005,7 @@ local function build_full_xml(job_id)
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
-    if have.DW then toggle('/dw', 'DW', 'on', 'Dual wield weapons'); end
+    if have.DW then toggle('/' .. (have.__lockcmd or 'dw'), 'DW', 'on', 'Locked weapons'); end
     if have.Leveling then toggle('/leveling', 'Leveling', 'on', 'Leveling gear (level 30 and below)'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
     -- BST /jug: the next jug pet you own (used by Call Beast / Bestial Loyalty)
@@ -2483,6 +2491,7 @@ local function build_gearswap(job_id)
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
     have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
+    have.__lockcmd = ((data.tp_lock_jobs or {})[abbr]) and 'tp' or 'dw';            -- the weapon lock's command
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
@@ -2975,9 +2984,9 @@ function self_command(command)
         JugIdx = JugIdx % #jugs + 1
         add_to_chat(158, 'Jug: ' .. jugs[JugIdx])
         return
-    elseif c == 'dw' then
+    elseif c == 'dw' or c == 'tp' then
         DWOn = not DWOn
-        add_to_chat(158, 'Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'))
+        add_to_chat(158, 'Locked weapons: ' .. (DWOn and 'ON' or 'OFF'))
     elseif c == 'leveling' then
         LevelingOn = not LevelingOn
         add_to_chat(158, 'Leveling gear (level 30 and below): ' .. (LevelingOn and 'ON' or 'OFF'))
@@ -3026,6 +3035,7 @@ local function build_lac(job_id)
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
     have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
+    have.__lockcmd = ((data.tp_lock_jobs or {})[abbr]) and 'tp' or 'dw';            -- the weapon lock's command
     have.__nohybrid = (data.engaged_dw or {})[abbr] == true;   -- PLD: no /hybrid (TP - Engaged is automatic)
     local o = {};
     local function add(line) table.insert(o, line); end
@@ -3348,9 +3358,9 @@ profile.HandleCommand = function(args)
         if #jugs == 0 then gFunc.Message('No jug pets in your bags.'); return; end
         JugIdx = JugIdx % #jugs + 1;
         gFunc.Message('Jug: ' .. jugs[JugIdx]);
-    elseif c == 'dw' then
+    elseif c == 'dw' or c == 'tp' then
         DWOn = not DWOn;
-        gFunc.Message('Dual wield weapons: ' .. (DWOn and 'ON' or 'OFF'));
+        gFunc.Message('Locked weapons: ' .. (DWOn and 'ON' or 'OFF'));
     elseif c == 'leveling' then
         LevelingOn = not LevelingOn;
         gFunc.Message('Leveling gear (level 30 and below): ' .. (LevelingOn and 'ON' or 'OFF'));
@@ -3833,9 +3843,14 @@ function look.watch()
     if now == look.checked then return; end
     look.checked = now;
     local j = player_call(function(p) return p:GetMainJob(); end, 0);
-    if type(j) ~= 'number' or j < 1 or j > #JOBS or j == look.job then return; end
-    look.job = j;
-    after(2, function() if look.job == j then pcall(actions.apply_macros, j); end end);   -- the job's macro book / page
+    local sj = player_call(function(p) return p:GetSubJob(); end, 0);
+    if type(j) ~= 'number' or j < 1 or j > #JOBS then return; end
+    local main_changed = j ~= look.job;
+    if not main_changed and sj == look.sub then return; end       -- (a sub job change also drops the lockstyle)
+    look.job, look.sub = j, sj;
+    if main_changed then
+        after(2, function() if look.job == j then pcall(actions.apply_macros, j); end end);   -- the job's macro book / page
+    end
     if next(look.picks(j)) ~= nil then
         after(5, function() actions.look_when_ready(j, 11); end);   -- tries for about 30 s while the bags load
     end
@@ -4645,8 +4660,7 @@ function actions.header_icon(id, kind)
 end
 
 -- The people YunaGearOpt thanks (header middle, "Special thanks")
-actions.THANKS = { 'Vekien', 'Carver', 'Tai', 'Ramtough', 'Irondestruction', 'Hax', 'GM Box', 'Rumham', 'Sky',
-                   'Emeria', '[GM] Pie', 'Mod', 'Loxley', 'Tonzoffun', 'Haruuc', 'Shirahime', 'Toots', 'Happyfists' };
+actions.THANKS = { 'Vekien', 'Tai', 'Ramtough', 'Irondestruction', 'Happyfists' };
 
 -- "Special thanks" (header, right side, ends at right_x): a twinkling star and quiet text; brighter + underline on
 -- hover; a click opens the thank-you card

@@ -142,9 +142,14 @@ return {
     -- Set names shown for one job only (the export set name stays the same)
     job_labels = {
         PLD = { TP = 'TP - Offense /NIN /DNC', TP_Hybrid = 'TP - Engaged', Enmity = 'Enmity (Provoke, Flash, Reprisal, Atonement, abilities)' },
-        WHM = { HPMax = 'Max HP (Devotion / Martyr)' },
-        GEO = { HPMax = 'Max HP (Life Cycle)' },
+        WHM = { HPMax = 'Max HP (Devotion / Martyr)', DW = 'Melee weapons (/tp toggle)' },
+        GEO = { HPMax = 'Max HP (Life Cycle)', DW = 'Melee weapons (/tp toggle)' },
+        BLM = { DW = 'Melee weapons (/tp toggle)' }, RDM = { DW = 'Melee weapons (/tp toggle)' },
+        BRD = { DW = 'Melee weapons (/tp toggle)' }, SMN = { DW = 'Melee weapons (/tp toggle)' },
+        SCH = { DW = 'Melee weapons (/tp toggle)' },
     },
+    -- Mage jobs: the weapon lock (the DW set, /dw on BLU / WAR) is typed /tp: your melee weapons on and locked
+    tp_lock_jobs = { WHM = true, BLM = true, RDM = true, BRD = true, SMN = true, SCH = true, GEO = true },
     -- Jobs that tank engaged in TP_Hybrid ("TP - Engaged") and only wear TP ("TP - Offense") with /NIN or /DNC,
     -- together with the two weapons picked in the "/NIN and /DNC weapons" row of that set
     engaged_dw = { PLD = true },
