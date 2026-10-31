@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.59';   -- the release workflow sets this to the release number
+addon.version = '1.1.60';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -2652,9 +2652,37 @@ local function matches(name, list)
     return false
 end
 
+-- KEEP THESE ITEMS: a slot wearing one of these (put on by your own macro, e.g. /equip ring1 "Warp Ring") is left
+-- alone for keep_seconds so you can use it; then your sets take the slot back. Add your own (exact item names).
+keep_items = {
+    'Warp Ring', 'Echad Ring', 'Empress Band', 'Emperor Band', 'Anniversary Ring', 'Decennial Ring',
+    'Dim. Ring (Holla)', 'Dim. Ring (Dem)', 'Dim. Ring (Mea)', 'Tavnazian Ring', 'Olduum Ring', 'Nexus Cape',
+}
+keep_seconds = 30
+local keep_lower, keep_since = {}, {}
+for _, n in ipairs(keep_items) do keep_lower[n:lower()] = true end
+local function keep_filter(set)
+    local worn = player.equipment or {}
+    local now, copy = os.clock(), nil
+    for slot in pairs(set) do
+        local n = worn[slot]
+        if type(n) == 'string' and keep_lower[n:lower()] then
+            keep_since[slot] = keep_since[slot] or now
+            if now - keep_since[slot] < keep_seconds then
+                if copy == nil then copy = {} for k, v in pairs(set) do copy[k] = v end end
+                copy[slot] = nil
+            end
+        else
+            keep_since[slot] = nil
+        end
+    end
+    return copy or set
+end
+
 local function eq(name)
     local set = sets[name]
     if not set then return false end
+    set = keep_filter(set)
     -- /dw ON: the dual-wield weapons stay locked, no set changes main / sub
     if DWOn and name ~= 'DW' then
         local copy = {}
@@ -3194,9 +3222,38 @@ local function matches(name, list)
     return false;
 end
 
+-- KEEP THESE ITEMS: a slot wearing one of these (put on by your own macro, e.g. /equip ring1 "Warp Ring") is left
+-- alone for keep_seconds so you can use it; then your sets take the slot back. Add your own (exact item names).
+local keep_items = {
+    'Warp Ring', 'Echad Ring', 'Empress Band', 'Emperor Band', 'Anniversary Ring', 'Decennial Ring',
+    'Dim. Ring (Holla)', 'Dim. Ring (Dem)', 'Dim. Ring (Mea)', 'Tavnazian Ring', 'Olduum Ring', 'Nexus Cape',
+};
+local keep_seconds = 30;
+local keep_lower, keep_since = {}, {};
+for _, n in ipairs(keep_items) do keep_lower[n:lower()] = true; end
+local function keep_filter(set)
+    local worn = gData.GetEquipment() or {};
+    local now, copy = os.clock(), nil;
+    for slot in pairs(set) do
+        local it = worn[slot];
+        local n = it and it.Name;
+        if type(n) == 'string' and keep_lower[n:lower()] then
+            keep_since[slot] = keep_since[slot] or now;
+            if now - keep_since[slot] < keep_seconds then
+                if copy == nil then copy = {}; for k, v in pairs(set) do copy[k] = v; end end
+                copy[slot] = nil;
+            end
+        else
+            keep_since[slot] = nil;
+        end
+    end
+    return copy or set;
+end
+
 local function eq(name)
     local set = sets[name];
     if set == nil then return false; end
+    set = keep_filter(set);
     -- /dw ON: the dual-wield weapons stay locked, no set changes Main / Sub
     if DWOn and name ~= 'DW' then
         local copy = {};
