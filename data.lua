@@ -1114,6 +1114,10 @@ return {
         -- Barrage: the AF hands enhance it too; worn on every shot while Barrage is up (engaged or not, /ra too)
         Barrage     = { label = 'Barrage (buff active)', engaged_buff = 'Barrage', buff_any = true, weights = {},
                         fixed = { hands = 'Htr. Bracers +1' }, fallback = { hands = "Hunter's Bracers" } },
+        -- RNG Unlimited Shot: the next shot doesn't use up its ammo, so YOUR pick of rare ammo goes on while it's up
+        -- (nothing automatic: pick it on the Ammo card; kept even with "Swap ammo" off)
+        UnlimitedShot = { label = 'Unlimited Shot (buff active)', engaged_buff = 'Unlimited Shot', buff_any = true,
+                          weights = {}, fixed = {}, keeps_ammo = true },
         Counterstance = { label = 'Counterstance (buff active)', engaged_buff = 'Counterstance',
                           weights = { counter = 10, vit = 0.5, hp = 0.02, acc = 0.5, pdt = -3, dt = -3 } },
         -- MNK Chakra: your BiS pieces. If you don't own Genmei Kabuto, Genbu's Kabuto is used instead.
@@ -1255,7 +1259,7 @@ return {
         BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
                 'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Ballad', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Scavenge', 'Sharpshot', 'Shadowbind', 'Barrage',
+        RNG = { 'Preshot', 'Preshot_Gun', 'Midshot', 'Midshot_Gun', 'WS', 'Idle', 'PDT', 'MDT', 'TP', 'Scavenge', 'Sharpshot', 'Shadowbind', 'Barrage', 'UnlimitedShot',
                 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },

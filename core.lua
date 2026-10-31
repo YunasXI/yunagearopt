@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.60';   -- the release workflow sets this to the release number
+addon.version = '1.1.61';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -2290,6 +2290,9 @@ local function build_full_xml(job_id)
         if have.Barrage then                             -- RNG: Barrage up -> the AF hands on the shot
             emit_chain(out, '        ', { { cond = attr('buffactive', 'Barrage'), body = equip_set('Barrage') } }, nil);
         end
+        if have.UnlimitedShot then                       -- RNG: Unlimited Shot up -> your rare ammo on the shot
+            emit_chain(out, '        ', { { cond = attr('buffactive', 'Unlimited Shot'), body = equip_set('UnlimitedShot') } }, nil);
+        end
         add('    </' .. tag .. '>');
         add('');
     end
@@ -2833,6 +2836,7 @@ function precast(spell)
     elseif spell.action_type == 'Ranged Attack' then
         eq(ranged_set('Preshot'))
         if buffactive['Barrage'] then eq('Barrage') end
+        if buffactive['Unlimited Shot'] then eq('UnlimitedShot') end
     elseif spell.type == 'CorsairRoll' or spell.english == 'Double-Up' then
         eq('PhantomRoll')
     elseif spell.type == 'CorsairShot' then
@@ -2861,6 +2865,7 @@ function midcast(spell)
     if spell.action_type == 'Ranged Attack' then
         eq(ranged_set('Midshot'))
         if buffactive['Barrage'] then eq('Barrage') end   -- RNG: the AF hands on a Barrage shot
+        if buffactive['Unlimited Shot'] then eq('UnlimitedShot') end   -- RNG: your rare ammo on an Unlimited Shot
         return
     end
     if spell.action_type ~= 'Magic' then return end
@@ -3587,11 +3592,13 @@ end
 profile.HandlePreshot = function()
     eq(ranged_set('Preshot'));
     if buff('Barrage') then eq('Barrage'); end
+    if buff('Unlimited Shot') then eq('UnlimitedShot'); end
 end
 
 profile.HandleMidshot = function()
     eq(ranged_set('Midshot'));
     if buff('Barrage') then eq('Barrage'); end   -- RNG: the AF hands on a Barrage shot
+    if buff('Unlimited Shot') then eq('UnlimitedShot'); end   -- RNG: your rare ammo on an Unlimited Shot
 end
 
 profile.HandleWeaponskill = function()
@@ -3943,7 +3950,7 @@ end
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
-    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
+    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
     Swordplay = 'Abilities', Lunge = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
