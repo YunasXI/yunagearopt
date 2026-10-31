@@ -1495,6 +1495,8 @@ return {
         { id = 169, name = 'Black Halo', skill = 11, jobs = { 'WAR', 'MNK', 'WHM', 'BLM', 'PLD', 'SMN', 'BLU', 'SCH', 'GEO', 'RUN' }, kind = 'physical', hits = 2, mods = { str = 0.75, mnd = 0.75 } },
         { id = 172, name = 'Flash Nova', skill = 11, jobs = { 'WAR', 'WHM', 'PLD', 'BLU', 'GEO' }, kind = 'magical', hits = 1, mods = { str = 0.50, mnd = 0.50 } },
         { id = 174, name = 'Realmrazer', skill = 11, jobs = { 'WAR', 'MNK', 'WHM', 'BLM', 'PLD', 'SMN', 'BLU', 'SCH', 'GEO', 'RUN' }, kind = 'physical', hits = 7, mods = { mnd = 0.85 } },
+        -- GEO (Idris / Geomancerrific): 1 hit, INT 50% + MND 50%, attack goes up with TP (LandSandBoat exudation.lua)
+        { name = 'Exudation', skill = 11, jobs = { 'GEO' }, kind = 'physical', hits = 1, mods = { int = 0.50, mnd = 0.50 } },
 
         -- Staff
         { id = 187, name = 'Garland of Bliss', skill = 12, jobs = { 'SMN' }, kind = 'magical', hits = 1, mods = { str = 0.30, mnd = 0.85 } },
