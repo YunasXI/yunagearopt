@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.61';   -- the release workflow sets this to the release number
+addon.version = '1.1.62';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -427,6 +427,22 @@ local function parse_stats(desc)
         if p and p < cut then cut = p; end
     end
     text = text:sub(1, cut - 1);
+    -- Any other "Label:" is a condition too ("Paralysis: Accuracy+20", "Dusk to dawn: ..."): only DEF / DMG / Delay are
+    -- stats written with a colon. Everything from such a label on doesn't count.
+    do
+        local from = 1;
+        while true do
+            local p = text:find(':', from, true);
+            if p == nil then break; end
+            local word = text:sub(1, p - 1):match('([%a%.]+)%s*$');
+            if word ~= 'def' and word ~= 'dmg' and word ~= 'delay' then
+                local head = text:sub(1, p - 1):match('^(.-)[%a%.%s]*$') or '';
+                text = head;
+                break;
+            end
+            from = p + 1;
+        end
+    end
 
     local function add(k, v) stats[k] = (stats[k] or 0) + v; end
 
@@ -1740,6 +1756,10 @@ local function equip_set(name)
             end
             if actions.wdw then table.insert(out, ind .. '</else>'); end
         end
+        -- Level 30 and below (natural or level sync): your leveling gear on top of this set too
+        if actions.wlevel and name ~= 'Leveling' then
+            table.insert(out, string.format('%s<if p_joblevel="<31" advanced="$Leveling=on"><equip set="Leveling" /></if>', ind));
+        end
     end;
 end
 
@@ -1940,6 +1960,7 @@ local function build_full_xml(job_id)
     actions.wsplit = {};
     actions.wpair = nil;
     actions.wdw = have.DW and true or nil;                -- /dw locks the weapons: set weapons only while it's off
+    actions.wlevel = have.Leveling and true or nil;       -- level 30 and below: the Leveling set on top of every set
     local mage = in_list(data.weapon_jobs, abbr);
     local pair = (s.weapon_mode == 1) and actions.dw_pair(abbr) or nil;
     if pair then
@@ -2709,6 +2730,18 @@ local function eq(name)
     return true
 end
 
+-- Level 30 and below (natural or level sync): your Leveling set goes on top of EVERY set (actions too)
+do
+    local eq_set = eq
+    eq = function(name)
+        local r = eq_set(name)
+        if r and name ~= 'Leveling' and LevelingOn and sets.Leveling and (player.main_job_level or 99) <= 30 then
+            eq_set('Leveling')
+        end
+        return r
+    end
+end
+
 local function obi(element)
     local o = obis[element]
     if o and (world.weather_element == element or world.day_element == element or buffactive[o.storm]) then
@@ -3283,6 +3316,19 @@ local function eq(name)
     end
     gFunc.EquipSet(set);
     return true;
+end
+
+-- Level 30 and below (natural or level sync): your Leveling set goes on top of EVERY set (actions too)
+do
+    local eq_set = eq;
+    eq = function(name)
+        local r = eq_set(name);
+        if r and name ~= 'Leveling' and LevelingOn and sets['Leveling'] then
+            local pl = gData.GetPlayer();
+            if (pl.MainJobSync or pl.MainJobLevel or 99) <= 30 then eq_set('Leveling'); end
+        end
+        return r;
+    end
 end
 
 local STORMS = { Fire = 'Firestorm', Ice = 'Hailstorm', Wind = 'Windstorm', Earth = 'Sandstorm', Thunder = 'Thunderstorm',
