@@ -707,6 +707,7 @@ return {
         ['Futhark Mitons +1'] = { swordplay = 4 },
         -- DRK AF hands: Weapon Bash +10 (CatsEyeXI item database, mod 392)
         ['Chaos Gauntlets']   = { wbash = 10 },
+        ['Gloom Breastplate'] = { souleater = 2 },   -- Souleater +2% (CatsEyeXI item database, mod 96)
         ['Chs. Gauntlets +1'] = { wbash = 10 },
         -- THF Steal (CatsEyeXI item database, mod 298; Rogue's Ring: only at HP 75% or less and TP under 100%)
         ["Rogue's Bonnet"] = { steal = 1 },
@@ -1095,6 +1096,8 @@ return {
         -- WAR Tomahawk: the throwing axe it needs goes in the ammo slot (kept even with "Swap ammo" off)
         Tomahawk    = { label = 'Tomahawk', weights = {}, fixed = { ammo = 'Thr. Tomahawk' }, keeps_ammo = true },
         -- DRK Weapon Bash: the AF gloves (Weapon Bash +10); plain Chaos Gauntlets if you lack the +1
+        -- DRK Souleater: while it's up and you're engaged, the pieces that enhance it (Gloom Breastplate, +2%) go on
+        Souleater   = { label = 'Souleater (buff active)', engaged_buff = 'Souleater', weights = { souleater = 10 } },
         WeaponBash  = { label = 'Weapon Bash', weights = {}, fixed = { hands = 'Chs. Gauntlets +1' },
                         fallback = { hands = 'Chaos Gauntlets' } },
         -- RUN abilities: the piece that enhances each (your best one is picked)
@@ -1255,7 +1258,7 @@ return {
         PLD = { 'TP', 'TP_Hybrid', 'WS', 'Enmity', 'Idle', 'PDT', 'MDT', 'Precast', 'Precast_Cure', 'Cure', 'SIR',
                 'Phalanx', 'PhalanxRcv', 'Enhancing', 'Divine', 'Sentinel', 'ShieldBash', 'Rampart', 'Cover',
                 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
-        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'WeaponBash', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
+        DRK = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'WeaponBash', 'Souleater', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement' },
         BST = { 'TP', 'TP_Acc', 'TP_Hybrid', 'TP_Pet', 'WS', 'Idle', 'Idle_Pet', 'PDT', 'MDT', 'Precast', 'SIR', 'Charm', 'Tame', 'Reward',
                 'CallBeast', 'SicReady', 'Ready', 'Ready_Magic', 'Berserk', 'Warcry', 'SP', 'Movement' },
         BRD = { 'Idle', 'Resting', 'Precast', 'Precast_Song', 'Precast_Cure', 'Songs_Buff', 'Songs_Debuff', 'Ballad', 'LullabyFinale', 'Cure', 'PDT', 'MDT', 'TP', 'WS', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },

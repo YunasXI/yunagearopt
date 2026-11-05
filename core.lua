@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.62';   -- the release workflow sets this to the release number
+addon.version = '1.1.63';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -3996,7 +3996,7 @@ end
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
-    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
+    MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
     Swordplay = 'Abilities', Lunge = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
     TH = 'Abilities', Waltz = 'Abilities', Preshot = 'Abilities', Midshot = 'Abilities', QuickDraw = 'Abilities',
