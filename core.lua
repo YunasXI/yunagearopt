@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.64';   -- the release workflow sets this to the release number
+addon.version = '1.1.66';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -370,7 +370,9 @@ end
 
 local function job_level(job_id)
     local lv = player_call(function(p) return p:GetJobLevel(job_id); end, 99);
-    return type(lv) == 'number' and lv or 99;
+    lv = type(lv) == 'number' and lv or 99;
+    if actions.lvl_cap and lv > actions.lvl_cap then lv = actions.lvl_cap; end   -- (level sync sets: worked out at a lower level)
+    return lv;
 end
 
 local function main_job()
@@ -1062,13 +1064,7 @@ local function build_sets(job_id)
         table.insert(list, { id = 'DWPAIR', name = 'DWPAIR', label = '/NIN /DNC Weapons', kind = 'dwpair', dwpair = true,
                              base_weights = {}, caps = {}, weapons = true, fixed = {} });
     end
-    -- Leveling (the LEVELING button, not in the sidebar): your low-level gear, worn on top of everything while you
-    -- are level 30 or below (natural or level sync). Picks the level-30 pieces you own (Destrier Beret, Chocobo Shirt,
-    -- Eminence Mail / Doublet / Robe) by their Lv1-30 bonuses; anything else you add by hand.
-    table.insert(list, { id = 'Leveling', name = 'Leveling', label = 'Leveling (level 30 and below)', kind = 'leveling',
-                         leveling = true, caps = {}, weapons = true,
-                         base_weights = { reraise30 = 100, refresh30 = 20, regen30 = 10, move30 = 2, acc30 = 1, str30 = 1, dex30 = 1,
-                                          vit30 = 1, agi30 = 1, int30 = 1, mnd30 = 1, chr30 = 1 } });
+    -- (The Leveling set is gone: at level 30 and below every set counts the Lv1-30 bonuses itself - actions.fold30)
     -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
     for _, e in ipairs(list) do
         if actions.set_removed(abbr, e.id) then e.disabled = true; end
@@ -1307,6 +1303,7 @@ local function optimize(job_id, desc, pins, pool)
     local w, caps = weights_for(job_id, desc), desc.caps or {};
     local pure = pool ~= nil;                -- BiS mode: whole game, base stats, no picks/preferred/fixed
     local lvl, dw = pure and (data.bis_level or 75) or job_level(job_id), dw_active(job_id);
+    if not pure and lvl <= 30 then w = actions.fold30(w); end        -- (level 30 and below: Lv1-30 bonuses count)
     local slots = active_slots(desc, pure);
     pool = pool or owned;
     pins = pure and {} or (pins or {});
@@ -1337,7 +1334,7 @@ local function optimize(job_id, desc, pins, pool)
         local all, list = {}, {};
         for idx, item in ipairs(pool) do
             -- Lockstyle: any piece you own that fits the slot, whatever its job or level
-            if bit.band(item.slots, def.mask) ~= 0 and (desc.lockstyle or can_wear(item, job_id, lvl, pure)) then
+            if bit.band(item.slots, def.mask) ~= 0 and (desc.lockstyle or can_wear(item, job_id, lvl, pure or actions.lvl_cap ~= nil)) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
                 table.insert(all, c);
                 if c.score > 0 and not is_excluded(item.name) and not set_excluded(job_id, desc, item.name)
@@ -1584,6 +1581,142 @@ function actions.base_set(desc)
     return id == 'Resting' or id == 'PDT' or id == 'MDT' or id == 'Evasion' or id == 'Refresh';
 end
 
+-- LEVEL SYNC GEAR: for each exported set, your best gear at every lower level where your gear changes, so the file
+-- switches by itself when you level sync, level up or prestige. Only the slots that differ are kept; weapons stay.
+-- need = the highest level any piece in the set needs (below it the set can't be worn whole).
+function actions.lv_need(assign)
+    local n = 0;
+    for k, c in pairs(assign or {}) do
+        if k ~= 'main' and k ~= 'sub' and c and c.item then n = math.max(n, tonumber(c.item.level) or 0); end
+    end
+    return n;
+end
+-- The levels your gear for this job unlocks at (highest first): the only levels where a set can change
+function actions.lv_breaks(job_id)
+    local key = tostring(job_id) .. '|' .. tostring(ui.last_scan) .. '|' .. tostring(#owned);
+    if actions.LVB_KEY == key then return actions.LVB; end
+    local seen, list = {}, {};
+    for _, it in ipairs(owned) do
+        local lv = tonumber(it.level) or 0;
+        if lv >= 1 and not seen[lv] and it.slots and it.slots ~= 0 and can_wear(it, job_id, 999, true) then
+            seen[lv] = true;
+            table.insert(list, lv);
+        end
+    end
+    table.sort(list, function(a, b) return a > b; end);
+    actions.LVB_KEY, actions.LVB = key, list;
+    return list;
+end
+function actions.same_assign(a, b)
+    for k, c in pairs(a) do if b[k] == nil or name_key(b[k].item.name) ~= name_key(c.item.name) then return false; end end
+    for k in pairs(b) do if a[k] == nil then return false; end end
+    return true;
+end
+-- Your level picks (made in the LEVEL preview): saved as 'JOB|Set@52'. For level x each slot takes the pick made at the
+-- lowest level at or above x; base = the set's normal picks underneath.
+function actions.level_pins(abbr, id, x, base)
+    local out, at = {}, {};
+    for k, v in pairs(base or {}) do out[k] = v; end
+    local prefix = abbr .. '|' .. id .. '@';
+    for key, picks in pairs(ui.pins or {}) do
+        if type(key) == 'string' and type(picks) == 'table' and key:sub(1, #prefix) == prefix then
+            local L = tonumber(key:sub(#prefix + 1));
+            if L and L >= x then
+                for slot, v in pairs(picks) do
+                    if at[slot] == nil or L < at[slot] then at[slot], out[slot] = L, v; end
+                end
+            end
+        end
+    end
+    return out;
+end
+-- The levels you made picks at for this set (highest first)
+function actions.pick_levels(abbr, id)
+    local prefix, list = abbr .. '|' .. id .. '@', {};
+    for key, picks in pairs(ui.pins or {}) do
+        if type(key) == 'string' and type(picks) == 'table' and next(picks) ~= nil and key:sub(1, #prefix) == prefix then
+            local L = tonumber(key:sub(#prefix + 1));
+            if L then table.insert(list, L); end
+        end
+    end
+    table.sort(list, function(a, b) return a > b; end);
+    return list;
+end
+-- The level the window previews (LEVEL < > in the set header), or nil = your own level
+function actions.preview_level()
+    local pv = ui.preview_lv;
+    if pv == nil or ui.preview_job ~= ui.job then return nil; end
+    if pv >= job_level(ui.job) then return nil; end
+    return pv;
+end
+-- { need = n, list = { { need = n1, assign = slots that differ }, ... } } (need going down), or nil
+-- In game: below the set's need, the first entry whose need is at or below your level goes on (else the last one).
+function actions.level_variants(job_id, desc, pins, base)
+    if s.level_sets == false or desc.lockstyle or desc.id == 'Leveling' or desc.id == 'Lockstyle' or base == nil then return nil; end
+    local p2 = {};
+    for k, v in pairs(pins or {}) do p2[k] = v; end
+    p2.main, p2.sub = false, false;                                  -- (weapons: yours stay; a weapon swap would cost TP)
+    local abbr = JOBS[job_id];
+    local plv = actions.pick_levels(abbr, desc.id);                  -- levels you made picks at (they count at that level and below)
+    local function pick_below(b)
+        local r = (b > 30) and 30 or 0;                              -- (above 30 a set is never worn at 30 and below: Lv1-30 bonuses)
+        for _, L in ipairs(plv) do if L < b then return math.max(L, r); end end
+        return r;
+    end
+    local need = math.max(actions.lv_need(base), (plv[1] or 0) + 1, (job_level(job_id) > 30) and 31 or 0);
+    local list, curneed = {}, need;
+    local bc = covered_slots(base);
+    local bps, seen = {}, {};
+    for _, b in ipairs(actions.lv_breaks(job_id)) do if not seen[b] then seen[b] = true; table.insert(bps, b); end end
+    for _, L in ipairs(plv) do                                       -- (a pick level L and L + 1: above L your pick doesn't count)
+        for _, x in ipairs({ L, L + 1 }) do if not seen[x] then seen[x] = true; table.insert(bps, x); end end
+    end
+    for _, x in ipairs({ 30, 31 }) do if not seen[x] then seen[x] = true; table.insert(bps, x); end end
+    table.sort(bps, function(x, y) return x > y; end);
+    for _, b in ipairs(bps) do
+        if b < curneed then
+            local pb = actions.level_pins(abbr, desc.id, b, p2);
+            pb.main, pb.sub = false, false;
+            actions.lvl_cap = b;
+            local ok, a = pcall(optimize, job_id, desc, pb);
+            actions.lvl_cap = nil;
+            if not ok or type(a) ~= 'table' then break; end
+            curneed = math.max(actions.lv_need(a), pick_below(b) + 1);
+            local diff, vc = {}, covered_slots(a);
+            for _, def in ipairs(SLOTS) do
+                local k = def.key;
+                if k ~= 'main' and k ~= 'sub' and a[k] and not vc[k] then
+                    if bc[k] or base[k] == nil or name_key(base[k].item.name) ~= name_key(a[k].item.name) then diff[k] = a[k]; end
+                end
+            end
+            local last = list[#list];
+            if last and actions.same_assign(last.assign, diff) then last.need = curneed;
+            else table.insert(list, { need = curneed, assign = diff }); end
+            if curneed <= 1 then break; end
+        end
+    end
+    actions.lvl_cap = nil;
+    if #list == 0 then return nil; end
+    return { need = need, list = list };
+end
+-- Level 30 and below: a "Lv1-30" bonus (Eminence Robe Acc +50, Destrier Beret Refresh...) is worth what the normal
+-- stat is worth in this set
+actions.FOLD30 = { acc30 = { 'acc', 'racc', 'macc' }, str30 = { 'str' }, dex30 = { 'dex' }, vit30 = { 'vit' }, agi30 = { 'agi' },
+    int30 = { 'int' }, mnd30 = { 'mnd' }, chr30 = { 'chr' }, move30 = { 'move' }, refresh30 = { 'refresh' }, regen30 = { 'regen' },
+    reraise30 = { 'reraise' } };
+function actions.fold30(w)
+    local out = {};
+    for k, v in pairs(w) do out[k] = v; end
+    for k30, keys in pairs(actions.FOLD30) do
+        local sum = 0;
+        for _, k in ipairs(keys) do sum = sum + (tonumber(w[k]) or 0); end
+        if sum ~= 0 then out[k30] = (tonumber(out[k30]) or 0) + sum; end
+    end
+    return out;
+end
+-- The entry's set name in the exported file
+function actions.lv_name(name, e) return string.format('%s_Lv%d', name, e.need); end
+
 -- Curated BiS (bis.lua) for this job + set: exact set / weaponskill first, then by WS stats, then the default WS.
 curated_for = function(job_id, desc)
     local ref = BIS_REF[JOBS[job_id]];
@@ -1709,7 +1842,25 @@ local function recompute()
     if ui.desc == nil then ui.result, ui.full = {}, {}; ui.dirty = false; return; end
     ui.ctx = JOBS[ui.job] .. '|' .. ui.desc.id;
     ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
-    ui.result, ui.total, ui.full, ui.weights, ui.forced = optimize(ui.job, ui.desc, ui.pins[ui.ctx]);
+    local pv = actions.preview_level();
+    local d0 = ui.desc;
+    if pv and not (d0.lockstyle or d0.leveling or d0.dwpair or d0.info or d0.id == 'Leveling') then
+        -- LEVEL preview: the set at that level (weapons stay as they are); picks you make now are saved for this level
+        local base_ctx = ui.ctx;
+        ui.ctx = base_ctx .. '@' .. pv;
+        ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
+        local pb = actions.level_pins(JOBS[ui.job], d0.id, pv, ui.pins[base_ctx]);
+        pb.main, pb.sub = false, false;
+        actions.lvl_cap = pv;
+        local ok, a, b, c, d, e = pcall(optimize, ui.job, d0, pb);
+        actions.lvl_cap = nil;
+        if ok then ui.result, ui.total, ui.full, ui.weights, ui.forced = a, b, c, d, e;
+        else ui.result, ui.total, ui.full, ui.weights, ui.forced = {}, 0, {}, {}, {}; end
+        ui.previewing = pv;
+    else
+        ui.previewing = nil;
+        ui.result, ui.total, ui.full, ui.weights, ui.forced = optimize(ui.job, ui.desc, ui.pins[ui.ctx]);
+    end
     ui.bis = bis_for(ui.job, ui.desc);
     ui.dirty = false;
 end
@@ -1738,6 +1889,18 @@ end
 local function equip_set(name)
     return function(out, ind)
         table.insert(out, string.format('%s<equip set="%s" />', ind, xml_escape(name)));
+        -- Level sync (or still leveling): below the level this set needs, your best gear for your level on top
+        local lvs = actions.wlv and actions.wlv[name];
+        if lvs then
+            local br = {};
+            for i = #lvs.list, 1, -1 do
+                local below = (i == 1) and lvs.need or lvs.list[i - 1].need;
+                local nm = actions.lv_name(name, lvs.list[i]);
+                table.insert(br, { cond = string.format('p_joblevel="<%d"', below),
+                    body = function(o2, i2) table.insert(o2, string.format('%s<equip set="%s" />', i2, xml_escape(nm))); end });
+            end
+            emit_chain(out, ind, br, nil);
+        end
         -- The set's weapons only when the subjob isn't NIN/DNC (dual wield: the pair or your own weapons)
         if actions.wsplit and actions.wsplit[name] then
             -- /dw ON: the dual-wield weapons stay, whatever the set; otherwise the set's own weapons
@@ -1913,7 +2076,7 @@ local function build_full_xml(job_id)
         local pins = ui.pins[abbr .. '|' .. desc.id] or {};
         local assign = optimize(job_id, desc, pins);
         if next(assign) ~= nil then
-            table.insert(built, { desc = desc, assign = assign });
+            table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = desc;
         end
     end
@@ -1958,6 +2121,7 @@ local function build_full_xml(job_id)
     -- Weapons: a set's main/sub go in "<set>_Weapons", put on only when the subjob isn't NIN/DNC (equip_set);
     -- with /NIN or /DNC the job's dual-wield pair (DualWieldWeapons) goes on instead, if you picked one
     actions.wsplit = {};
+    actions.wlv = {};                                     -- level sync sets: set name -> { need, list }
     actions.wpair = nil;
     actions.wdw = have.DW and true or nil;                -- /dw locks the weapons: set weapons only while it's off
     actions.wlevel = have.Leveling and true or nil;       -- level 30 and below: the Leveling set on top of every set
@@ -1986,6 +2150,13 @@ local function build_full_xml(job_id)
             actions.wsplit[b.desc.name] = true;
         else
             set_xml_lines(out, '        ', b.desc.name, b.assign);
+        end
+        if b.lv then                                     -- level sync: your best gear below the level this set needs
+            for _, e in ipairs(b.lv.list) do
+                add(string.format('        <!-- %s: level %d to %d -->', xml_escape(b.desc.label), e.need, b.lv.need - 1));
+                set_xml_lines(out, '        ', actions.lv_name(b.desc.name, e), e.assign);
+            end
+            actions.wlv[b.desc.name] = b.lv;
         end
     end
     add('    </sets>');
@@ -2507,7 +2678,7 @@ local function build_gearswap(job_id)
     for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
-            table.insert(built, { desc = desc, assign = assign });
+            table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
         end
     end
@@ -2551,6 +2722,25 @@ local function build_gearswap(job_id)
         for _, p in ipairs(parts) do add(p); end
         add('    }');
     end
+    add('');
+    add('    -- LEVEL SYNC: below the level a set needs, your best gear for your level goes on top (slots that change only)');
+    add('    level_sets = {');
+    for _, b in ipairs(built) do
+        if b.lv then
+            add(string.format('        [%q] = { need = %d,', b.desc.name, b.lv.need));
+            for _, e in ipairs(b.lv.list) do
+                local parts, covered = {}, covered_slots(e.assign);
+                for _, def in ipairs(SLOTS) do
+                    local c = e.assign[def.key];
+                    if covered[def.key] then table.insert(parts, string.format('%s = empty', GS_SLOT[def.key]));
+                    elseif c then table.insert(parts, string.format('%s = %q', GS_SLOT[def.key], gs_name(c.item.name))); end
+                end
+                add(string.format('            { %d, { %s } },', e.need, table.concat(parts, ', ')));
+            end
+            add('        },');
+        end
+    end
+    add('    }');
     add('');
     add('    -- Weaponskill id -> set name (ids are the same in every client language)');
     add('    ws_map = {');
@@ -2728,6 +2918,22 @@ local function eq(name)
     end
     equip(set)
     return true
+end
+
+-- LEVEL SYNC: below the level a set needs (level sync, leveling, prestige), your best gear for your level goes on top
+do
+    local eq_full = eq
+    eq = function(name)
+        local r = eq_full(name)
+        local v = r and level_sets and level_sets[name]
+        local lv = player.main_job_level or 99
+        if v and lv > 0 and lv < v.need and #v > 0 then
+            local pick = v[#v]
+            for _, e in ipairs(v) do if lv >= e[1] then pick = e break end end
+            equip(keep_filter(pick[2]))
+        end
+        return r
+    end
 end
 
 -- Level 30 and below (natural or level sync): your Leveling set goes on top of EVERY set (actions too)
@@ -3093,7 +3299,7 @@ local function build_lac(job_id)
     for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
-            table.insert(built, { desc = desc, assign = assign });
+            table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
         end
     end
@@ -3131,6 +3337,25 @@ local function build_lac(job_id)
     end
     add('};');
     add('profile.Sets = sets;');
+    add('');
+    add('-- LEVEL SYNC: below the level a set needs, your best gear for your level goes on top (slots that change only)');
+    add('local level_sets = {');
+    for _, b in ipairs(built) do
+        if b.lv then
+            add(string.format('    [%q] = { need = %d,', b.desc.name, b.lv.need));
+            for _, e in ipairs(b.lv.list) do
+                local parts, covered = {}, covered_slots(e.assign);
+                for _, def in ipairs(SLOTS) do
+                    local c = e.assign[def.key];
+                    if covered[def.key] then table.insert(parts, string.format("%s = 'displaced'", LAC_SLOT[def.key]));
+                    elseif c then table.insert(parts, string.format('%s = %q', LAC_SLOT[def.key], c.item.name)); end
+                end
+                add(string.format('        { %d, { %s } },', e.need, table.concat(parts, ', ')));
+            end
+            add('    },');
+        end
+    end
+    add('};');
     add('profile.Packer = {};');
     add('');
     add('-- Weaponskill id -> set name');
@@ -3316,6 +3541,25 @@ local function eq(name)
     end
     gFunc.EquipSet(set);
     return true;
+end
+
+-- LEVEL SYNC: below the level a set needs (level sync, leveling, prestige), your best gear for your level goes on top
+do
+    local eq_full = eq;
+    eq = function(name)
+        local r = eq_full(name);
+        local v = r and level_sets[name];
+        if v and #v > 0 then
+            local pl = gData.GetPlayer();
+            local lv = pl.MainJobSync or pl.MainJobLevel or 99;
+            if lv > 0 and lv < v.need then
+                local pick = v[#v];
+                for _, e in ipairs(v) do if lv >= e[1] then pick = e; break; end end
+                gFunc.EquipSet(keep_filter(pick[2]));
+            end
+        end
+        return r;
+    end
 end
 
 -- Level 30 and below (natural or level sync): your Leveling set goes on top of EVERY set (actions too)
@@ -4214,6 +4458,48 @@ function actions.chevron_button(id)
     return clicked;
 end
 
+-- A stepper:  <  value  >  in one slim box. o = { w = value width, h = height, can_dn, can_up, accent = colour of the value }.
+-- Returns -1 / 0 / 1 (the end clicked) and whether the mouse is over it.
+function actions.stepper(id, txt, o)
+    local h, vw = o.h or 24, o.w or 40;
+    local x, y = imgui.GetCursorScreenPos();
+    local w = h + vw + h;
+    local dl = imgui.GetWindowDrawList();
+    local r = math.floor(h * 0.30);
+    local res, over = 0, false;
+    imgui.InvisibleButton(id .. '_dn', { h, h });
+    local hd = imgui.IsItemHovered() and o.can_dn ~= false;
+    if imgui.IsItemClicked(0) and o.can_dn ~= false then res = -1; end
+    over = over or imgui.IsItemHovered();
+    imgui.SameLine(0, 0);
+    imgui.InvisibleButton(id .. '_v', { vw, h });
+    over = over or imgui.IsItemHovered();
+    imgui.SameLine(0, 0);
+    imgui.InvisibleButton(id .. '_up', { h, h });
+    local hu = imgui.IsItemHovered() and o.can_up ~= false;
+    if imgui.IsItemClicked(0) and o.can_up ~= false then res = 1; end
+    over = over or imgui.IsItemHovered();
+    -- the box: dark glass, a hairline edge (accent while hovered)
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.035 }), r);
+    if hd then dl:AddRectFilled({ x, y }, { x + h, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.20 }), r); end
+    if hu then dl:AddRectFilled({ x + w - h, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], 0.20 }), r); end
+    dl:AddRect({ x, y }, { x + w, y + h }, u32(over and { C.gold[1], C.gold[2], C.gold[3], 0.55 } or { 1, 1, 1, 0.10 }), r);
+    -- the chevrons: thin lines, gold, white when hovered, faint at the end of the range
+    local cy, a = y + h / 2, math.max(3, h * 0.16);
+    local function chev(cx, dir, hov, ok)
+        local col = u32(not ok and { C.muted[1], C.muted[2], C.muted[3], 0.30 } or (hov and { 1, 1, 1, 1 } or C.gold_dim));
+        dl:AddLine({ cx + dir * a * 0.6, cy - a }, { cx - dir * a * 0.6, cy }, col, 1.6);
+        dl:AddLine({ cx - dir * a * 0.6, cy }, { cx + dir * a * 0.6, cy + a }, col, 1.6);
+    end
+    chev(x + h / 2, 1, hd, o.can_dn ~= false);
+    chev(x + w - h / 2, -1, hu, o.can_up ~= false);
+    -- the value, centred
+    local tw = text_w(txt);
+    dl:AddText({ x + h + (vw - tw) / 2, y + (h - imgui.GetTextLineHeight()) / 2 }, u32(o.accent or C.text), txt);
+    return res, over;
+end
+function actions.stepper_w(vw, h) return h + vw + h; end
+
 -- A sidebar section name that folds: the whole row is the button (click = fold / open this section, right-click =
 -- fold / open every section). The arrow at the right edge points down while open, right while folded.
 function actions.fold_header(key, text, col, icon)
@@ -5044,6 +5330,10 @@ local function draw_set_header()
     imgui.TextColored(C.muted, (d.lockstyle and 'Your look' or (d.leveling and 'Worn at level 30 and below') or cat) .. '   |   exported as ');
     imgui.SameLine(0, 2);
     imgui.TextColored(C.gold_dim, d.name);
+    if ui.previewing then
+        imgui.TextColored(C.aug, string.format('LEVEL %d PREVIEW  -  what you wear at level %d (weapons stay). Picks you make now count at level %d and below.',
+            ui.previewing, ui.previewing, ui.previewing));
+    end
     if d.kind == 'ws' and d.ws then
         local mods = {};
         for k, v in pairs(d.ws.mods or {}) do table.insert(mods, string.format('%s %d%%', k:upper(), math.floor(v * 100 + 0.5))); end
@@ -5054,6 +5344,11 @@ local function draw_set_header()
     for k, v in pairs(d.caps or {}) do table.insert(caps, string.format('%s %d', label_of(k), v)); end
     if #caps > 0 then table.sort(caps); imgui.TextColored(C.muted, 'Caps   ' .. table.concat(caps, '   ')); end
     imgui.EndGroup();
+
+    if not (d.lockstyle or d.dwpair or d.leveling or d.info) then
+        imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12 - actions.level_ctrl_w() - 18);
+        actions.draw_level_ctrl();
+    end
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
     if d.lockstyle or d.dwpair or d.leveling then
@@ -5323,7 +5618,7 @@ local function draw_unused(def)
     imgui.TextColored({ C.muted[1], C.muted[2], C.muted[3], 0.6 }, 'not swapped');
     imgui.EndGroup();
     -- Weapon slots: pick a weapon for this set with the arrow (outside the group, like the normal cards)
-    if (def.weapon or def.ranged) and not ui.show_bis and ui.desc and not ui.desc.info then
+    if (def.weapon or def.ranged) and not ui.show_bis and ui.desc and not ui.desc.info and not (ui.previewing and def.weapon) then
         imgui.SameLine(imgui.GetWindowWidth() - 34);
         if actions.chevron_button('##arrow_' .. def.key) then imgui.OpenPopup('pick_' .. def.key); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Choose a weapon for this set\n(Auto = not swapped)'); end
@@ -5522,7 +5817,8 @@ local function draw_content()
                 if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
                     for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();
-                        if active[key] then draw_card(active[key], max_score); else draw_unused(by_key[key]); end
+                        if active[key] and not (ui.previewing and (key == 'main' or key == 'sub')) then draw_card(active[key], max_score);
+                        else draw_unused(by_key[key]); end
                     end
                     if ui.desc.obi then                         -- BLU magical: the weather obi, under the waist card
                         imgui.TableNextColumn();
@@ -5873,7 +6169,7 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
-    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.sc(30) * 2 - text_w('150%') - 52);
+    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.stepper_w(text_w('300%') + actions.sc(14), actions.sc(26)) - 34);
     actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
@@ -6435,16 +6731,9 @@ function actions.draw_macro_ctrl(px, cy)
         imgui.SameLine(0, 12);
         label(name, { 0.86, 0.84, 0.94, 1 });
         imgui.SameLine(0, 6);
-        if imgui.Button('<##' .. id, { BW, fh }) then v = math.max(0, v - 1); end
-        imgui.SameLine(0, 4);
-        imgui.Dummy({ NW, fh });                            -- the number, centred in its own box
-        local x0, y0 = imgui.GetItemRectMin();
-        local txt = v > 0 and tostring(v) or '-';
-        local c = v > 0 and { 1, 1, 1, 1 } or { 0.80, 0.78, 0.88, 1 };
-        imgui.GetWindowDrawList():AddText({ x0 + (NW - text_w(txt)) / 2, y0 + (fh - imgui.GetTextLineHeight()) / 2 },
-            u32(c), txt);
-        imgui.SameLine(0, 4);
-        if imgui.Button('>##' .. id, { BW, fh }) then v = math.min(hi, v + 1); end
+        local d = actions.stepper('##' .. id, v > 0 and tostring(v) or '-', { w = NW, h = fh, can_dn = v > 0, can_up = v < hi,
+            accent = v > 0 and { 1, 1, 1, 1 } or { 0.80, 0.78, 0.88, 1 } });
+        if d ~= 0 then v = math.max(0, math.min(hi, v + d)); end
         return v;
     end
     local nb = stepper('Book', book, 40, 'ygo_mbook');
@@ -6671,17 +6960,42 @@ function actions.draw_scale_control()
     imgui.AlignTextToFramePadding();
     imgui.TextColored(C.muted, 'Window scale');
     imgui.SameLine(0, 10);
-    local bh = actions.sc(30);
-    if imgui.Button('<##ygo_scale_dn', { bh, bh }) then actions.scale_step(-1); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Smaller\n(also: Ctrl + mouse wheel, or /ygo scale 120)'); end
-    imgui.SameLine(0, 6);
-    imgui.TextColored(C.text, string.format('%d%%', math.floor(v * 100 + 0.5)));
-    imgui.SameLine(0, 6);
-    if imgui.Button('>##ygo_scale_up', { bh, bh }) then actions.scale_step(1); end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip(string.format('Bigger - up to %d%% on your screen\n(also: Ctrl + mouse wheel, or /ygo scale 200)',
-            math.floor(actions.max_scale() * 100 + 0.5)));
+    local top = actions.max_scale();
+    local d, over = actions.stepper('##ygo_scale', string.format('%d%%', math.floor(v * 100 + 0.5)),
+        { w = text_w('300%') + actions.sc(14), h = actions.sc(26), can_dn = v > 0.81, can_up = v < top - 0.001 });
+    if d ~= 0 then actions.scale_step(d); end
+    if over then
+        imgui.SetTooltip(string.format('Smaller / bigger - up to %d%% on your screen\n(also: Ctrl + mouse wheel, or /ygo scale 200)',
+            math.floor(top * 100 + 0.5)));
     end
+end
+-- LEVEL  < 75 >  (set header): preview the set at a lower level; your own level = off. Shift + click: 10 levels.
+function actions.level_ctrl_w()
+    return text_w('LEVEL') + 8 + actions.stepper_w(text_w('75') + actions.sc(16), actions.sc(26));
+end
+function actions.draw_level_ctrl()
+    local full = job_level(ui.job);
+    local cur = actions.preview_level() or full;
+    local function set(v)
+        if v >= full then ui.preview_lv = nil; else ui.preview_lv, ui.preview_job = math.max(1, v), ui.job; end
+        ui.dirty = true;
+    end
+    local step = 1;
+    pcall(function() if imgui.GetIO().KeyShift then step = 10; end end);
+    local tip = 'Preview this set at a lower level: what the level sync gear in your\n'
+        .. 'export puts on when you are synced (or leveling) to that level.\n'
+        .. 'Picks you make while previewing count at that level and below.\n'
+        .. 'Shift + click: 10 levels.   Back to your level (' .. full .. ') = normal view.';
+    imgui.BeginGroup();
+    imgui.AlignTextToFramePadding();
+    imgui.TextColored(actions.preview_level() and C.aug or C.muted, 'LEVEL');
+    if imgui.IsItemHovered() then imgui.SetTooltip(tip); end
+    imgui.SameLine(0, 8);
+    local d, over = actions.stepper('##ygo_lv', tostring(cur), { w = text_w('75') + actions.sc(16), h = actions.sc(26),
+        can_dn = cur > 1, can_up = cur < full, accent = actions.preview_level() and C.aug or C.text });
+    if d ~= 0 then set(cur + d * step); end
+    if over then imgui.SetTooltip(tip); end
+    imgui.EndGroup();
 end
 -- Ctrl + mouse wheel over the window: bigger / smaller
 function actions.scale_wheel()
@@ -7052,6 +7366,17 @@ ashita.events.register('command', 'ygo_command', function(e)
         actions.cancel_shadows();
     elseif sub == 'latecure' then
         actions.late_cure_start(args[3], args[4]);
+    elseif sub == 'preview' then                                     -- /ygo preview 52 | off (LEVEL preview in the window)
+        local n = tonumber(args[3] or '');
+        if n then ui.preview_lv, ui.preview_job = math.floor(n), ui.job; else ui.preview_lv = nil; end
+        ui.dirty = true;
+        msg(actions.preview_level() and ('Previewing your sets at level ' .. actions.preview_level() .. ' (/ygo preview off to go back).')
+            or 'Level preview off: your sets at your own level.');
+    elseif sub == 'levelsync' then                                   -- /ygo levelsync on | off (level sync gear in exports)
+        if args[3] == 'off' then s.level_sets = false; elseif args[3] == 'on' then s.level_sets = true; end
+        pcall(settings.save);
+        msg('Level sync gear in your exports: ' .. ((s.level_sets == false) and 'OFF' or 'ON')
+            .. ' (your best gear for every lower level, picked by your level in game). Re-export to apply. /ygo levelsync on | off');
     elseif sub == 'scale' then                                       -- /ygo scale 200 | + | -  (Window scale)
         local a = args[3];
         if a == '+' or a == 'up' or a == 'bigger' then actions.scale_step(1);

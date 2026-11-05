@@ -50,6 +50,8 @@ Every export first opens a **Before you export** window. It lists exactly which 
 - **LuAshitacast** (Ashita): saved to `lac/CharacterName_JOB.lua` and straight into `Ashita\config\addons\luashitacast\CharacterName_ID\JOB.lua` (an existing profile is backed up first as `JOB_backup_<date>.lua`). Load with `/lac load`. Toggles: `/lac fwd pdt`, `mdt`, `hybrid`, `mb`, `th`.
 - **GearSwap** (Windower): saved to `gearswap/CharacterName_JOB.lua`. Copy it to `Windower\addons\GearSwap\data\`.
 
+**Level sync gear:** every export also works out, for each set, your best gear at every lower level where your gear changes (only the slots that change; your weapons stay). In game the file picks it by your current level, so level sync, leveling up again or prestige need no new export, only new gear does. Turn it off or on with `/ygo levelsync off` / `/ygo levelsync on` (then export again). To see or change it, use **LEVEL < 75 >** in the set header (or `/ygo preview 52`): the cards show what that set wears at that level, and a piece you pick while previewing is used at that level and below (your normal set stays as it is). Shift + click moves 10 levels; back at your own level the normal view returns.
+
 ## Score and Best in Slot
 
 Every set shows a score and how close it is to **Best in Slot** — the best gear for that job and set among the reference items (up to level 75, `bis_level` in `data.lua`). It is the same for everyone: your own pieces and their augments are not used for it, so your own set can even score above it:
