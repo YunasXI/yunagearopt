@@ -220,7 +220,7 @@ local defaults = T{ ignore_level = false, dw_mode = 1, weapons = true, compact =
                     set_removed = T{}, set_added = T{},   -- sets you took out of / put into a job: JOB -> { set id, ... }
                     weapon_mode = 1,     -- 1 = weapons swap, but the dual-wield pair (or nothing) with /NIN or /DNC
                     cure_lead = 1.5,     -- PLD late Cure (XML): Cure set on this many seconds before the cast lands
-                    ui_scale = 1.0,      -- Window scale (bottom bar): 0.8 - 1.5
+                    ui_scale = 1.0,      -- Window scale (bottom bar, /ygo scale, Ctrl + wheel): 0.8 - 3.0, as fits the screen
                     mini_logo = false,   -- minimised to the floating logo
                     macros = T{},        -- macro book / page per job: JOB -> { book, page }
                     ammo_swap = T{},     -- "Swap ammo" per job: JOB -> true / false (unset = the job's default)
@@ -5910,6 +5910,7 @@ local function draw_full()
     imgui.SetNextWindowSizeConstraints({ actions.sc(1120), actions.sc(600) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
         pcall(actions.res_note, 'main', true);
+        pcall(actions.scale_wheel);                                  -- (Ctrl + mouse wheel: Window scale)
         pcall(actions.fx_frame);                                     -- the Look's frame (YunaUI looks: a glowing edge)
         draw_header();
         imgui.Spacing();
@@ -6458,11 +6459,39 @@ function actions.draw_macro_ctrl(px, cy)
 end
 
 -- Window scale: the steps, the current factor, and a size scaled by it
-actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 };
-function actions.user_scale()                                        -- (the bottom bar's Window scale: the player's own, 80 - 150 %)
+actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.25, 2.5, 2.75, 3.0 };
+-- The biggest Window scale whose window (at least 1120 x 600 at 100%) still fits on the screen
+actions.FIT = { t = -9, v = 1.5 };
+function actions.max_scale()
+    local F = actions.FIT;
+    if os.clock() - F.t < 1 then return F.v; end
+    F.t = os.clock();
+    local w, h = 0, 0;
+    pcall(function() local io = imgui.GetIO(); w, h = tonumber(io.DisplaySize.x) or 0, tonumber(io.DisplaySize.y) or 0; end);
+    if w < 320 or h < 240 then return F.v; end
+    local k = actions.res_k();
+    local v = math.min((w * 0.98) / (1120 * k), (h * 0.95) / (600 * k));
+    F.v = math.max(1.0, math.min(3.0, v));
+    return F.v;
+end
+function actions.user_scale()                                        -- (the player's own Window scale: 80 - 300 %, never past the screen)
     local v = tonumber(s.ui_scale) or 1.0;
-    if v < 0.8 then v = 0.8; elseif v > 1.5 then v = 1.5; end
+    local top = actions.max_scale();
+    if v < 0.8 then v = 0.8; elseif v > top then v = top; end
     return v;
+end
+-- One step bigger (dir = 1) or smaller (dir = -1); returns false at the end
+function actions.scale_step(dir)
+    local v = actions.user_scale();
+    local idx = nil;
+    for i, sc in ipairs(actions.SCALES) do if sc <= v + 0.001 then idx = i; end end
+    idx = idx or 1;
+    if dir < 0 and math.abs(actions.SCALES[idx] - v) < 0.001 then idx = idx - 1; elseif dir > 0 then idx = idx + 1; end
+    local nv = actions.SCALES[idx];
+    if nv == nil or (dir > 0 and nv > actions.max_scale() + 0.001) then return false; end
+    s.ui_scale = nv;
+    pcall(settings.save);
+    return true;
 end
 -- Follow the resolution: VanaCore's interface size (vana.ui.screen) against the one first seen - at 1440p after
 -- 1080p everything is 1.33x, so the window looks the same on screen. The first time only notes the size: a look
@@ -6639,19 +6668,29 @@ end
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
     local v = actions.user_scale();                                  -- (the player's own; Follow the resolution comes on top)
-    local idx = 3;
-    for i, sc in ipairs(actions.SCALES) do if math.abs(sc - v) < 0.01 then idx = i; end end
     imgui.AlignTextToFramePadding();
     imgui.TextColored(C.muted, 'Window scale');
     imgui.SameLine(0, 10);
     local bh = actions.sc(30);
-    if imgui.Button('<##ygo_scale_dn', { bh, bh }) and idx > 1 then s.ui_scale = actions.SCALES[idx - 1]; settings.save(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Smaller'); end
+    if imgui.Button('<##ygo_scale_dn', { bh, bh }) then actions.scale_step(-1); end
+    if imgui.IsItemHovered() then imgui.SetTooltip('Smaller\n(also: Ctrl + mouse wheel, or /ygo scale 120)'); end
     imgui.SameLine(0, 6);
     imgui.TextColored(C.text, string.format('%d%%', math.floor(v * 100 + 0.5)));
     imgui.SameLine(0, 6);
-    if imgui.Button('>##ygo_scale_up', { bh, bh }) and idx < #actions.SCALES then s.ui_scale = actions.SCALES[idx + 1]; settings.save(); end
-    if imgui.IsItemHovered() then imgui.SetTooltip('Bigger'); end
+    if imgui.Button('>##ygo_scale_up', { bh, bh }) then actions.scale_step(1); end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip(string.format('Bigger - up to %d%% on your screen\n(also: Ctrl + mouse wheel, or /ygo scale 200)',
+            math.floor(actions.max_scale() * 100 + 0.5)));
+    end
+end
+-- Ctrl + mouse wheel over the window: bigger / smaller
+function actions.scale_wheel()
+    local io = imgui.GetIO();
+    if not io.KeyCtrl then return; end
+    local wheel = tonumber(io.MouseWheel) or 0;
+    if wheel == 0 then return; end
+    if not imgui.IsWindowHovered(3) then return; end                 -- (3 = this window or any part inside it)
+    actions.scale_step(wheel > 0 and 1 or -1);
 end
 
 -- Push the font for the whole window: newer ImGui (fonts with LegacySize) wants a size, older ones don't
@@ -7013,6 +7052,17 @@ ashita.events.register('command', 'ygo_command', function(e)
         actions.cancel_shadows();
     elseif sub == 'latecure' then
         actions.late_cure_start(args[3], args[4]);
+    elseif sub == 'scale' then                                       -- /ygo scale 200 | + | -  (Window scale)
+        local a = args[3];
+        if a == '+' or a == 'up' or a == 'bigger' then actions.scale_step(1);
+        elseif a == '-' or a == 'down' or a == 'smaller' then actions.scale_step(-1);
+        elseif tonumber((a or ''):gsub('%%', ''), 10) then
+            local n = tonumber((a:gsub('%%', ''))) / 100;
+            s.ui_scale = math.max(0.8, math.min(3.0, n));
+            pcall(settings.save);
+        end
+        msg(string.format('Window scale: %d%% (the biggest that fits your screen: %d%%). Change it with /ygo scale 150, or Ctrl + mouse wheel over the window.',
+            math.floor(actions.user_scale() * 100 + 0.5), math.floor(actions.max_scale() * 100 + 0.5)));
     elseif sub == 'curelead' then
         local n = tonumber(args[3]);
         if n and n >= 0 and n <= 5 then
