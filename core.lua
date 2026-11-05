@@ -5906,8 +5906,10 @@ end
 
 local function draw_full()
     imgui.SetNextWindowSize({ 1180, 860 }, ImGuiCond_FirstUseEver);
+    pcall(actions.res_place, 'main');                                -- (Follow the resolution: the window's place and size)
     imgui.SetNextWindowSizeConstraints({ actions.sc(1120), actions.sc(600) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
+        pcall(actions.res_note, 'main', true);
         pcall(actions.fx_frame);                                     -- the Look's frame (YunaUI looks: a glowing edge)
         draw_header();
         imgui.Spacing();
@@ -5924,8 +5926,10 @@ end
 ----------------------------------------------------------------------------------------------------
 local function draw_lazy()
     imgui.SetNextWindowSize({ 360, 0 }, ImGuiCond_Always);
+    pcall(actions.res_place, 'lazy');
     if imgui.Begin('YunaGearOpt##lazy', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse,
             ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoScrollbar)) then
+        pcall(actions.res_note, 'lazy', false);
         title_text('YUNA', 1.15, C.text);
         imgui.SameLine(0, 4);
         title_text('GEAROPT', 1.15, C.gold);
@@ -6455,10 +6459,72 @@ end
 
 -- Window scale: the steps, the current factor, and a size scaled by it
 actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 };
-function actions.scale()
+function actions.user_scale()                                        -- (the bottom bar's Window scale: the player's own, 80 - 150 %)
     local v = tonumber(s.ui_scale) or 1.0;
     if v < 0.8 then v = 0.8; elseif v > 1.5 then v = 1.5; end
     return v;
+end
+-- Follow the resolution: VanaCore's interface size (vana.ui.screen) against the one first seen - at 1440p after
+-- 1080p everything is 1.33x, so the window looks the same on screen. The first time only notes the size: a look
+-- already set stays as it is. Window scale stays the player's own, on top. (s.res_follow = false: off)
+actions.RES = { t = -9, k = 1, w = 0, h = 0 };
+function actions.res_k()
+    local R = actions.RES;
+    if os.clock() - R.t < 0.5 then return R.k; end
+    R.t = os.clock();
+    local w, h = 0, 0;
+    pcall(function() local a, b = vana.ui.screen(); w, h = tonumber(a) or 0, tonumber(b) or 0; end);
+    if w < 320 or h < 240 then return R.k; end
+    R.w, R.h = w, h;
+    if (tonumber(s.res_h) or 0) < 240 then s.res_w, s.res_h = math.floor(w), math.floor(h); pcall(settings.save); end
+    if s.res_follow == false then R.k = 1; return 1; end
+    R.k = math.max(0.5, math.min(3, h / s.res_h));
+    return R.k;
+end
+function actions.scale() return actions.user_scale() * actions.res_k(); end
+function actions.res_place(name)                                     -- (before a window's Begin: when the resolution changed, its place moves
+    local R = actions.RES;                                           --  in proportion and its size by the same amount - once)
+    R.win = R.win or {};
+    local W = R.win[name];
+    if not W then                                                    -- (the first frame: where it was last time, and at which resolution - saved)
+        local px = 'rw_' .. name .. '_';
+        if tonumber(s[px .. 'sh']) then
+            W = { x = tonumber(s[px .. 'x']) or 0, y = tonumber(s[px .. 'y']) or 0, w = tonumber(s[px .. 'w']), h = tonumber(s[px .. 'h']),
+                  sw = tonumber(s[px .. 'sw']), sh = tonumber(s[px .. 'sh']) };
+            R.win[name] = W;
+        end
+    end
+    if not W or not W.sw or R.w < 320 then return; end
+    if math.abs(W.sw - R.w) <= 2 and math.abs(W.sh - R.h) <= 2 then return; end
+    if s.res_follow == false then return; end
+    local kx, ky = R.w / W.sw, R.h / W.sh;
+    imgui.SetNextWindowPos({ math.floor(W.x * kx), math.floor(W.y * ky) }, ImGuiCond_Always);
+    if W.w and W.h then imgui.SetNextWindowSize({ math.floor(W.w * ky), math.floor(W.h * ky) }, ImGuiCond_Always); end
+    W.sw, W.sh = R.w, R.h;
+end
+function actions.res_note(name, sized)                               -- (inside the window: where it is now, at this resolution)
+    local R = actions.RES;
+    if R.w < 320 then return; end
+    R.win = R.win or {};
+    local W = R.win[name] or {};
+    R.win[name] = W;
+    local x, y = imgui.GetWindowPos();
+    if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
+    local w, h = imgui.GetWindowSize();
+    if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
+    W.x, W.y = tonumber(x) or 0, tonumber(y) or 0;
+    if sized then W.w, W.h = tonumber(w), tonumber(h); end
+    if not W.sw then W.sw, W.sh = R.w, R.h; end
+    local px = 'rw_' .. name .. '_';                                 -- (kept in the settings, once it settles: next time, at another resolution, it follows)
+    local sig = string.format('%d,%d,%s,%s,%d,%d', W.x, W.y, tostring(W.w and math.floor(W.w)), tostring(W.h and math.floor(W.h)), W.sw, W.sh);
+    if W.sig ~= sig then W.sig, W.sigt = sig, os.clock(); elseif not W.saved_sig or W.saved_sig ~= sig then
+        if os.clock() - (W.sigt or 0) > 2 and not imgui.IsMouseDown(0) then
+            s[px .. 'x'], s[px .. 'y'], s[px .. 'sw'], s[px .. 'sh'] = math.floor(W.x), math.floor(W.y), W.sw, W.sh;
+            if W.w and W.h then s[px .. 'w'], s[px .. 'h'] = math.floor(W.w), math.floor(W.h); end
+            W.saved_sig = sig;
+            pcall(settings.save);
+        end
+    end
 end
 function actions.sc(n) return math.floor(n * actions.scale() + 0.5); end
 
@@ -6572,7 +6638,7 @@ function actions.fx_frame()
 end
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
-    local v = actions.scale();
+    local v = actions.user_scale();                                  -- (the player's own; Follow the resolution comes on top)
     local idx = 3;
     for i, sc in ipairs(actions.SCALES) do if math.abs(sc - v) < 0.01 then idx = i; end end
     imgui.AlignTextToFramePadding();
