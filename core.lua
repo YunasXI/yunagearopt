@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.66';   -- the release workflow sets this to the release number
+addon.version = '1.1.67';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -371,6 +371,7 @@ end
 local function job_level(job_id)
     local lv = player_call(function(p) return p:GetJobLevel(job_id); end, 99);
     lv = type(lv) == 'number' and lv or 99;
+    if actions.lvl_force then lv = actions.lvl_force; end           -- (exports with level sync gear: worked out at level 75)
     if actions.lvl_cap and lv > actions.lvl_cap then lv = actions.lvl_cap; end   -- (level sync sets: worked out at a lower level)
     return lv;
 end
@@ -1591,6 +1592,26 @@ function actions.lv_need(assign)
     end
     return n;
 end
+-- The top level (75) and an export's full set: worked out at 75 when level sync gear is on, so the file keeps working
+-- while you level up (your level now only picks which level version goes on)
+function actions.max_level() return tonumber(data and data.bis_level) or 75; end
+function actions.opt_full(job_id, desc, pins)
+    if s.level_sets == false or desc.lockstyle then return optimize(job_id, desc, pins); end
+    if job_level(job_id) >= actions.max_level() then return optimize(job_id, desc, pins); end
+    -- the weapons stay the ones for your level now (level versions never swap weapons); the armor is the level 75 set
+    local now = optimize(job_id, desc, pins);
+    local p2 = {};
+    for k, v in pairs(pins or {}) do p2[k] = v; end
+    for _, k in ipairs({ 'main', 'sub' }) do
+        local c = now[k];
+        if c then p2[k] = { name = c.item.name, where = c.item.where }; elseif p2[k] == nil then p2[k] = false; end
+    end
+    actions.lvl_force = actions.max_level();
+    local ok, a, b, c, d, e = pcall(optimize, job_id, desc, p2);
+    actions.lvl_force = nil;
+    if not ok then error(a); end
+    return a, b, c, d, e;
+end
 -- The levels your gear for this job unlocks at (highest first): the only levels where a set can change
 function actions.lv_breaks(job_id)
     local key = tostring(job_id) .. '|' .. tostring(ui.last_scan) .. '|' .. tostring(#owned);
@@ -1646,7 +1667,7 @@ end
 function actions.preview_level()
     local pv = ui.preview_lv;
     if pv == nil or ui.preview_job ~= ui.job then return nil; end
-    if pv >= job_level(ui.job) then return nil; end
+    if pv == job_level(ui.job) or pv > actions.max_level() then return nil; end
     return pv;
 end
 -- { need = n, list = { { need = n1, assign = slots that differ }, ... } } (need going down), or nil
@@ -1663,7 +1684,7 @@ function actions.level_variants(job_id, desc, pins, base)
         for _, L in ipairs(plv) do if L < b then return math.max(L, r); end end
         return r;
     end
-    local need = math.max(actions.lv_need(base), (plv[1] or 0) + 1, (job_level(job_id) > 30) and 31 or 0);
+    local need = math.max(actions.lv_need(base), (plv[1] or 0) + 1, 31);
     local list, curneed = {}, need;
     local bc = covered_slots(base);
     local bps, seen = {}, {};
@@ -1677,9 +1698,9 @@ function actions.level_variants(job_id, desc, pins, base)
         if b < curneed then
             local pb = actions.level_pins(abbr, desc.id, b, p2);
             pb.main, pb.sub = false, false;
-            actions.lvl_cap = b;
+            actions.lvl_cap, actions.lvl_force = b, actions.max_level();
             local ok, a = pcall(optimize, job_id, desc, pb);
-            actions.lvl_cap = nil;
+            actions.lvl_cap, actions.lvl_force = nil, nil;
             if not ok or type(a) ~= 'table' then break; end
             curneed = math.max(actions.lv_need(a), pick_below(b) + 1);
             local diff, vc = {}, covered_slots(a);
@@ -1851,9 +1872,9 @@ local function recompute()
         ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
         local pb = actions.level_pins(JOBS[ui.job], d0.id, pv, ui.pins[base_ctx]);
         pb.main, pb.sub = false, false;
-        actions.lvl_cap = pv;
+        actions.lvl_cap, actions.lvl_force = pv, actions.max_level();
         local ok, a, b, c, d, e = pcall(optimize, ui.job, d0, pb);
-        actions.lvl_cap = nil;
+        actions.lvl_cap, actions.lvl_force = nil, nil;
         if ok then ui.result, ui.total, ui.full, ui.weights, ui.forced = a, b, c, d, e;
         else ui.result, ui.total, ui.full, ui.weights, ui.forced = {}, 0, {}, {}, {}; end
         ui.previewing = pv;
@@ -2074,7 +2095,7 @@ local function build_full_xml(job_id)
     local built, have = {}, {};
     for _, desc in ipairs(descs) do
         local pins = ui.pins[abbr .. '|' .. desc.id] or {};
-        local assign = optimize(job_id, desc, pins);
+        local assign = actions.opt_full(job_id, desc, pins);
         if next(assign) ~= nil then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = desc;
@@ -2676,7 +2697,7 @@ local function build_gearswap(job_id)
     local abbr = JOBS[job_id];
     local built, have = {}, {};
     for _, desc in ipairs(actions.export_sets(job_id)) do
-        local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
+        local assign = actions.opt_full(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
@@ -3297,7 +3318,7 @@ local function build_lac(job_id)
     local abbr = JOBS[job_id];
     local built, have = {}, {};
     for _, desc in ipairs(actions.export_sets(job_id)) do
-        local assign = optimize(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
+        local assign = actions.opt_full(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
         if next(assign) ~= nil then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
@@ -4889,7 +4910,7 @@ function actions.open_url(url)
 end
 
 -- LOCKSTYLE <JOB> and LEVELING side by side in the middle of the header
-function actions.draw_header_pills(w)
+function actions.draw_header_pills(w, xl, xr)
     local ls, lv;
     for i, d in ipairs(ui.sets) do
         if d.lockstyle then ls = i; elseif d.leveling then lv = i; end
@@ -4899,7 +4920,9 @@ function actions.draw_header_pills(w)
     local w2 = text_w('LEVELING') + 28;
     imgui.SetWindowFontScale(1.0);
     local gap = 14;
-    local x = math.floor((w - (ls and w1 or 0) - (lv and w2 or 0) - ((ls and lv) and gap or 0)) / 2);
+    local total = (ls and w1 or 0) + (lv and w2 or 0) + ((ls and lv) and gap or 0);
+    local x = math.floor((w - total) / 2);
+    if xl and xr then x = math.floor(math.max(xl, xl + (xr - xl - total) / 2)); end   -- (Big screen layout: in the free space)
     if ls then
         actions.draw_lockstyle_text(ls, x + w1 - 14);
         x = x + w1 + gap;
@@ -5141,21 +5164,34 @@ local function draw_header()
         imgui.SetCursorPos({ lx + 1, actions.sc(62) });
         imgui.TextColored(C.text, player_name());
         imgui.SameLine(0, 10);
-        if bis.done then
+        if bis.done and actions.big() then
+            imgui.TextColored(C.muted, string.format('%d pieces', #owned));
+        elseif bis.done then
             imgui.TextColored(C.muted, string.format('%d pieces  |  %d augmented  |  scanned %s', #owned, ui.augmented, ui.last_scan));
         else
             imgui.TextColored(C.gold_dim, string.format('building BiS list %d%%', math.floor(bis.next_id / BIS_LAST_ID * 100)));
         end
         imgui.SetWindowFontScale(1.0);
 
-        -- Middle: LOCKSTYLE and LEVELING, centred together
-        pcall(actions.draw_header_pills, w);
+        if actions.big() then
+            -- Big screen layout: SUPPORT on the right, LOCKSTYLE centred between the title and it (no Special thanks)
+            local rx = imgui.GetWindowWidth() - 70 - 16;
+            local oks, sx = pcall(actions.draw_support, rx);
+            if oks and sx then rx = sx - 16; end
+            imgui.SetWindowFontScale(0.95);
+            local left = lx + math.max(text_w('YUNA GEAROPT') * 1.55, text_w(player_name()) + 10 + text_w(string.format('%d pieces', #owned))) + 20;
+            imgui.SetWindowFontScale(1.0);
+            pcall(actions.draw_header_pills, w, left, rx);
+        else
+            -- Middle: LOCKSTYLE and LEVELING, centred together
+            pcall(actions.draw_header_pills, w);
 
-        -- Right (from the edge): _ and X, SUPPORT (only with data.support_url), then "Special thanks"
-        local rx = imgui.GetWindowWidth() - 70 - 16;
-        local oks, sx = pcall(actions.draw_support, rx);
-        if oks and sx then rx = sx - 16; end
-        pcall(actions.draw_thanks, rx);
+            -- Right (from the edge): _ and X, SUPPORT (only with data.support_url), then "Special thanks"
+            local rx = imgui.GetWindowWidth() - 70 - 16;
+            local oks, sx = pcall(actions.draw_support, rx);
+            if oks and sx then rx = sx - 16; end
+            pcall(actions.draw_thanks, rx);
+        end
 
         local wwidth = imgui.GetWindowWidth();
         imgui.SetCursorPos({ wwidth - 70, 42 });
@@ -5180,7 +5216,7 @@ local function draw_sidebar()
     imgui.PushStyleColor(ImGuiCol_ChildBg, C.side);
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
     -- The sidebar frame doesn't scroll: Rescan, the jobs and the title stay put; the sets scroll in 'ygo_side_sets'
-    if imgui.BeginChild('ygo_side', { actions.sc(236), -actions.sc(54) }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+    if imgui.BeginChild('ygo_side', { actions.sc(236), -(actions.sc(54) + (ui.footer_extra or 0)) }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         if actions.rescan_button(imgui.GetWindowWidth() - 28, actions.sc(30)) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
@@ -5344,17 +5380,29 @@ local function draw_set_header()
     for k, v in pairs(d.caps or {}) do table.insert(caps, string.format('%s %d', label_of(k), v)); end
     if #caps > 0 then table.sort(caps); imgui.TextColored(C.muted, 'Caps   ' .. table.concat(caps, '   ')); end
     imgui.EndGroup();
+    local wrap_ctrls = false;
+    do                                                               -- (no room beside the title: the controls go under it)
+        local gx = imgui.GetItemRectMax();
+        if type(gx) == 'table' then gx = gx.x or gx[1]; end
+        local wx0 = imgui.GetWindowPos();
+        if type(wx0) == 'table' then wx0 = wx0.x or wx0[1]; end
+        local need = btn_w('VIEW BIS SET') + 12 + actions.level_ctrl_w() + 18 + 16;
+        wrap_ctrls = ((tonumber(gx) or 0) - (tonumber(wx0) or 0)) + need > imgui.GetWindowWidth();
+    end
 
     if not (d.lockstyle or d.dwpair or d.leveling or d.info) then
-        imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12 - actions.level_ctrl_w() - 18);
+        if wrap_ctrls then imgui.SetCursorPosX(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12 - actions.level_ctrl_w() - 18);
+        else imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12 - actions.level_ctrl_w() - 18); end
         actions.draw_level_ctrl();
+        wrap_ctrls = false;                                          -- (VIEW BIS SET follows on the same line)
     end
 
     -- Best in Slot toggle: gold so it stands out (not for Lockstyle, a look has no Best in Slot)
     if d.lockstyle or d.dwpair or d.leveling then
         ui.show_bis = false;
     else
-        imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
+        if wrap_ctrls then imgui.SetCursorPosX(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12);
+        else imgui.SameLine(imgui.GetWindowWidth() - btn_w('VIEW BIS SET') - 12); end
         local showing = ui.show_bis;            -- the click below flips show_bis; push/pop follow what was drawn
         local g = C.bis;
         imgui.PushStyleColor(ImGuiCol_Button, showing and { g[1], g[2], g[3], 0.92 } or { g[1], g[2], g[3], 0.12 });
@@ -5769,7 +5817,7 @@ function actions.draw_dw_pair()
 end
 
 local function draw_content()
-    if imgui.BeginChild('ygo_content', { 0, -actions.sc(60) }, false) then
+    if imgui.BeginChild('ygo_content', { 0, -(actions.sc(60) + (ui.footer_extra or 0)) }, false) then
         do                                                  -- the visible content area: card frames stay inside it
             local cx, cy = imgui.GetWindowPos();
             local cw, ch = imgui.GetWindowSize();
@@ -5814,7 +5862,7 @@ local function draw_content()
                 actions.draw_dw_pair();
                 draw_totals();
                 imgui.Spacing();
-                if imgui.BeginTable('ygo_cards', 4, ImGuiTableFlags_SizingStretchSame) then
+                if imgui.BeginTable('ygo_cards', actions.big() and 2 or 4, ImGuiTableFlags_SizingStretchSame) then
                     for _, key in ipairs(DOLL) do
                         imgui.TableNextColumn();
                         if active[key] and not (ui.previewing and (key == 'main' or key == 'sub')) then draw_card(active[key], max_score);
@@ -6169,7 +6217,23 @@ local function draw_footer()
         if imgui.IsItemHovered() then imgui.SetTooltip('Back to automatic for this set'); end
     end
     local ew = btn_w('EXPORT') + 30;
-    imgui.SameLine(imgui.GetWindowWidth() - ew - 14 - text_w('Window scale') - actions.stepper_w(text_w('300%') + actions.sc(14), actions.sc(26)) - 34);
+    local big = actions.big();
+    local rw = ew + 14 + actions.stepper_w(text_w('300%') + actions.sc(14), actions.sc(26)) + (big and 24 or (text_w('Window scale') + 34));
+    local left_end = 0;
+    do
+        local ix = imgui.GetItemRectMax();
+        if type(ix) == 'table' then ix = ix.x or ix[1]; end
+        local wx0 = imgui.GetWindowPos();
+        if type(wx0) == 'table' then wx0 = wx0.x or wx0[1]; end
+        left_end = (tonumber(ix) or 0) - (tonumber(wx0) or 0);
+    end
+    if left_end + 20 + rw > imgui.GetWindowWidth() then           -- (no room: Window scale + EXPORT on the next line)
+        ui.footer_extra = actions.sc(40);
+        imgui.SetCursorPosX(imgui.GetWindowWidth() - rw);
+    else
+        ui.footer_extra = 0;
+        imgui.SameLine(imgui.GetWindowWidth() - rw);
+    end
     actions.draw_scale_control();
     imgui.SameLine(imgui.GetWindowWidth() - ew - 14);
     actions.menu_button('EXPORT', 'ygo_export_menu', ew, true);
@@ -6203,7 +6267,8 @@ end
 local function draw_full()
     imgui.SetNextWindowSize({ 1180, 860 }, ImGuiCond_FirstUseEver);
     pcall(actions.res_place, 'main');                                -- (Follow the resolution: the window's place and size)
-    imgui.SetNextWindowSizeConstraints({ actions.sc(1120), actions.sc(600) }, { 4000, 4000 });
+    local mw, mh = actions.min_wh();                                 -- (Big screen layout: narrower)
+    imgui.SetNextWindowSizeConstraints({ actions.sc(mw), actions.sc(mh) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse)) then
         pcall(actions.res_note, 'main', true);
         pcall(actions.scale_wheel);                                  -- (Ctrl + mouse wheel: Window scale)
@@ -6618,6 +6683,15 @@ function actions.draw_settings_bar(d)
     end
     local function divider(x) dl:AddRectFilled({ x, cy - 10 }, { x + 1, cy + 10 }, u32({ 1, 1, 1, 0.10 })); end
     local x = x0 + 14;
+    local srow = 0;
+    local function next_at(need)                              -- where the next switch starts (a new line if it doesn't fit)
+        if x + 36 + need > x0 + W - 14 then
+            srow, cy = srow + 1, cy + RH;
+            return x0 + 14;
+        end
+        divider(x + 18);
+        return x + 36;
+    end
     imgui.SetCursorScreenPos({ x, cy - 10 });
     if actions.switch('##ignlvl', s.ignore_level) then s.ignore_level, ui.dirty = not s.ignore_level, true; end
     x = text_at(x + 38 + 10, 'Ignore level', C.text);
@@ -6625,14 +6699,14 @@ function actions.draw_settings_bar(d)
     do                                                       -- "Swap ammo" for this job
         local abbr = JOBS[ui.job];
         local on = actions.ammo_swap(abbr);
-        divider(x + 18);
-        imgui.SetCursorScreenPos({ x + 36, cy - 10 });
+        local sx = next_at(38 + 10 + text_w('Swap ammo'));
+        imgui.SetCursorScreenPos({ sx, cy - 10 });
         if actions.switch('##ygo_ammo_swap', on) then
             s.ammo_swap[abbr] = not on;
             settings.save();
             ui.dirty = true;
         end
-        x = text_at(x + 36 + 38 + 10, 'Swap ammo', on and C.text or C.muted);
+        x = text_at(sx + 38 + 10, 'Swap ammo', on and C.text or C.muted);
         if imgui.IsItemHovered() then
             imgui.SetTooltip('On: ' .. abbr .. ' sets put an ammo item on (White Tathlum...).\n'
                 .. 'Off: ' .. abbr .. ' sets never touch the ammo slot, so your arrows / bullets stay\n'
@@ -6642,14 +6716,14 @@ function actions.draw_settings_bar(d)
     do                                                       -- "Swap weapons" for this job
         local abbr = JOBS[ui.job];
         local on = actions.weapon_swap(abbr);
-        divider(x + 18);
-        imgui.SetCursorScreenPos({ x + 36, cy - 10 });
+        local sx = next_at(38 + 10 + text_w('Swap weapons'));
+        imgui.SetCursorScreenPos({ sx, cy - 10 });
         if actions.switch('##ygo_weapon_swap', on) then
             s.weapon_swap[abbr] = not on;
             settings.save();
             ui.dirty = true;
         end
-        x = text_at(x + 36 + 38 + 10, 'Swap weapons', on and C.text or C.muted);
+        x = text_at(sx + 38 + 10, 'Swap weapons', on and C.text or C.muted);
         if imgui.IsItemHovered() then
             imgui.SetTooltip('On: ' .. abbr .. ' sets can change your weapons (a staff for nukes, a Refresh weapon in Idle...).\n'
                 .. 'Off: ' .. abbr .. ' sets never touch Main / Sub, so the weapon you hold stays and your TP is kept\n'
@@ -6688,7 +6762,7 @@ function actions.draw_settings_bar(d)
     local mcy = cy + (rows - 1) * RH;
     if rows == 1 then divider(mx - 20); end
     actions.draw_macro_ctrl(mx, mcy);
-    local H = RH * rows + 4;
+    local H = RH * (rows + srow) + 4;
     dl:AddRectFilled({ x0, y0 - 2 }, { x0 + W, y0 + H - 2 }, u32({ 1, 1, 1, 0.025 }), 8);
     dl:AddRect({ x0, y0 - 2 }, { x0 + W, y0 + H - 2 }, u32({ 1, 1, 1, 0.07 }), 8);
     imgui.SetCursorScreenPos({ x0, y0 + H });
@@ -6750,18 +6824,33 @@ end
 -- Window scale: the steps, the current factor, and a size scaled by it
 actions.SCALES = { 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.25, 2.5, 2.75, 3.0 };
 -- The biggest Window scale whose window (at least 1120 x 600 at 100%) still fits on the screen
-actions.FIT = { t = -9, v = 1.5 };
-function actions.max_scale()
+actions.FIT = { t = -9, w = 0, h = 0 };
+function actions.screen_wh()
     local F = actions.FIT;
-    if os.clock() - F.t < 1 then return F.v; end
-    F.t = os.clock();
-    local w, h = 0, 0;
-    pcall(function() local io = imgui.GetIO(); w, h = tonumber(io.DisplaySize.x) or 0, tonumber(io.DisplaySize.y) or 0; end);
-    if w < 320 or h < 240 then return F.v; end
+    if os.clock() - F.t >= 1 then
+        F.t = os.clock();
+        pcall(function() local io = imgui.GetIO(); F.w, F.h = tonumber(io.DisplaySize.x) or 0, tonumber(io.DisplaySize.y) or 0; end);
+    end
+    return F.w, F.h;
+end
+-- The biggest scale at which a window of at least mw x mh (at 100%) fits on the screen
+function actions.fit_scale(mw, mh)
+    local w, h = actions.screen_wh();
+    if w < 320 or h < 240 then return 1.5; end
     local k = actions.res_k();
-    local v = math.min((w * 0.98) / (1120 * k), (h * 0.95) / (600 * k));
-    F.v = math.max(1.0, math.min(3.0, v));
-    return F.v;
+    return math.max(1.0, math.min(3.0, (w * 0.98) / (mw * k), (h * 0.95) / (mh * k)));
+end
+-- Big screen layout (2 card columns): on by itself above the scale the normal layout fits
+actions.NORMAL_W, actions.NORMAL_H, actions.BIG_W, actions.BIG_H = 1120, 600, 740, 400;
+function actions.max_scale()
+    return math.max(actions.fit_scale(actions.NORMAL_W, actions.NORMAL_H), actions.fit_scale(actions.BIG_W, actions.BIG_H));
+end
+function actions.big()
+    return (tonumber(s.ui_scale) or 1.0) > actions.fit_scale(actions.NORMAL_W, actions.NORMAL_H) + 0.001;
+end
+function actions.min_wh()
+    if actions.big() then return actions.BIG_W, actions.BIG_H; end
+    return actions.NORMAL_W, actions.NORMAL_H;
 end
 function actions.user_scale()                                        -- (the player's own Window scale: 80 - 300 %, never past the screen)
     local v = tonumber(s.ui_scale) or 1.0;
@@ -6957,16 +7046,20 @@ end
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()
     local v = actions.user_scale();                                  -- (the player's own; Follow the resolution comes on top)
-    imgui.AlignTextToFramePadding();
-    imgui.TextColored(C.muted, 'Window scale');
-    imgui.SameLine(0, 10);
+    if not actions.big() then
+        imgui.AlignTextToFramePadding();
+        imgui.TextColored(C.muted, 'Window scale');
+        imgui.SameLine(0, 10);
+    end
     local top = actions.max_scale();
     local d, over = actions.stepper('##ygo_scale', string.format('%d%%', math.floor(v * 100 + 0.5)),
         { w = text_w('300%') + actions.sc(14), h = actions.sc(26), can_dn = v > 0.81, can_up = v < top - 0.001 });
     if d ~= 0 then actions.scale_step(d); end
     if over then
-        imgui.SetTooltip(string.format('Smaller / bigger - up to %d%% on your screen\n(also: Ctrl + mouse wheel, or /ygo scale 200)',
-            math.floor(top * 100 + 0.5)));
+        imgui.SetTooltip(string.format('Window scale: smaller / bigger - up to %d%% on your screen\n'
+            .. 'Past %d%% the window switches to the Big screen layout (2 card columns) so it still fits.\n'
+            .. '(also: Ctrl + mouse wheel, or /ygo scale 200)',
+            math.floor(top * 100 + 0.5), math.floor(actions.fit_scale(actions.NORMAL_W, actions.NORMAL_H) * 100 + 0.5)));
     end
 end
 -- LEVEL  < 75 >  (set header): preview the set at a lower level; your own level = off. Shift + click: 10 levels.
@@ -6974,10 +7067,11 @@ function actions.level_ctrl_w()
     return text_w('LEVEL') + 8 + actions.stepper_w(text_w('75') + actions.sc(16), actions.sc(26));
 end
 function actions.draw_level_ctrl()
-    local full = job_level(ui.job);
+    local full, top = job_level(ui.job), actions.max_level();
     local cur = actions.preview_level() or full;
     local function set(v)
-        if v >= full then ui.preview_lv = nil; else ui.preview_lv, ui.preview_job = math.max(1, v), ui.job; end
+        v = math.max(1, math.min(top, v));
+        if v == full then ui.preview_lv = nil; else ui.preview_lv, ui.preview_job = v, ui.job; end
         ui.dirty = true;
     end
     local step = 1;
@@ -6985,6 +7079,7 @@ function actions.draw_level_ctrl()
     local tip = 'Preview this set at a lower level: what the level sync gear in your\n'
         .. 'export puts on when you are synced (or leveling) to that level.\n'
         .. 'Picks you make while previewing count at that level and below.\n'
+        .. 'Higher than your level: what your file wears as you level up (no new export needed).\n'
         .. 'Shift + click: 10 levels.   Back to your level (' .. full .. ') = normal view.';
     imgui.BeginGroup();
     imgui.AlignTextToFramePadding();
@@ -6992,7 +7087,7 @@ function actions.draw_level_ctrl()
     if imgui.IsItemHovered() then imgui.SetTooltip(tip); end
     imgui.SameLine(0, 8);
     local d, over = actions.stepper('##ygo_lv', tostring(cur), { w = text_w('75') + actions.sc(16), h = actions.sc(26),
-        can_dn = cur > 1, can_up = cur < full, accent = actions.preview_level() and C.aug or C.text });
+        can_dn = cur > 1, can_up = cur < top, accent = actions.preview_level() and C.aug or C.text });
     if d ~= 0 then set(cur + d * step); end
     if over then imgui.SetTooltip(tip); end
     imgui.EndGroup();
