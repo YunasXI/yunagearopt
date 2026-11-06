@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.69';   -- the release workflow sets this to the release number
+addon.version = '1.1.70';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -6342,6 +6342,14 @@ function actions.calm_sheet()
     actions.calm_opts();
     -- the gear on glass cards (the /yui panel's cards): Armor | Accessories, then Weapons across
     local RH = actions.sc(44);
+    local obi_it = nil;                                              -- (BLU magical: the weather obi you own)
+    if d.obi then
+        for _, item in ipairs(owned) do
+            local n = item.name:lower();
+            if n == (data.obi_all or ''):lower() then obi_it = item; break; end
+            for _, o in pairs(data.obis or {}) do if n == o.obi:lower() then obi_it = obi_it or item; end end
+        end
+    end
     local function card(id, title, keys, cols, h)
         imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
         imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
@@ -6368,16 +6376,20 @@ function actions.calm_sheet()
                 for _, k in ipairs(keys) do imgui.TableNextColumn(); actions.calm_row(by_key[k], active[k]); end
                 imgui.EndTable();
             else
-                for _, k in ipairs(keys) do actions.calm_row(by_key[k], active[k]); end
+                for _, k in ipairs(keys) do
+                    actions.calm_row(by_key[k], active[k]);
+                    if k == 'waist' and d.obi then actions.calm_obi_row(obi_it); end
+                end
             end
         end
         imgui.EndChild();
         imgui.PopStyleColor(2);
     end
+    local narm = #actions.CALM_ARMOR + (d.obi and 1 or 0);
     local head = actions.sc(22) + 30;                           -- (the card's title + its padding)
     local wide = actions.avail_w() > actions.sc(640);
     if wide and imgui.BeginTable('ygo_calm_cols', 2, ImGuiTableFlags_SizingStretchSame) then
-        local h = head + #actions.CALM_ARMOR * (RH + 8);
+        local h = head + narm * (RH + 8);
         imgui.TableNextColumn();
         card('armor', 'Armor', actions.CALM_ARMOR, 1, h);
         imgui.TableNextColumn();
@@ -6386,26 +6398,43 @@ function actions.calm_sheet()
         imgui.Dummy({ 1, actions.sc(4) });
         card('weap', 'Weapons', actions.CALM_WEAP, 2, head + 2 * (RH + 8));
     else
-        card('armor', 'Armor', actions.CALM_ARMOR, 1, head + #actions.CALM_ARMOR * (RH + 8));
+        card('armor', 'Armor', actions.CALM_ARMOR, 1, head + narm * (RH + 8));
         imgui.Dummy({ 1, actions.sc(4) });
         card('acc', 'Accessories', actions.CALM_ACC, 1, head + #actions.CALM_ACC * (RH + 8));
         imgui.Dummy({ 1, actions.sc(4) });
         card('weap', 'Weapons', actions.CALM_WEAP, 1, head + #actions.CALM_WEAP * (RH + 8));
     end
-    if d.obi then
-        imgui.Dummy({ 1, actions.sc(8) });
-        local it = nil;
-        for _, item in ipairs(owned) do
-            local n = item.name:lower();
-            if n == (data.obi_all or ''):lower() then it = item; break; end
-            for _, o in pairs(data.obis or {}) do if n == o.obi:lower() then it = it or item; end end
-        end
-        imgui.TextColored(actions.CALM_SOFT, '  Weather obi');
-        imgui.SameLine(0, 12);
-        imgui.TextColored(it and C.text or C.muted, it and it.name or ((data.obi_all or 'Hachirin-no-Obi') .. ' (not owned)'));
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Put on instead of the waist above when the spell\'s element matches the weather,\nyour storm spell or the day.');
-        end
+end
+
+-- BLU magical: the weather obi as a row like the others (under Waist): worn instead of the waist on weather, day or storm
+function actions.calm_obi_row(it)
+    local x, y = imgui.GetCursorScreenPos();
+    local w, h = actions.avail_w(), actions.sc(44);
+    imgui.InvisibleButton('##crow_obi', { w, h });
+    local hov = imgui.IsItemHovered();
+    local dl = imgui.GetWindowDrawList();
+    local lh = imgui.GetTextLineHeight();
+    if hov then dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.045 }), actions.sc(10)); end
+    imgui.SetWindowFontScale(0.84);
+    local slh = imgui.GetTextLineHeight();
+    dl:AddText({ x + actions.sc(8), y + (h - slh) / 2 }, u32(actions.CALM_SOFT), 'Weather');
+    imgui.SetWindowFontScale(1.0);
+    local isz = actions.sc(32);
+    local ix, iy = x + actions.sc(58), y + math.floor((h - isz) / 2);
+    dl:AddRectFilled({ ix, iy }, { ix + isz, iy + isz }, u32({ 0, 0, 0, 0.30 }), actions.sc(7));
+    local ic = it and item_icon(it.id);
+    if ic then dl:AddImage(ic.ptr, { ix + 1, iy + 1 }, { ix + isz - 1, iy + isz - 1 }); end
+    local tx = ix + isz + actions.sc(12);
+    imgui.SetWindowFontScale(0.82);
+    local slh2 = imgui.GetTextLineHeight();
+    imgui.SetWindowFontScale(1.0);
+    local top = y + (h - lh - slh2 - 1) / 2;
+    dl:AddText({ tx, top }, u32(it and { 1, 1, 1, 0.95 } or { 1, 1, 1, 0.40 }), it and it.name or (data.obi_all or 'Hachirin-no-Obi'));
+    imgui.SetWindowFontScale(0.82);
+    dl:AddText({ tx, top + lh + 1 }, u32({ 1, 1, 1, 0.50 }), it and 'Waist on weather, day or storm' or 'not owned yet');
+    imgui.SetWindowFontScale(1.0);
+    if hov then
+        imgui.SetTooltip('Weather obi: put on instead of the waist above when the spell\'s element matches\nthe weather, your storm spell (Sandstorm, Voidstorm...) or the day.');
     end
 end
 
