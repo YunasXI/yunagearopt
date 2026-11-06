@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.67';   -- the release workflow sets this to the release number
+addon.version = '1.1.68';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -997,6 +997,7 @@ local function build_sets(job_id)
     -- Jobs that keep one item in the range slot in EVERY set (BRD: the instrument). Swapping it resets TP, so
     -- every set wears the same piece and never touches ammo (ammo would take the instrument off).
     local kr = (data.keep_range or {})[abbr];
+    local kr_songs = (data.keep_range_songs or {})[abbr];
     if kr then
         local keep = nil;
         for _, n in ipairs(kr) do                                -- the listed ones first (Gjallarhorn)
@@ -1020,7 +1021,9 @@ local function build_sets(job_id)
             keep = best;
         end
         for _, entry in ipairs(list) do
-            entry.no_ammo = true;
+          entry.no_ammo = true;
+          -- BRD: sets that aren't songs leave the range slot alone (the instrument you have on stays on)
+          if not (kr_songs and entry.range ~= 'instrument') then
             entry.bis_range = entry.instrument or kr[1];
             -- A set with its own instrument (BRD Ballad, Lullaby / Finale: Terpander) wears it when you own it
             local mine = nil;
@@ -1036,6 +1039,7 @@ local function build_sets(job_id)
             else
                 entry.range = nil;                                -- no instrument owned: leave the slot alone
             end
+          end
         end
     end
     -- Jobs that keep one ammo in every set except weaponskills (NIN: Yoru Shuriken). Weaponskills pick their own.
@@ -1318,6 +1322,9 @@ local function optimize(job_id, desc, pins, pool)
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
         p2.main, p2.sub = false, false;                  -- "Swap weapons" off: this job's sets leave Main / Sub alone
+        if desc.range == 'keep' and (data.keep_range_songs or {})[JOBS[job_id]] and p2.range == nil then
+            p2.range = false;                            -- ...and BRD's instrument (a skill-up harp stays on)
+        end
         pins = p2;
     end
     if desc.fixed and not pure then
@@ -2068,6 +2075,63 @@ local function with_obi(set_name, obis, only)
     return function(out, ind) eq(out, ind); ob(out, ind); end;
 end
 
+-- BRD: song types whose own instrument gives a bigger bonus (data.song_instruments): for each, the instrument you own
+-- with the biggest bonus ("All songs" counts too), when it beats the instrument already in that song's set.
+-- Returns { { pat = '*Minuet*', name = 'Cornette' }, ... }; none with "Swap weapons" off.
+function actions.song_instruments(job_id, built, have)
+    local abbr, out = JOBS[job_id], {};
+    if not (data.keep_range_songs or {})[abbr] or not actions.weapon_swap(abbr) then return out; end
+    local lvl = job_level(job_id);
+    local function usable(it)
+        local only = ui.job_restrict[it.name:lower()];
+        local job_ok = only and in_list(only, abbr) or (not only and bit.band(it.jobs, bit.lshift(1, job_id)) ~= 0);
+        return INSTRUMENTS[it.skill] and job_ok and (s.ignore_level or it.level <= lvl);
+    end
+    local function bonus(st, key) st = st or {}; return (st[key] or 0) + (st.sg_all or 0); end
+    local range_of = {};
+    for _, b in ipairs(built) do range_of[b.desc.name] = b.assign.range and b.assign.range.item or false; end
+    local R, sets = data.rules or {}, spell_set_list(have, abbr);
+    for _, f in ipairs(data.song_instruments or {}) do
+        local key, pat = f[1], f[2];
+        local best, bv = nil, 0;
+        for _, it in ipairs(owned) do
+            if usable(it) and bonus(it.stats, key) > 0 then
+                local v = bonus(it.stats, key) + it.level * 0.0001;         -- ties: the higher level one
+                if v > bv then best, bv = it, v; end
+            end
+        end
+        if best then
+            -- the set this song wears: its own (Ballad, Lullaby / Finale) or Songs - Buff / Debuff
+            local word, set = pat:gsub('%*', ''):lower(), nil;
+            for _, p in ipairs(sets) do
+                if set == nil and p[1]:lower():find(word, 1, true) then set = p[2]; end
+            end
+            if set == nil then
+                local deb = (R.song_debuff or ''):lower():find(word, 1, true) ~= nil;
+                if deb then set = have.Songs_Debuff and 'Songs_Debuff' or 'Songs_Buff';
+                else set = have.Songs_Buff and 'Songs_Buff' or 'Songs_Debuff'; end
+            end
+            local cur = range_of[set];
+            if not (cur and cur.name == best.name) and bonus(best.stats, key) > bonus(cur and cur.stats, key) then
+                table.insert(out, { pat = pat, name = best.name });
+            end
+        end
+    end
+    return out;
+end
+-- LegacyAC: the song type's instrument on top of the song set
+function actions.song_inst_xml(list)
+    return function(out, ind)
+        local br = {};
+        for _, si in ipairs(list) do
+            table.insert(br, { cond = attr('ad_name', si.pat), body = function(o2, i2)
+                table.insert(o2, string.format('%s<equip><range>%s</range></equip>', i2, xml_escape(si.name)));
+            end });
+        end
+        emit_chain(out, ind, br, nil);
+    end;
+end
+
 -- ws_only names ("Upheaval") -> weaponskill ids, so rules work in any client language
 local function ws_ids_for(names)
     local ids = {};
@@ -2104,6 +2168,7 @@ local function build_full_xml(job_id)
 
     local R = data.rules or {};
     local obis = owned_obis();
+    local sblock = actions.song_inst_xml(actions.song_instruments(job_id, built, have));
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
     have.__shoot = (actions.SHOOT_ENGAGED[abbr] and have.Midshot) and true or nil;   -- RNG: Midshot when engaged
@@ -2430,6 +2495,7 @@ local function build_full_xml(job_id)
         local buff, debuff = pick('Songs_Buff', 'Songs_Debuff'), pick('Songs_Debuff', 'Songs_Buff');
         table.insert(m, { cond = attr('ad_skill', 'singing'), body = function(o, i)
             emit_chain(o, i, { { cond = attr('ad_name', R.song_debuff), body = equip_set(debuff) } }, equip_set(buff));
+            sblock(o, i);                                    -- BRD: the song type's own instrument
         end });
     end
     if have.Precast and (data.utsusemi_precast or {})[abbr] then
@@ -2440,7 +2506,12 @@ local function build_full_xml(job_id)
     -- Spells with their own set (Flash, Reprisal, Phalanx) come before the magic-skill rules
     for i, p in ipairs(spell_set_list(have, abbr)) do
         local wobi = (data.sets[p[2]] or {}).obi;              -- BLU magical spells: + the weather / day obi
-        table.insert(m, i, { cond = attr('ad_name', p[1]), body = wobi and with_obi(p[2], obis) or equip_set(p[2]) });
+        local body = wobi and with_obi(p[2], obis) or equip_set(p[2]);
+        if (data.keep_range_songs or {})[abbr] then                -- BRD Ballad, Lullaby / Finale: + the song's instrument
+            local b0 = body;
+            body = function(o2, i2) b0(o2, i2); sblock(o2, i2); end;
+        end
+        table.insert(m, i, { cond = attr('ad_name', p[1]), body = body });
     end
     local base_mid = job_base(data.midcast_base, abbr, have);
     do
@@ -2828,6 +2899,12 @@ local function build_gearswap(job_id)
             (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('    }');
+    add('    -- BRD: song types whose own instrument gives a bigger bonus (worn on top of the song set)');
+    add('    song_inst = {');
+    for _, si in ipairs(actions.song_instruments(job_id, built, have)) do
+        add(string.format('        { pats = %s, item = %q },', lua_list(wild_to_patterns(si.pat)), gs_name(si.name)));
+    end
+    add('    }');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('    midcast_base = ' .. (bm and string.format('%q', bm) or 'nil'));
     local lc = actions.late_cure_fc(abbr, built, have);
@@ -2973,6 +3050,13 @@ local function obi(element)
     local o = obis[element]
     if o and (world.weather_element == element or world.day_element == element or buffactive[o.storm]) then
         equip({ waist = o.obi })
+    end
+end
+
+-- BRD: the song type's own instrument (Minuet: Cornette ...) on top of the song set
+local function song_instrument(name)
+    for _, si in ipairs(song_inst or {}) do
+        if matches(name, si.pats) then equip({ range = si.item }) return end
     end
 end
 
@@ -3135,6 +3219,7 @@ function midcast(spell)
     for _, ss in ipairs(spell_sets) do
         if matches(name, ss.pats) and eq(ss.set) then
             if ss.obi then obi(spell.element) end          -- BLU magical spells: weather / day / storm obi
+            if skill == 'Singing' then song_instrument(name) end
             return
         end
     end
@@ -3174,6 +3259,7 @@ function midcast(spell)
         if matches(name, rules.song_debuff) then
             if not eq('Songs_Debuff') then eq('Songs_Buff') end
         elseif not eq('Songs_Buff') then eq('Songs_Debuff') end
+        song_instrument(name)
     elseif skill == 'Blue Magic' then eq('BlueMagic')
     elseif skill == 'Geomancy' then eq('Geomancy')
     end
@@ -3459,6 +3545,12 @@ local function build_lac(job_id)
             (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('};');
+    add('-- BRD: song types whose own instrument gives a bigger bonus (worn on top of the song set)');
+    add('local song_inst = {');
+    for _, si in ipairs(actions.song_instruments(job_id, built, have)) do
+        add(string.format('    { pats = %s, item = %q },', lua_list(wild_to_patterns(si.pat)), si.name));
+    end
+    add('};');
     local bm, ba = job_base(data.midcast_base, abbr, have), job_base(data.ability_base, abbr, have);
     add('local midcast_base = ' .. (bm and string.format('%q', bm) or 'nil') .. ';');
     do
@@ -3604,6 +3696,13 @@ local function obi(element)
     local env = gData.GetEnvironment();
     local storm = STORMS[element] and gData.GetBuffCount(STORMS[element]) > 0;   -- a storm spell on you counts as weather
     if env.WeatherElement == element or env.DayElement == element or storm then gFunc.Equip('Waist', o); end
+end
+
+-- BRD: the song type's own instrument (Minuet: Cornette ...) on top of the song set
+local function song_instrument(name)
+    for _, si in ipairs(song_inst) do
+        if matches(name, si.pats) then gFunc.Equip('Range', si.item); return; end
+    end
 end
 
 local function buff(name) return gData.GetBuffCount(name) > 0; end
@@ -3858,6 +3957,7 @@ profile.HandleMidcast = function()
     for _, ss in ipairs(spell_sets) do
         if matches(name, ss.pats) and eq(ss.set) then
             if ss.obi then obi(spell.Element); end         -- BLU magical spells: weather / day / storm obi
+            if skill == 'Singing' then song_instrument(name); end
             return;
         end
     end
@@ -3895,6 +3995,7 @@ profile.HandleMidcast = function()
         if matches(name, rules.song_debuff) then
             if not eq('Songs_Debuff') then eq('Songs_Buff'); end
         elseif not eq('Songs_Buff') then eq('Songs_Debuff'); end
+        song_instrument(name);
     elseif skill == 'Blue Magic' then eq('BlueMagic');
     elseif skill == 'Geomancy' then eq('Geomancy');
     end
@@ -4307,11 +4408,11 @@ local function push_theme()
     };
     for _, c in ipairs(cols) do imgui.PushStyleColor(c[1], c[2]); end
     local vars = {
-        { ImGuiStyleVar_WindowRounding, C.round or 8 }, { ImGuiStyleVar_ChildRounding, 6 }, { ImGuiStyleVar_FrameRounding, 5 },
-        { ImGuiStyleVar_GrabRounding, 8 }, { ImGuiStyleVar_PopupRounding, 6 }, { ImGuiStyleVar_ScrollbarRounding, 6 },
+        { ImGuiStyleVar_WindowRounding, C.round or 8 }, { ImGuiStyleVar_ChildRounding, 16 }, { ImGuiStyleVar_FrameRounding, 15 },
+        { ImGuiStyleVar_GrabRounding, 8 }, { ImGuiStyleVar_PopupRounding, 10 }, { ImGuiStyleVar_ScrollbarRounding, 6 },
         { ImGuiStyleVar_WindowPadding, { 14, 12 } }, { ImGuiStyleVar_FramePadding, { 10, 5 } },
         { ImGuiStyleVar_ItemSpacing, { 8, 6 } }, { ImGuiStyleVar_WindowBorderSize, 1 }, { ImGuiStyleVar_ScrollbarSize, 6 },
-        { ImGuiStyleVar_FrameBorderSize, 1 },
+        { ImGuiStyleVar_FrameBorderSize, 0 },
     };
     for _, v in ipairs(vars) do imgui.PushStyleVar(v[1], v[2]); end
     return #cols, #vars;
@@ -4470,8 +4571,7 @@ function actions.chevron_button(id)
     local clicked = imgui.InvisibleButton(id, { w, h });
     local hov = imgui.IsItemHovered();
     local dl = imgui.GetWindowDrawList();
-    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(hov and { C.gold[1], C.gold[2], C.gold[3], 0.28 } or { 1, 1, 1, 0.05 }), 6);
-    dl:AddRect({ x, y }, { x + w, y + h }, u32(hov and { C.gold[1], C.gold[2], C.gold[3], 0.60 } or C.border), 6);
+    if hov then dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.10 }), h / 2); end
     local cx, cy = x + w / 2, y + h / 2 + 1;
     local col = u32(hov and { 1, 1, 1, 1 } or C.gold_dim);
     dl:AddLine({ cx - 4.5, cy - 2.5 }, { cx, cy + 2 }, col, 1.6);
@@ -4574,13 +4674,14 @@ function actions.switch(id, on, w, h, quiet)
     local clicked = imgui.InvisibleButton(id, { w, h });
     local hov = imgui.IsItemHovered();
     local dl = imgui.GetWindowDrawList();
-    local bg = on and C.gold or (hov and C.frame_hi or C.frame);
+    local bg = on and C.gold or { 0, 0, 0, hov and 0.45 or 0.35 };
     -- quiet (the sidebar's long list): a soft "on", and "off" gets a red edge so a switched-off set stands out
     if quiet and on then bg = { C.gold[1], C.gold[2], C.gold[3], hov and 0.65 or 0.42 }; end
     dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(bg), h / 2);
-    if quiet and not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.red[1], C.red[2], C.red[3], 0.75 }), h / 2); end
+    if quiet and not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.red[1], C.red[2], C.red[3], 0.75 }), h / 2);
+    elseif not on then dl:AddRect({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.12 }), h / 2); end
     local kx = on and (x + w - h / 2) or (x + h / 2);
-    dl:AddCircleFilled({ kx, y + h / 2 }, h / 2 - (h < 18 and 2 or 3), u32({ 1, 1, 1, on and 1 or 0.85 }), 20);
+    dl:AddCircleFilled({ kx, y + h / 2 }, h / 2 - 2, u32({ 1, 1, 1, on and 1 or 0.92 }), 24);
     return clicked;
 end
 
@@ -4638,7 +4739,10 @@ local function tier_frame(col, strong)
     -- A child window clips its left/right padding, which cut the frame down to two loose lines: draw on the full card
     -- (but only inside the visible content area, or a scrolled card's frame shows over the footer)
     actions.push_card_clip(dl, x, y, w, h);
-    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ col[1], col[2], col[3], strong and 0.75 or 0.22 }), 8);
+    local hov = imgui.IsWindowHovered();
+    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 },
+        u32(strong and { col[1], col[2], col[3], hov and 0.70 or 0.45 } or (hov and { C.gold[1], C.gold[2], C.gold[3], 0.35 } or { 1, 1, 1, 0.09 })), 16);
+    dl:AddLine({ x + 16, y + 1 }, { x + w - 16, y + 1 }, u32({ 1, 1, 1, 0.12 }), 1);   -- (the glass's top light)
     dl:PopClipRect();
 end
 
@@ -4648,10 +4752,9 @@ local function slot_icon(item, col)
     local dl = imgui.GetWindowDrawList();
     local x, y = imgui.GetCursorScreenPos();
     x, y = math.floor(x + 0.5), math.floor(y + 0.5);       -- whole pixels: the 32x32 icon is drawn 1:1, no blur
-    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0.02, 0.03, 0.07, 0.85 }), 6);   -- dark, like the game's slots
+    dl:AddRectFilled({ x, y }, { x + ICON, y + ICON }, u32({ 0, 0, 0, 0.30 }), 8);           -- (dark glass)
     local ic = item and item_icon(item.id);
     if ic then dl:AddImage(ic.ptr, { x + 2, y + 2 }, { x + 34, y + 34 }); end
-    if item then dl:AddRect({ x, y }, { x + ICON, y + ICON }, u32({ col[1], col[2], col[3], 0.35 }), 6); end
     imgui.Dummy({ ICON, ICON });
 end
 
@@ -4665,9 +4768,9 @@ local function caption(title)
     imgui.Spacing();
     local pushed = actions.push_kind('b');
     imgui.SetWindowFontScale(pushed and 0.84 or 0.86);
-    imgui.TextColored(C.gold, title);
+    imgui.TextColored({ 1, 1, 1, 0.50 }, title);
     if pushed then imgui.PopFont(); end
-    local x2, y2 = imgui.GetItemRectMax();
+    local x2, y2 = nil, nil;
     if type(x2) == 'table' then x2, y2 = x2.x or x2[1], x2.y or x2[2]; end
     local wx = imgui.GetWindowPos();
     if type(wx) == 'table' then wx = wx.x or wx[1]; end
@@ -5027,8 +5130,8 @@ function actions.rescan_button(w, h)
     local clicked = imgui.InvisibleButton('##ygo_rescan', { w, h });
     local hov, held = imgui.IsItemHovered(), imgui.IsItemActive();
     local dl = imgui.GetWindowDrawList();
-    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32(held and C.frame_hi or (hov and C.frame or { C.frame[1], C.frame[2], C.frame[3], 0.55 })), 7);
-    dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], hov and 0.70 or 0.28 }), 7);
+    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, held and 0.14 or (hov and 0.10 or 0.06) }), h / 2);   -- (a glass chip)
+    dl:AddRect({ x, y }, { x + w, y + h }, u32({ C.gold[1], C.gold[2], C.gold[3], hov and 0.80 or 0.35 }), h / 2);
     local label = 'Rescan gear';
     local tw, lh = text_w(label), imgui.GetTextLineHeight();
     local total = 14 + 8 + tw;
@@ -5217,6 +5320,7 @@ local function draw_sidebar()
     imgui.PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
     -- The sidebar frame doesn't scroll: Rescan, the jobs and the title stay put; the sets scroll in 'ygo_side_sets'
     if imgui.BeginChild('ygo_side', { actions.sc(236), -(actions.sc(54) + (ui.footer_extra or 0)) }, true, bit.bor(ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
+        pcall(actions.glass_edge);
         if actions.rescan_button(imgui.GetWindowWidth() - 28, actions.sc(30)) then
             msg(string.format('Scanned %d pieces (%d augmented).', scan(), ui.augmented));
         end
@@ -5278,14 +5382,20 @@ local function draw_sidebar()
                     local sx, sy = imgui.GetCursorScreenPos();
                     -- A VanaCore row: 24 px tall, white text; the selected one a navy pill with a thin blue bar
                     local ww = imgui.GetWindowWidth();
-                    local rw, rh = ww - 46, actions.sc(26);
+                    local rw, rh = (ww - 18 - math.floor(actions.sc(26))) - imgui.GetCursorPosX() - 4, actions.sc(26);   -- (up to the switch)
                     if imgui.InvisibleButton('##set' .. i, { rw, rh }) then ui.set_idx, ui.dirty = i, true; end
                     local rhov = imgui.IsItemHovered();
                     local rdl = imgui.GetWindowDrawList();
+                    -- the switch's size and place (scaled with the window), and the pill ends just past it at any scale
+                    local swW, swH = math.floor(actions.sc(26)), math.floor(actions.sc(14));
+                    local swX = ww - 18 - swW;                   -- (window x of the switch)
+                    local wx0 = imgui.GetWindowPos();
+                    if type(wx0) == 'table' then wx0 = wx0.x or wx0[1]; end
+                    local pr = wx0 + swX + swW + math.floor(actions.sc(6));   -- (the pill's right end)
                     if sel then
-                        actions.neon_corner(rdl, sx, sy, rw + 26, rh);   -- the neon corner, like the jobs and buttons
+                        actions.neon_corner(rdl, sx, sy, pr - sx, rh);   -- the panel's gold pill, like the jobs and buttons
                     elseif rhov then
-                        rdl:AddRectFilled({ sx, sy }, { sx + rw + 26, sy + rh }, u32({ 1, 1, 1, 0.035 }), 6);
+                        rdl:AddRectFilled({ sx, sy }, { pr, sy + rh }, u32({ 1, 1, 1, 0.035 }), rh / 2);
                     end
                     local sbf = actions.push_kind('sb');          -- set names in Segoe UI Semibold
                     local tx_end = sx + rw - 10;                 -- text stops 10 px before the switch
@@ -5301,9 +5411,9 @@ local function draw_sidebar()
                     if rhov and text_w(label) + 14 > rw then imgui.SetTooltip(label); end   -- a name cut off at the edge
                     if sbf then imgui.PopFont(); end
                     -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
-                    imgui.SameLine(ww - 44);
-                    imgui.SetCursorPosY(imgui.GetCursorPosY() + 6);
-                    if actions.switch('##seton' .. i, not d.disabled, 26, 14, true) then
+                    imgui.SameLine(swX);
+                    imgui.SetCursorPosY(imgui.GetCursorPosY() + math.floor((rh - swH) / 2));
+                    if actions.switch('##seton' .. i, not d.disabled, swW, swH, true) then
                         if d.disabled then
                             actions.add_set(JOBS[ui.job], d.id);
                             msg(string.format('%s: %s is on again (it is exported).', JOBS[ui.job], d.label));
@@ -5513,7 +5623,7 @@ local function hover_shade()
     if not imgui.IsWindowHovered() then return; end
     local x, y = imgui.GetWindowPos();
     local w, h = imgui.GetWindowSize();
-    imgui.GetWindowDrawList():AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.035 }), 9);
+    imgui.GetWindowDrawList():AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.025 }), 16);
 end
 
 local function draw_bis_card(def)
@@ -5550,11 +5660,10 @@ end
 function actions.tag(text, col, first)
     if not first then imgui.SameLine(0, 4); end
     imgui.SetWindowFontScale(0.78);
-    local w, h = text_w(text) + 10, imgui.GetTextLineHeight() + 2;
+    local w, h = text_w(text) + (first and 0 or 4), imgui.GetTextLineHeight() + 2;
     local x, y = imgui.GetCursorScreenPos();
     local dl = imgui.GetWindowDrawList();
-    dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.15 }), 4);
-    dl:AddText({ x + 5, y + 1 }, u32(col), text);
+    dl:AddText({ x + (first and 0 or 4), y + 1 }, u32({ col[1], col[2], col[3], 0.85 }), text);   -- (plain words, no box)
     imgui.Dummy({ w, h });
     imgui.SetWindowFontScale(0.95);
 end
@@ -5608,7 +5717,7 @@ local function draw_card(def, max_score)
     imgui.TextColored(C.muted, def.label:upper());
     imgui.SetWindowFontScale(0.95);
     if c then
-        actions.tag(c.item.where, EQUIP_BAGS[c.item.where] and { 0.66, 0.70, 0.80, 1 } or C.red, true);
+        actions.tag(c.item.where, EQUIP_BAGS[c.item.where] and C.muted or C.red, true);
         if pin ~= nil then
             actions.tag('PIN', C.gold);
         elseif ui.forced and ui.forced[def.key] then
@@ -5654,10 +5763,9 @@ end
 
 -- A slot this set doesn't swap (e.g. weapons when weapon swaps are off): a dim placeholder keeps the doll shape
 local function draw_unused(def)
-    imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.08 });
+    imgui.PushStyleColor(ImGuiCol_ChildBg, { C.card[1], C.card[2], C.card[3], 0.25 });
     imgui.PushStyleColor(ImGuiCol_Border, { 0, 0, 0, 0 });
     imgui.BeginChild('unused_' .. def.key, { 0, actions.sc(CARD_H) }, true, CARD_FLAGS);
-    actions.dashed_frame({ C.muted[1], C.muted[2], C.muted[3], 0.35 });
     imgui.SetWindowFontScale(0.95);
     slot_icon(nil, C.muted);
     imgui.SameLine(0, 8);
@@ -5726,19 +5834,22 @@ local function draw_totals()
         local text, col;
         if caps[k] then
             local at_cap = (caps[k] >= 0 and v >= caps[k]) or (caps[k] < 0 and v <= caps[k]);
-            text, col = string.format('%s %s/%d', label_of(k), fmt_num(v), caps[k]), at_cap and C.gold or C.green;
+            text, col = string.format('%s/%d', fmt_num(v), caps[k]), at_cap and C.gold or C.green;
         else
-            text, col = label_of(k) .. ' ' .. fmt_num(v), ((v > 0) == (ui.weights[k] > 0)) and C.green or C.red;
+            text, col = fmt_num(v), ((v > 0) == (ui.weights[k] > 0)) and C.green or C.red;
         end
+        local lab = label_of(k) .. ' ';
+        local val = text;
+        text = lab .. val;
         local w, h = text_w(text) + 16, imgui.GetTextLineHeight() + 6;
         if i > 1 then
             imgui.SameLine(0, 6);
             if imgui.GetCursorPosX() + w > right then imgui.NewLine(); end
         end
         local x, y = imgui.GetCursorScreenPos();
-        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.10 }), h / 2);
-        dl:AddRect({ x, y }, { x + w, y + h }, u32({ col[1], col[2], col[3], 0.30 }), h / 2);
-        dl:AddText({ x + 8, y + 3 }, u32(col), text);
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ 1, 1, 1, 0.055 }), h / 2);   -- (a glass chip, as the /yui panel)
+        dl:AddText({ x + 8, y + 3 }, u32({ 1, 1, 1, 0.72 }), lab);
+        dl:AddText({ x + 8 + text_w(lab), y + 3 }, u32(col), val);
         imgui.Dummy({ w, h });
     end
 end
@@ -5828,7 +5939,9 @@ local function draw_content()
         if ui.desc == nil then
             imgui.TextColored(C.muted, 'No sets defined for this job in data.lua.');
         else
+            actions.hero_begin();
             draw_set_header();
+            actions.hero_end();
             imgui.Spacing();
             if ui.desc.info then
                 -- Not gear: a plain list (automaton attachments)
@@ -6560,6 +6673,15 @@ actions.JOB_NAMES = { WAR = 'Warrior', MNK = 'Monk', WHM = 'White Mage', BLM = '
 -- glow, and a thin line running off along the bottom
 function actions.neon_corner(dl, x, y, w, h, o)
     o = o or {};
+    do
+        local mx, my = imgui.GetMousePos();
+        if type(mx) == 'table' then mx, my = mx.x or mx[1], mx.y or mx[2]; end
+        local hov = mx and mx >= x and mx <= x + w and my >= y and my <= y + h;
+        local g, rr = C.gold, h / 2;
+        dl:AddRectFilled({ x, y }, { x + w, y + h }, u32({ g[1], g[2], g[3], hov and 0.16 or 0.08 }), rr);
+        dl:AddRect({ x, y }, { x + w, y + h }, u32({ g[1], g[2], g[3], hov and 0.95 or 0.65 }), rr, (ImDrawFlags_RoundCornersAll or ImDrawCornerFlags_All or 15), 1.2);
+        return;
+    end
     local function col(r, g, b, al) return u32({ r, g, b, al }); end
     -- drawn as a bottom-left corner, then mirrored: fx = the right side, fy = the top
     local function P(px, py) return o.fx and (2 * x + w - px) or px, o.fy and (2 * y + h - py) or py; end
@@ -6727,7 +6849,9 @@ function actions.draw_settings_bar(d)
         if imgui.IsItemHovered() then
             imgui.SetTooltip('On: ' .. abbr .. ' sets can change your weapons (a staff for nukes, a Refresh weapon in Idle...).\n'
                 .. 'Off: ' .. abbr .. ' sets never touch Main / Sub, so the weapon you hold stays and your TP is kept\n'
-                .. '(your /dw weapons and /NIN /DNC pair still work). Re-export after changing it.');
+                .. '(your /dw weapons and /NIN /DNC pair still work).'
+                .. ((data.keep_range_songs or {})[abbr] and '\nBRD: off also keeps your instrument (songs too), e.g. a harp for skill-ups.' or '')
+                .. ' Re-export after changing it.');
         end
     end
     if d.leveling then                                        -- on = exported and worn at level 30 and below
@@ -6939,12 +7063,12 @@ function actions.sc(n) return math.floor(n * actions.scale() + 0.5); end
 -- font and a glowing edge with a light running round it
 function actions.neon_palette()
     return {
-        bg = { 0.050, 0.045, 0.072, 0.97 }, side = { 0.040, 0.036, 0.058, 0.97 }, card = { 0.085, 0.076, 0.118, 1.00 },
-        frame = { 0.120, 0.108, 0.165, 1.00 }, frame_hi = { 0.165, 0.148, 0.225, 1.00 },
-        border = { 0.620, 0.400, 1.000, 0.00 }, line = { 0.800, 0.650, 1.000, 0.08 },
-        gold = { 0.620, 0.400, 1.000, 1.00 }, gold_dim = { 0.740, 0.600, 1.000, 0.80 }, gold_bg = { 0.550, 0.360, 0.950, 0.95 },
-        text = { 0.930, 0.920, 0.980, 1.00 }, muted = { 0.580, 0.560, 0.680, 1.00 }, aug = { 1.000, 0.560, 0.780, 1.00 },
-        wave2 = { 1.000, 0.420, 0.700, 1.00 }, popup = { 0.060, 0.054, 0.085, 0.99 }, round = 0,
+        bg = { 0.068, 0.066, 0.088, 0.90 }, side = { 0.045, 0.036, 0.030, 0.62 }, card = { 0.045, 0.036, 0.030, 0.62 },
+        frame = { 1.000, 1.000, 1.000, 0.07 }, frame_hi = { 1.000, 1.000, 1.000, 0.12 },
+        border = { 1.000, 1.000, 1.000, 0.08 }, line = { 1.000, 1.000, 1.000, 0.07 },
+        gold = { 1.000, 0.760, 0.340, 1.00 }, gold_dim = { 1.000, 0.880, 0.620, 0.85 }, gold_bg = { 1.000, 0.760, 0.340, 0.95 },
+        text = { 0.960, 0.950, 0.930, 1.00 }, muted = { 0.640, 0.610, 0.580, 1.00 }, aug = { 1.000, 0.560, 0.780, 1.00 },
+        wave2 = { 1.000, 0.900, 0.620, 1.00 }, popup = { 0.095, 0.080, 0.070, 0.97 }, round = 12,
         edge1 = { 1.000, 0.360, 0.620 }, edge2 = { 0.620, 0.400, 1.000 }, fx = 'neon',
     };
 end
@@ -7028,6 +7152,59 @@ function actions.frame_corner(dl, cx, cy, sx, sy, lx, ly, t)
     arm(cx, cy + sy * c, cx + sx * 1, cy + sy * ly * 0.5, false, col(1, 0.92, 1, 0.7), col(1, 0.92, 1, 0));
 end
 
+-- The set header's card (the /yui panel's first card): dark glass, a faint gold wash (more at the top), a gold edge,
+-- a soft light sweeping across every 6 s. Its height is last frame's, so it is drawn before what sits on it.
+function actions.hero_begin()
+    imgui.Dummy({ 1, 2 });
+    local x, y = imgui.GetCursorScreenPos();
+    local w = imgui.GetContentRegionAvail();
+    if type(w) == 'table' then w = w.x or w[1]; end
+    w = (tonumber(w) or 600) - 2;
+    ui.hero = { x = x, y = y };
+    imgui.SetCursorScreenPos({ x + 14, y + 12 });                    -- (the header sits inside the card)
+    imgui.Indent(14);
+    local h = ui.hero_h;
+    if not h or h <= 0 then return; end
+    local dl, g = imgui.GetWindowDrawList(), C.gold;
+    local x1, y1, x2, y2, r = x, y, x + w, y + h, 16;
+    local mx, my = imgui.GetMousePos();
+    if type(mx) == 'table' then mx, my = mx.x or mx[1], mx.y or mx[2]; end
+    local hov = mx and mx >= x1 and mx <= x2 and my >= y1 and my <= y2;
+    dl:AddRectFilled({ x1, y1 }, { x2, y2 }, u32({ 0.045, 0.036, 0.030, 0.70 }), r);
+    dl:AddRectFilled({ x1, y1 }, { x2, y2 }, u32({ g[1], g[2], g[3], 0.08 }), r);
+    dl:AddRectFilled({ x1, y1 }, { x2, y1 + math.min(90, h * 0.45) }, u32({ g[1], g[2], g[3], 0.04 }), r);
+    local ph = (os.clock() % 6) / 1.1;
+    if ph < 1 then
+        local bw = 70;
+        local sx = x1 - bw * 2 + (x2 - x1 + bw * 3) * ph;
+        if pcall(function() dl:PushClipRect({ x1 + 2, y1 + 2 }, { x2 - 2, y2 - 2 }, true); end) then
+            pcall(function() dl:AddQuadFilled({ sx + bw, y1 }, { sx + bw * 2, y1 }, { sx + bw, y2 }, { sx, y2 }, u32({ 1, 1, 1, 0.05 * math.sin(ph * math.pi) })); end);
+            dl:PopClipRect();
+        end
+    end
+    dl:AddRect({ x1, y1 }, { x2, y2 }, u32({ g[1], g[2], g[3], hov and 0.85 or 0.55 }), r, (ImDrawFlags_RoundCornersAll or ImDrawCornerFlags_All or 15), 1);
+    dl:AddLine({ x1 + r, y1 + 0.5 }, { x2 - r, y1 + 0.5 }, u32({ 1, 0.95, 0.85, 0.50 }), 1);
+end
+function actions.hero_end()
+    local hz = ui.hero;
+    if not hz then return; end
+    imgui.Unindent(14);
+    local _, y = imgui.GetCursorScreenPos();
+    ui.hero_h = (y - hz.y) + 6;
+    imgui.Dummy({ 1, 6 });
+end
+-- A child window drawn as one of the panel's glass cards: the hairline edge and the top light
+function actions.glass_edge()
+    local dl = imgui.GetWindowDrawList();
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
+    if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
+    pcall(function() dl:PushClipRect({ x, y }, { x + w, y + h }, false); end);
+    dl:AddRect({ x + 0.5, y + 0.5 }, { x + w - 0.5, y + h - 0.5 }, u32({ 1, 1, 1, 0.09 }), 16);
+    dl:AddLine({ x + 16, y + 1 }, { x + w - 16, y + 1 }, u32({ 1, 1, 1, 0.12 }), 1);
+    pcall(function() dl:PopClipRect(); end);
+end
 -- The window frame: a neon corner on each of the 4 corners, nothing else (no outline)
 function actions.fx_frame()
     if C.fx == nil then return; end
@@ -7036,12 +7213,12 @@ function actions.fx_frame()
     local w, h = imgui.GetWindowSize();
     if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
     if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
-    local lx, ly, t = math.min(150, w * 0.22), math.min(80, h * 0.18), 2;
-    local x1, y1 = x + w, y + h;
-    actions.frame_corner(dl, x, y, 1, 1, lx, ly, t);                -- top-left
-    actions.frame_corner(dl, x1, y, -1, 1, lx, ly, t);              -- top-right
-    actions.frame_corner(dl, x, y1, 1, -1, lx, ly, t);              -- bottom-left
-    actions.frame_corner(dl, x1, y1, -1, -1, lx, ly, t);            -- bottom-right
+    local r = C.round or 12;
+    local wash = math.min(110, h * 0.25);
+    local a0, a1 = u32({ C.gold[1], C.gold[2], C.gold[3], 0.06 }), u32({ C.gold[1], C.gold[2], C.gold[3], 0 });
+    local ins = r * 0.6;                                             -- (kept inside the round top corners)
+    dl:AddRectFilledMultiColor({ x + ins, y + 1 }, { x + w - ins, y + wash }, a0, a0, a1, a1);
+    dl:AddLine({ x + r, y + 1 }, { x + w - r, y + 1 }, u32({ 1, 0.95, 1, 0.22 }), 1);
 end
 -- "Window scale  < 100% >" (bottom bar): smaller / bigger text and window parts, saved
 function actions.draw_scale_control()

@@ -811,6 +811,32 @@ return {
         GEO = { 'Dunna' },   -- the bell stays in the range slot (Handbell skill +15 for Geomancy)
         BRD = { 'Gjallarhorn' },
     },
+    -- Jobs whose kept range piece goes on in song sets only: every other set leaves the range slot alone (BRD: so you
+    -- can keep a harp on for skill-ups; "Swap weapons" off leaves it alone in song sets too)
+    keep_range_songs = { BRD = true },
+    -- BRD: song types with their own instrument bonus: { stat, spell names }. The instrument you own with the biggest
+    -- bonus for that song type ("All songs" counts too) goes on for those songs when it beats the set's instrument.
+    song_instruments = {
+        { 'sg_minne', '*Minne*' },
+        { 'sg_minuet', '*Minuet*' },
+        { 'sg_paeon', '*Paeon*' },
+        { 'sg_requiem', '*Requiem*' },
+        { 'sg_threnody', '*Threnody*' },
+        { 'sg_madrigal', '*Madrigal*' },
+        { 'sg_mambo', '*Mambo*' },
+        { 'sg_lullaby', '*Lullaby*' },
+        { 'sg_etude', '*Etude*' },
+        { 'sg_ballad', '*Ballad*' },
+        { 'sg_march', '*March*' },
+        { 'sg_finale', '*Finale*' },
+        { 'sg_carol', '*Carol*' },
+        { 'sg_mazurka', '*Mazurka*' },
+        { 'sg_elegy', '*Elegy*' },
+        { 'sg_prelude', '*Prelude*' },
+        { 'sg_hymnus', '*Hymnus*' },
+        { 'sg_virelai', '*Virelai*' },
+        { 'sg_scherzo', '*Scherzo*' },
+    },
     -- Jobs that keep ONE ammo in every set except weaponskills (NIN: the shuriken). Weaponskills choose their own
     -- ammo (see the NIN rules in preferred). The first name is shown as Best in Slot.
     keep_ammo = {
@@ -1033,12 +1059,12 @@ return {
         DrainAspir    = { label = 'Dark - Drain/Aspir', weapons = true, weights = { dark = 4, drain = 6, macc = 2, int = 0.5 } },
         Ninjutsu      = { label = 'Ninjutsu', weights = { ninjutsu = 4, int = 2, mab = 6, macc = 3 } },
         Songs_Buff    = { label = 'Songs - Buff', weapons = true, range = 'instrument',
-                          weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5 } },
+                          weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5, sg_all = 6 } },
         Songs_Debuff  = { label = 'Songs - Debuff', weapons = true, range = 'instrument',
-                          weights = { chr = 3, macc = 3, singing = 2, string = 2, wind = 2 } },
+                          weights = { chr = 3, macc = 3, singing = 2, string = 2, wind = 2, sg_all = 4 } },
         -- Ballad: the buff song set, with Terpander as the instrument (Best in Slot too)
         Ballad        = { label = 'Songs - Ballad (Terpander)', weapons = true, range = 'instrument', instrument = 'Terpander',
-                          weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5 } },
+                          weights = { singing = 3, string = 3, wind = 3, songdur = 3, chr = 0.5, sg_all = 6 } },
         -- Lullaby / Finale: a BRD player's set, built for song recast delay (a piece you don't own is filled automatically)
         LullabyFinale = { label = 'Songs - Lullaby / Finale (recast)', weapons = true, range = 'instrument', instrument = 'Terpander',
                           weights = { songrecast = 10, chr = 2, macc = 2, singing = 1, string = 1, wind = 1 },
