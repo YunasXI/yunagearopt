@@ -696,6 +696,17 @@ return {
     -- Stats to SET on specific items (corrects values the description doesn't show or words oddly).
     -- Other stats on the item are still read normally; this value replaces that one stat.
     stat_fix = {
+        -- SMN: avatar upkeep by element (CatsEyeXI item database, mods 553-560; Carbuncle Mitts mod 356)
+        ['Fire Staff'] = { aperp_fire = 2, aperp_ice = -2 }, ["Vulcan's Staff"] = { aperp_fire = 3, aperp_ice = -3 },
+        ['Ice Staff'] = { aperp_ice = 2, aperp_wind = -2 }, ["Aquilo's Staff"] = { aperp_ice = 3, aperp_wind = -3 },
+        ['Wind Staff'] = { aperp_wind = 2, aperp_earth = -2 }, ["Auster's Staff"] = { aperp_wind = 3, aperp_earth = -3 },
+        ['Earth Staff'] = { aperp_earth = 2, aperp_thunder = -2 }, ["Terra's Staff"] = { aperp_earth = 3, aperp_thunder = -3 },
+        ['Thunder Staff'] = { aperp_thunder = 2, aperp_water = -2 }, ["Jupiter's Staff"] = { aperp_thunder = 3, aperp_water = -3 },
+        ['Water Staff'] = { aperp_water = 2, aperp_fire = -2 }, ["Neptune's Staff"] = { aperp_water = 3, aperp_fire = -3 },
+        ['Light Staff'] = { aperp_light = 2, aperp_dark = -2 }, ["Apollo's Staff"] = { aperp_light = 3, aperp_dark = -3 },
+        ['Dark Staff'] = { aperp_dark = 2, aperp_light = -2 }, ["Pluto's Staff"] = { aperp_dark = 3, aperp_light = -3 },
+        ['Chatoyant Staff'] = { aperp_fire = 3, aperp_ice = 3, aperp_wind = 3, aperp_earth = 3, aperp_thunder = 3, aperp_water = 3, aperp_light = 3, aperp_dark = 3 },
+        ['Carbuncle Mitts'] = { perp_carby = 1 },
         ['Brutal Earring +1'] = { da = 6 },
         -- RUN ability gear (CatsEyeXI item database, mods 1010 / 1018 / 1011 / 1004 / 1008)
         ['Runeist Coat']      = { vallation = 10 },
@@ -997,6 +1008,26 @@ return {
         -- GEO: idle while a luopan is out (exported as Idle_Avatar, so the "pet is out" rules use it)
         Idle_Luopan = { label = 'Idle - Luopan out', name = 'Idle_Avatar', caps = DEF, weapons = true,
                         weights = { refresh = 25, regen = 8, geomancy = 1, handbell = 1, dt = -5, pdt = -4, mdt = -3, hp = 0.02, mp = 0.02 } },
+        -- SMN: idle with one avatar out - the Avatar out set plus that avatar's own upkeep gear (the staff of its element,
+        -- Carbuncle Mitts); the exports pick it by the avatar's name
+        Idle_Carbuncle = { label = 'Avatar - Carbuncle', caps = DEF, weapons = true, avatars = { 'Carbuncle' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_light = 20, perp_carby = 60 } },
+        Idle_LightSpirit = { label = 'Avatar - Light Spirit', caps = DEF, weapons = true, avatars = { 'Light Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_light = 20 } },
+        Idle_Dark = { label = 'Avatar - Fenrir / Diabolos / Dark Spirit', caps = DEF, weapons = true, avatars = { 'Fenrir', 'Diabolos', 'Dark Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_dark = 20 } },
+        Idle_Fire = { label = 'Avatar - Ifrit / Fire Spirit', caps = DEF, weapons = true, avatars = { 'Ifrit', 'Fire Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_fire = 20 } },
+        Idle_Ice = { label = 'Avatar - Shiva / Ice Spirit', caps = DEF, weapons = true, avatars = { 'Shiva', 'Ice Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_ice = 20 } },
+        Idle_Wind = { label = 'Avatar - Garuda / Air Spirit', caps = DEF, weapons = true, avatars = { 'Garuda', 'Air Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_wind = 20 } },
+        Idle_Earth = { label = 'Avatar - Titan / Earth Spirit', caps = DEF, weapons = true, avatars = { 'Titan', 'Earth Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_earth = 20 } },
+        Idle_Thunder = { label = 'Avatar - Ramuh / Thunder Spirit', caps = DEF, weapons = true, avatars = { 'Ramuh', 'Thunder Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_thunder = 20 } },
+        Idle_Water = { label = 'Avatar - Leviathan / Water Spirit', caps = DEF, weapons = true, avatars = { 'Leviathan', 'Water Spirit' },
+            weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2, aperp_water = 20 } },
         Idle_Avatar = { label = 'Idle - Avatar out', caps = DEF, weapons = true,
                         weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2 } },
         -- Idle while your support job is NIN: damage taken down instead of Refresh (worn in place of Idle)
@@ -1293,7 +1324,7 @@ return {
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
-        SMN = { 'Idle', 'Idle_Avatar', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        SMN = { 'Idle', 'Idle_Avatar', 'Idle_Carbuncle', 'Idle_LightSpirit', 'Idle_Dark', 'Idle_Fire', 'Idle_Ice', 'Idle_Wind', 'Idle_Earth', 'Idle_Thunder', 'Idle_Water', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'Idle_Mage', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments',

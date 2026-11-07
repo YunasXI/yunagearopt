@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.72';   -- the release workflow sets this to the release number
+addon.version = '1.1.73';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -977,7 +977,7 @@ local function build_sets(job_id)
                     weapons = (def.weapons and wjob) or def.always_weapons or in_wset or false, range = range_for(def.kind or 'other', id, def.range),
                     fixed = def.fixed or (def.fixed_by_job and def.fixed_by_job[abbr]), fallback = def.fallback, buff = def.buff, engaged_buff = def.engaged_buff, buff_any = def.buff_any, ws_only = def.ws_only,
                     info = def.info, obi = def.obi, instrument = def.instrument,
-                    keeps_ammo = def.keeps_ammo, mp_sub = def.mp_sub,
+                    keeps_ammo = def.keeps_ammo, mp_sub = def.mp_sub, avatars = def.avatars,
                 };
                 local pref = {};
                 if in_wset then pref.main, pref.sub = true, true; end          -- melee weapons only from your list
@@ -1970,6 +1970,18 @@ local function equip_set(name)
     end;
 end
 
+-- SMN: the summoned avatar's own idle set (data.sets X.avatars), for the sets this export has: { {name, set} ... }
+function actions.avatar_sets(have)
+    local out = {};
+    for id, def in pairs(data.sets or {}) do
+        if def.avatars and have[id] then
+            for _, n in ipairs(def.avatars) do table.insert(out, { n, id }); end
+        end
+    end
+    table.sort(out, function(a, b) return a[1] < b[1]; end);
+    return out;
+end
+
 -- data.ja_sets / data.spell_sets entries are { name, set } or just 'Name' when the set has the same name
 local function name_set_pair(p)
     if type(p) == 'table' then return p; end
@@ -2381,6 +2393,14 @@ local function build_full_xml(job_id)
     if have.Refresh then table.insert(idle_branches, { cond = 'advanced="$Refresh=on"', body = equip_set('Refresh') }); end
     if have.Idle_NIN then table.insert(idle_branches, { cond = attr('p_subjob', 'NIN'), body = equip_set('Idle_NIN') }); end
     if have.Idle_Mage then table.insert(idle_branches, { cond = attr('p_subjob', 'WHM|BLM|RDM|SMN|SCH|GEO'), body = equip_set('Idle_Mage') }); end
+    do                                                               -- SMN: the summoned avatar's own set (by its name)
+        local by = {};
+        for _, p in ipairs(actions.avatar_sets(have)) do by[p[2]] = by[p[2]] and (by[p[2]] .. '|' .. p[1]) or p[1]; end
+        local ids = {};
+        for id in pairs(by) do table.insert(ids, id); end
+        table.sort(ids);
+        for _, id in ipairs(ids) do table.insert(idle_branches, { cond = attr('pet_name', by[id]), body = equip_set(id) }); end
+    end
     if have.Idle_Avatar then table.insert(idle_branches, { cond = attr('pet_active', 'true'), body = equip_set('Idle_Avatar') }); end
     -- PUP: automaton out -> its gear (tank, or ranged while /petranged is on)
     if have.PetTank or have.PetRanged then
@@ -2915,6 +2935,10 @@ local function build_gearswap(job_id)
             (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('    }');
+    add('    -- SMN: the summoned avatar\'s own idle set');
+    add('    avatar_sets = {');
+    for _, p in ipairs(actions.avatar_sets(have)) do add(string.format('        [%q] = %q,', p[1], p[2])); end
+    add('    }');
     add('    -- BRD: song types whose own instrument gives a bigger bonus (worn on top of the song set)');
     add('    song_inst = {');
     for _, si in ipairs(actions.song_instruments(job_id, built, have)) do
@@ -3108,7 +3132,7 @@ function idle_gear()
         elseif RefreshOn and eq('Refresh') then
         elseif player.sub_job == 'NIN' and eq('Idle_NIN') then
         elseif mage_sub[player.sub_job] and eq('Idle_Mage') then
-        elseif pet.isvalid and eq('Idle_Avatar') then
+        elseif pet.isvalid and ((avatar_sets[pet.name] and eq(avatar_sets[pet.name])) or eq('Idle_Avatar')) then
         elseif pet.isvalid and PetRangedOn and eq('PetRanged') then
         elseif pet.isvalid and eq('PetTank') then
         else eq('Idle')
@@ -3561,6 +3585,10 @@ local function build_lac(job_id)
             (data.sets[p[2]] or {}).obi and ', obi = true' or ''));
     end
     add('};');
+    add('-- SMN: the summoned avatar\'s own idle set');
+    add('local avatar_sets = {');
+    for _, p in ipairs(actions.avatar_sets(have)) do add(string.format('    [%q] = %q,', p[1], p[2])); end
+    add('};');
     add('-- BRD: song types whose own instrument gives a bigger bonus (worn on top of the song set)');
     add('local song_inst = {');
     for _, si in ipairs(actions.song_instruments(job_id, built, have)) do
@@ -3907,7 +3935,7 @@ profile.HandleDefault = function()
         elseif RefreshOn and eq('Refresh') then
         elseif player.SubJob == 'NIN' and eq('Idle_NIN') then
         elseif mage_sub[player.SubJob] and eq('Idle_Mage') then
-        elseif gData.GetPet() ~= nil and eq('Idle_Avatar') then
+        elseif gData.GetPet() ~= nil and ((avatar_sets[gData.GetPet().Name or ''] and eq(avatar_sets[gData.GetPet().Name or ''])) or eq('Idle_Avatar')) then
         elseif gData.GetPet() ~= nil and PetRangedOn and eq('PetRanged') then
         elseif gData.GetPet() ~= nil and eq('PetTank') then
         else eq('Idle');
@@ -4377,7 +4405,7 @@ end
 ----------------------------------------------------------------------------------------------------
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
-    Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
+    Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
     MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
     Swordplay = 'Abilities', Lunge = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
