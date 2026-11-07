@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.71';   -- the release workflow sets this to the release number
+addon.version = '1.1.72';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -904,7 +904,12 @@ local function build_sets(job_id)
     if #jr > 0 then                                                  -- (SAM's bow rules only once you own a bow / gun for the job:
         local has = false;                                           --  without one the ammo slot is free like any job's)
         for _, it in ipairs(owned) do
-            if (it.skill == 25 or it.skill == 26) and bit.band(it.jobs or 0, bit.lshift(1, job_id)) ~= 0 then has = true; break; end
+            -- (a real bow / gun: it goes in the range slot - arrows and bullets have the skill too - and you can wear it now)
+            if (it.skill == 25 or it.skill == 26) and bit.band(it.slots or 0, 0x0004) ~= 0
+                    and bit.band(it.jobs or 0, bit.lshift(1, job_id)) ~= 0 and (tonumber(it.level) or 0) <= job_level(job_id) then
+                has = true;
+                break;
+            end
         end
         if not has then jr = {}; end
     end
