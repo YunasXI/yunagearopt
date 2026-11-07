@@ -993,7 +993,7 @@ return {
                         weights = { combatskill = 0.9, stp = 5, da = 7, ta = 10, qa = 12, haste = 8, acc = 1.0, att = 0.5, str = 0.3, dex = 0.6, crit = 2, ma = 3, kick = 3, counter = 1.5 } },
         -- Defensive / idle
         Idle        = { label = 'Idle', caps = DEF, weapons = true,
-                        weights = { refresh = 30, regen = 12, dt = -6, pdt = -5, mdt = -3, mdb = 1, hp = 0.02, mp = 0.02 } },
+                        weights = { refresh = 30, regen = 12, dt = -6, pdt = -5, mdt = -3, mdb = 1, hp = 0.02, mp = 0.02, def = 0.03, eva = 0.05 } },
         -- GEO: idle while a luopan is out (exported as Idle_Avatar, so the "pet is out" rules use it)
         Idle_Luopan = { label = 'Idle - Luopan out', name = 'Idle_Avatar', caps = DEF, weapons = true,
                         weights = { refresh = 25, regen = 8, geomancy = 1, handbell = 1, dt = -5, pdt = -4, mdt = -3, hp = 0.02, mp = 0.02 } },
@@ -1001,11 +1001,11 @@ return {
                         weights = { perp = 20, refresh = 25, summoning = 1, bloodboon = 1, dt = -3, pdt = -2, mdt = -2 } },
         -- Idle while your support job is NIN: damage taken down instead of Refresh (worn in place of Idle)
         Idle_NIN    = { label = 'Idle - /NIN (DT)', caps = DEF, weapons = true,
-                        weights = { dt = -10, pdt = -10, mdt = -4, mdb = 2, regen = 3, eva = 0.3, hp = 0.05 } },
+                        weights = { dt = -10, pdt = -10, mdt = -4, mdb = 2, regen = 3, eva = 0.3, hp = 0.05, def = 0.03 } },
         -- Idle while your support job is a mage (COR /WHM /BLM /RDM...): Refresh and MP, worn in place of Idle.
         -- mp_sub: counts MP / Refresh even on a job without MP of its own (the subjob gives it MP)
         Idle_Mage   = { label = 'Idle - /mage (Refresh)', caps = DEF, weapons = true, mp_sub = true,
-                        weights = { refresh = 30, regen = 8, mp = 0.05, dt = -4, pdt = -3, mdt = -2, hp = 0.02 } },
+                        weights = { refresh = 30, regen = 8, mp = 0.05, dt = -4, pdt = -3, mdt = -2, hp = 0.02, def = 0.03 } },
         Resting     = { label = 'Resting (MP)', weapons = true, weights = { hmp = 10, hhp = 2, refresh = 3 } },
         PDT         = { label = 'Physical defense', caps = DEF, weapons = true,
                         weights = { dt = -10, pdt = -10, bdt = -3, def = 0.1, hp = 0.05, eva = 0.3, curercv = 0.3 } },

@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.70';   -- the release workflow sets this to the release number
+addon.version = '1.1.71';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -901,6 +901,13 @@ local function build_sets(job_id)
     local abbr, list = JOBS[job_id], {};
     local wjob = in_list(data.weapon_jobs, abbr);
     local jr = (data.job_range or {})[abbr] or {};
+    if #jr > 0 then                                                  -- (SAM's bow rules only once you own a bow / gun for the job:
+        local has = false;                                           --  without one the ammo slot is free like any job's)
+        for _, it in ipairs(owned) do
+            if (it.skill == 25 or it.skill == 26) and bit.band(it.jobs or 0, bit.lshift(1, job_id)) ~= 0 then has = true; break; end
+        end
+        if not has then jr = {}; end
+    end
     local function range_for(kind, id, current)
         if current then return current; end
         if in_list(jr, kind) or in_list(jr, id) then return 'any'; end
@@ -1338,12 +1345,16 @@ local function optimize(job_id, desc, pins, pool)
     end
 
     local full, cands = {}, {};
+    -- The sets you stand in (Idle, PDT, MDT, Evasion, Resting, Refresh): between two close pieces the higher-level one
+    -- wins (+0.004 a level, so a level 20 piece needs a real edge to beat a level 75 one); only pieces that score at all
+    local lv_tie = desc.kind ~= 'tp' and desc.kind ~= 'ws' and actions.base_set(desc);
     for _, def in ipairs(slots) do
         local all, list = {}, {};
         for idx, item in ipairs(pool) do
             -- Lockstyle: any piece you own that fits the slot, whatever its job or level
             if bit.band(item.slots, def.mask) ~= 0 and (desc.lockstyle or can_wear(item, job_id, lvl, pure or actions.lvl_cap ~= nil)) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
+                if lv_tie and c.score > 0 then c.score = c.score + (tonumber(item.level) or 0) * 0.004; end
                 table.insert(all, c);
                 if c.score > 0 and not is_excluded(item.name) and not set_excluded(job_id, desc, item.name)
                         and slot_candidate_ok(def, item, desc) then
