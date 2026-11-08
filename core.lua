@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.73';   -- the release workflow sets this to the release number
+addon.version = '1.1.74';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -1943,7 +1943,7 @@ local function equip_set(name)
                 table.insert(br, { cond = string.format('p_joblevel="<%d"', below),
                     body = function(o2, i2) table.insert(o2, string.format('%s<equip set="%s" />', i2, xml_escape(nm))); end });
             end
-            emit_chain(out, ind, br, nil);
+            actions.emit_chain(out, ind, br, nil);              -- (emit_chain is defined below: reached through actions)
         end
         -- The set's weapons only when the subjob isn't NIN/DNC (dual wield: the pair or your own weapons)
         if actions.wsplit and actions.wsplit[name] then
@@ -2055,6 +2055,7 @@ local function emit_chain(out, ind, branches, default)
     end
 end
 
+actions.emit_chain = emit_chain;                                    -- (for equip_set above it: level sync versions)
 local function attr(name, value) return string.format('%s="%s"', name, xml_escape(value)); end
 
 -- Obi block: equips the matching elemental obi on weather, day or storm buff
