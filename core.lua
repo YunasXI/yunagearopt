@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.74';   -- the release workflow sets this to the release number
+addon.version = '1.1.75';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -461,6 +461,7 @@ local function parse_stats(desc)
         end
     end
     if stats.refresh == nil and text:find('adds "refresh" effect', 1, true) then add('refresh', 1); end
+    if stats.regain == nil and text:find('adds "regain" effect', 1, true) then add('regain', 1); end
     if stats.regen == nil and text:find('adds "regen" effect', 1, true) then add('regen', 1); end
     for _, k in ipairs({ 'sublimation', 'berserk', 'warcry', 'meditate', 'boost' }) do
         if stats[k] == nil and (text:find('enhances "' .. k .. '" effect', 1, true) or text:find('augments "' .. k .. '"', 1, true)) then
@@ -524,7 +525,7 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Job ability effects ("Enhances Berserk") are often scripted on the server rather than stored as a stat,
 -- so for these the description is still read when the server data has nothing.
-local SCRIPTED = { 'berserk', 'warcry', 'meditate', 'boost', 'sublimation', 'roll', 'rolldur', 'rolldelay', 'rollaoe' };
+local SCRIPTED = { 'berserk', 'warcry', 'meditate', 'boost', 'sublimation', 'roll', 'rolldur', 'rolldelay', 'rollaoe', 'regain' };
 
 -- Base stats for an item: overrides > server stats (server_stats.lua) > parsed description,
 -- then stat_fix / stat_remove from data.lua
@@ -859,6 +860,7 @@ function actions.slash_cmds(have)
     if have.Nuke_MB then table.insert(c, 'mb'); end
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
+    if have.Regain then table.insert(c, 'regain'); table.insert(c, 'reg'); end   -- (/reg = the short /regain)
     if have.DW then table.insert(c, have.__lockcmd or 'dw'); end
     if have.Leveling then table.insert(c, 'leveling'); end
     if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
@@ -2312,6 +2314,7 @@ local function build_full_xml(job_id)
     if have.Nuke_MB then toggle('/mb', 'MB', 'on', 'Magic Burst'); end
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
+    if have.Regain then toggle('/regain', 'Regain', 'on', 'Regain set'); toggle('/reg', 'Regain', 'on', 'Regain set'); end
     if have.DW then toggle('/' .. (have.__lockcmd or 'dw'), 'DW', 'on', 'Locked weapons'); end
     if have.Leveling then toggle('/leveling', 'Leveling', 'on', 'Leveling gear (level 30 and below)'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
@@ -2452,6 +2455,10 @@ local function build_full_xml(job_id)
             end
         end
     end or nil);
+    if have.Regain then
+        add('        <!-- /regain ON: your Regain set on top of whatever set is active (idle or engaged) -->');
+        emit_chain(out, '        ', { { cond = 'advanced="$Regain=on"', body = equip_set('Regain') } }, nil);
+    end
     if have.DW then
         add('        <!-- /dw ON: your dual-wield weapons on top of whatever set is active -->');
         emit_chain(out, '        ', { { cond = 'advanced="$DW=on"', body = equip_set('DW') } }, nil);
@@ -2984,6 +2991,7 @@ local function build_gearswap(job_id)
     add('    -- Toggles you can type as /pdt, /mdt, /hybrid, /idle... (they run //gs c <name>)');
     add('    slash_cmds = ' .. actions.slash_cmds(have));
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
+    add("    RegainOn = false");
     add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
     add("    LevelingOn = true     -- //gs c leveling: your Leveling set while you are level 30 or below");
     add('    -- BST: your jug pets; /jug picks the one Call Beast / Bestial Loyalty puts in the ammo slot');
@@ -3145,6 +3153,7 @@ function idle_gear()
         if Moving then eq('Movement') end
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
+    if RegainOn then eq('Regain') end                 -- /regain: the Regain set on top (idle or engaged)
     if DWOn then eq('DW') end
     -- Level 30 and below (natural or level sync): your leveling gear on top
     if LevelingOn and sets.Leveling and (player.main_job_level or 99) <= 30 then eq('Leveling') end
@@ -3396,6 +3405,9 @@ function self_command(command)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn
         add_to_chat(158, 'Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'))
+    elseif c == 'regain' or c == 'reg' then
+        RegainOn = not RegainOn
+        add_to_chat(158, 'Regain set: ' .. (RegainOn and 'ON' or 'OFF'))
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn
         add_to_chat(158, 'Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'))
@@ -3633,6 +3645,7 @@ local function build_lac(job_id)
     add('local jugs, JugIdx = ' .. actions.jug_literal(jugs) .. ', 1;');
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
+local RegainOn = false;
 local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
 local LevelingOn = true;     -- /leveling: your Leveling set while you are level 30 or below
 
@@ -3868,6 +3881,9 @@ profile.HandleCommand = function(args)
     elseif c == 'refresh' then
         RefreshOn = not RefreshOn;
         gFunc.Message('Refresh idle: ' .. (RefreshOn and 'ON' or 'OFF'));
+    elseif c == 'regain' or c == 'reg' then
+        RegainOn = not RegainOn;
+        gFunc.Message('Regain set: ' .. (RegainOn and 'ON' or 'OFF'));
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn;
         gFunc.Message('Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'));
@@ -3948,6 +3964,7 @@ profile.HandleDefault = function()
         if player.IsMoving and sets['Movement'] then eq('Movement'); end
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
+    if RegainOn then eq('Regain'); end               -- /regain: the Regain set on top (idle or engaged)
     if DWOn then eq('DW'); end
     -- Level 30 and below (natural or level sync): your leveling gear on top
     if LevelingOn and sets['Leveling'] then
@@ -4406,7 +4423,7 @@ end
 ----------------------------------------------------------------------------------------------------
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
 local CATEGORY_OF = {
-    Idle = 'Defense & Idle', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
+    Idle = 'Defense & Idle', Regain = 'Melee', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
     MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
     Swordplay = 'Abilities', Lunge = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',

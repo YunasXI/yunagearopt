@@ -1207,6 +1207,9 @@ return {
         BatteryCharge = { label = 'Battery Charge', weapons = true, weights = { enhdur = 3, blue = 1, refresh = 2, cmp = 0.5, refreshpot = 20 } },
         -- Idle gear you switch on yourself with /refresh (MP recovery)
         Refresh      = { label = 'Idle - Refresh (toggle /refresh)', weapons = true, weights = { refresh = 30, hmp = 3, regen = 3, mp = 0.02 } },
+        -- MNK Regain: the Apex pieces, worn on top of whatever you're in (idle or engaged) while /regain is on
+        Regain       = { label = 'Regain (toggle /regain)', weights = { regain = 30 },
+                         fixed = { head = 'Apex Hatsuburi', body = 'Apex Togi', hands = 'Apex Kote', legs = 'Apex Haidate', feet = 'Apex Sune-ate' } },
 
         -- PUP: automaton sets. Pet stats can't be read from item text, so these are your exact pieces
         -- (a list = any of those names; anything you don't own is filled automatically).
@@ -1307,7 +1310,7 @@ return {
 
     jobs = {
         WAR = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Enmity', 'Movement', 'DW', 'Tomahawk', 'Berserk', 'Warcry', 'Meditate', 'MightyStrikes', 'SP' },
-        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
+        MNK = { 'TP_MNK', 'TP_Hybrid', 'WS', 'Idle', 'Regain', 'PDT', 'MDT', 'Waltz', 'Movement', 'Berserk', 'Warcry', 'SP', 'Counterstance', 'Chakra', 'Boost', 'Focus', 'Meditate' },
         WHM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'NaSpells', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Divine', 'PDT', 'MDT', 'TP', 'WS', 'Sublimation', 'HPMax', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLM = { 'Idle', 'Resting', 'Precast', 'Nuke', 'Nuke_MB', 'MagicAcc', 'Dark', 'DrainAspir', 'Enfeebling_INT', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         RDM = { 'Idle', 'Resting', 'Precast', 'Precast_Cure', 'Cure', 'Enhancing', 'RefreshSpell', 'Phalanx', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT', 'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'TP', 'TP_Hybrid', 'WS', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
