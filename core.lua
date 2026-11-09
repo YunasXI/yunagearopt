@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.75';   -- the release workflow sets this to the release number
+addon.version = '1.1.76';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -392,6 +392,14 @@ local function player_name()
 end
 
 local function dw_active(job_id)
+    -- Only jobs with one-handed melee weapons can dual wield: MNK / PUP (hand-to-hand), SAM, DRG, DRK (two-handed only)
+    -- get nothing from Dual Wield, whatever the subjob (no Suppanomimi / Shukuyu Ring for them)
+    do
+        local one = { Axe = true, Sword = true, Dagger = true, Club = true, Katana = true };
+        local ok = false;
+        for _, w in ipairs((data.job_weapons or {})[JOBS[job_id]] or {}) do if one[w] then ok = true; end end
+        if not ok then return false; end
+    end
     if s.dw_mode == 2 then return true; end
     if s.dw_mode == 3 then return false; end
     if in_list(data.dual_wield_jobs, JOBS[job_id]) then return true; end
