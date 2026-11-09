@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.76';   -- the release workflow sets this to the release number
+addon.version = '1.1.77';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -6586,7 +6586,7 @@ end
 -- UI: compact window
 ----------------------------------------------------------------------------------------------------
 local function draw_lazy()
-    imgui.SetNextWindowSize({ 360, 0 }, ImGuiCond_Always);
+    imgui.SetNextWindowSize({ actions.sc(380), 0 }, ImGuiCond_Always);   -- (grows with Window scale)
     pcall(actions.res_place, 'lazy');
     if imgui.Begin('YunaGearOpt##lazy', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse,
             ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoScrollbar)) then
@@ -6596,16 +6596,17 @@ local function draw_lazy()
         title_text('GEAROPT', 1.15, C.gold);
         imgui.SameLine(0, 8);
         imgui.TextColored(C.muted, 'lazy mode');
-        imgui.SameLine(imgui.GetWindowWidth() - 76);
-        if ghost_button('[ ]##ygo_expand', { 30, 24 }) then s.compact = false; settings.save(); end
+        local gb = actions.sc(30);
+        imgui.SameLine(imgui.GetWindowWidth() - gb * 2 - actions.sc(16));
+        if ghost_button('[ ]##ygo_expand', { gb, actions.sc(24) }) then s.compact = false; settings.save(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Full mode'); end
         imgui.SameLine(0, 2);
-        if ghost_button('X##ygo_lclose', { 30, 24 }) then ui.open[1] = false; end
+        if ghost_button('X##ygo_lclose', { gb, actions.sc(24) }) then ui.open[1] = false; end
 
         -- Step 1: job + set
         imgui.TextColored(C.gold_dim, '1  PICK A SET');
         imgui.SameLine();
-        imgui.PushItemWidth(70);
+        imgui.PushItemWidth(actions.sc(80));
         if imgui.BeginCombo('##ljob', JOBS[ui.job]) then
             for i, abbr in ipairs(JOBS) do
                 if imgui.Selectable(abbr, i == ui.job) then select_job(i); end
@@ -6614,13 +6615,14 @@ local function draw_lazy()
         end
         imgui.PopItemWidth();
 
-        -- Quick buttons for the job's non-WS sets, then a WS dropdown
+        -- Quick buttons for the job's non-WS sets (3 a row, sized to the window), then a WS dropdown
         local n = 0;
+        local qw = math.floor((imgui.GetWindowWidth() - actions.sc(28) - 8) / 3);
         for i, d in ipairs(ui.sets) do
             if d.kind ~= 'ws' then
-                if n % 4 ~= 0 then imgui.SameLine(0, 4); end
+                if n % 3 ~= 0 then imgui.SameLine(0, 4); end
                 local label = d.name:gsub('_', ' ');
-                if accent_button(label .. '##q' .. i, { 80, 26 }, i == ui.set_idx) then ui.set_idx, ui.dirty = i, true; end
+                if accent_button(label .. '##q' .. i, { qw, actions.sc(26) }, i == ui.set_idx) then ui.set_idx, ui.dirty = i, true; end
                 if imgui.IsItemHovered() then imgui.SetTooltip(d.label); end
                 n = n + 1;
             end
@@ -6650,12 +6652,15 @@ local function draw_lazy()
         imgui.TextColored(C.muted, ui.desc and ('  ' .. ui.desc.name) or '');
         imgui.PushStyleColor(ImGuiCol_ChildBg, C.card);
         local slots = ui.desc and active_slots(ui.desc) or {};
-        if imgui.BeginChild('ygo_lazy_set', { 0, #slots * 19 + 14 }, true, ImGuiWindowFlags_NoScrollbar) then
+        local llh = imgui.GetTextLineHeightWithSpacing and imgui.GetTextLineHeightWithSpacing() or (imgui.GetTextLineHeight() + 4);
+        local lcol = 0;                                              -- (the slot names' column: as wide as the longest one)
+        for _, def in ipairs(slots) do lcol = math.max(lcol, text_w(def.label)); end
+        if imgui.BeginChild('ygo_lazy_set', { 0, #slots * llh * 1.08 + actions.sc(16) }, true, ImGuiWindowFlags_NoScrollbar) then
             imgui.SetWindowFontScale(1.05);
             for _, def in ipairs(slots) do
                 local c = ui.result and ui.result[def.key];
                 imgui.TextColored(C.gold_dim, def.label);
-                imgui.SameLine(64);
+                imgui.SameLine(lcol * 1.05 + actions.sc(22));
                 if c then
                     imgui.TextColored(EQUIP_BAGS[c.item.where] and C.text or C.red, c.item.name);
                     if imgui.IsItemHovered() then item_tooltip(c.item); end
@@ -6684,17 +6689,17 @@ local function draw_lazy()
         -- Step 3: actions
         imgui.Spacing();
         imgui.TextColored(C.gold_dim, '3  GO');
-        if accent_button('EQUIP IN GAME', { -1, 32 }, true) then equip_current_set(); end
+        if accent_button('EQUIP IN GAME', { -1, actions.sc(32) }, true) then equip_current_set(); end
         if imgui.IsItemHovered() then imgui.SetTooltip('Put this set on right now so you can see it.'); end
         imgui.TextColored(C.muted, 'Export every set for this job:');
         local bw = math.floor((imgui.GetWindowWidth() - 28 - 12) / 3);
-        if imgui.Button('XML##lx', { bw, 30 }) then ask_export('xml'); end
+        if imgui.Button('XML##lx', { bw, actions.sc(30) }) then ask_export('xml'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('LegacyAC (Ashita)'); end
         imgui.SameLine(0, 6);
-        if imgui.Button('LAC##ll', { bw, 30 }) then ask_export('lac'); end
+        if imgui.Button('LAC##ll', { bw, actions.sc(30) }) then ask_export('lac'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('LuAshitacast (Ashita)'); end
         imgui.SameLine(0, 6);
-        if imgui.Button('GEARSWAP##lg', { bw, 30 }) then ask_export('gs'); end
+        if imgui.Button('GEARSWAP##lg', { bw, actions.sc(30) }) then ask_export('gs'); end
         if imgui.IsItemHovered() then imgui.SetTooltip('GearSwap (Windower)'); end
     end
     imgui.End();
