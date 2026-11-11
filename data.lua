@@ -59,6 +59,11 @@ return {
     bis_extra = { 'Love Torque', 'Prudence Torque', 'Justice Torque', 'Hope Torque', 'Fortitude Torque',
                   'Temp. Torque', 'Faith Torque' },
 
+    -- Sets every job can switch on for its subjob (sidebar: SUBJOB, off until you switch one on). A job that has the set
+    -- of its own keeps it in its own section.
+    extra_sets = { 'Precast', 'Precast_Cure', 'Cure', 'Healing', 'Enhancing', 'Stoneskin', 'Enfeebling_MND', 'Enfeebling_INT',
+                   'Nuke', 'Nuke_MB', 'Dark', 'DrainAspir', 'Ninjutsu', 'Waltz', 'Steps', 'Enmity', 'Meditate', 'TrickAttack' },
+
     -- Job abilities that put a set on: { ability name, set id }
     ja_sets = {
         'Meditate', 'Berserk', 'Warcry', 'Sublimation',
@@ -78,6 +83,7 @@ return {
         'Sentinel', { 'Shield Bash', 'ShieldBash' }, { 'Chivalry', 'ShieldBash' },
         'Rampart', 'Cover',
         { 'Trick Attack', 'TrickAttack' }, 'Flee', 'Steal',
+        { 'Provoke', 'Enmity' }, { 'Animated Flourish', 'Enmity' },   -- (/WAR, /DNC: the Enmity set when it's on)
         { 'Tomahawk', 'Tomahawk', jobs = { 'WAR' } },
         { 'Weapon Bash', 'WeaponBash', jobs = { 'DRK' } },
         -- RUN

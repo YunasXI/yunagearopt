@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.77';   -- the release workflow sets this to the release number
+addon.version = '1.1.78';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -848,6 +848,9 @@ end
 function actions.job_set_ids(abbr)
     local ids = {};
     for _, id in ipairs(data.jobs[abbr] or {}) do table.insert(ids, id); end
+    for _, id in ipairs(data.extra_sets or {}) do                     -- (the subjob sets this job doesn't have of its own)
+        if data.sets[id] and not in_list(ids, id) then table.insert(ids, id); end
+    end
     return ids;
 end
 
@@ -1094,7 +1097,11 @@ local function build_sets(job_id)
     -- (The Leveling set is gone: at level 30 and below every set counts the Lv1-30 bonuses itself - actions.fold30)
     -- Sets you switched off (the switch in the sidebar) stay listed, greyed out, and are left out of every export
     for _, e in ipairs(list) do
-        if actions.set_removed(abbr, e.id) then e.disabled = true; end
+        -- a subjob set (not the job's own): its own section, MP counts (the subjob's), off until you switch it on
+        if in_list(data.extra_sets or {}, e.id) and not in_list(data.jobs[abbr] or {}, e.id) then
+            e.extra, e.mp_sub = true, true;
+        end
+        if actions.set_removed(abbr, e.id) or (e.extra and not in_list(s.set_added[abbr] or {}, e.id)) then e.disabled = true; end
     end
     -- Lockstyle: the look you want, picked by hand (or imported from what you wear). Nothing is chosen
     -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
@@ -4429,7 +4436,7 @@ end
 ----------------------------------------------------------------------------------------------------
 -- UI: theme & helpers
 ----------------------------------------------------------------------------------------------------
-local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle' };
+local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle', 'Subjob' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Regain = 'Melee', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
     MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
@@ -4453,6 +4460,7 @@ local CATEGORY_OF = {
     Lockstyle = 'Lockstyle', Leveling = 'Leveling',   -- (not sidebar categories: opened from the header)
 };
 local function category(desc)
+    if desc.extra then return 'Subjob'; end                         -- (sets for your subjob: their own section)
     if desc.kind == 'tp' then return 'Melee'; end
     if desc.kind == 'ws' then return 'Weaponskills'; end
     return CATEGORY_OF[desc.id] or 'Magic';
@@ -4698,8 +4706,8 @@ function actions.fold_header(key, text, col, icon)
     local tc = hov and C.text or (folded and C.gold_dim or col);
     local tx = x + 4;
     if icon then
-        actions.cat_icon(dl, icon, x + 12, y + h / 2, hov and C.text or C.gold_dim);
-        tx = x + 26;
+        actions.cat_icon(dl, icon, x + actions.sc(12), y + h / 2, hov and C.text or C.gold_dim);
+        tx = x + actions.sc(28);                                   -- (icon and name apart at any Window scale)
     end
     dl:AddText({ tx, y + 4 }, u32(tc), text);
     local ax, cy = x + w - 17, y + h / 2;
@@ -5379,6 +5387,7 @@ local function draw_sidebar()
         caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 1));
         -- Section names fold (click), right-click folds / opens them all
         ui.cat_folded = ui.cat_folded or {};
+        if ui.cat_folded.Subjob == nil then ui.cat_folded.Subjob = true; end   -- (subjob sets: folded until you open it)
         -- only the sets scroll, in their own area under the fixed part
         imgui.PushStyleColor(ImGuiCol_ChildBg, { 0, 0, 0, 0 });
         local sets_open = imgui.BeginChild('ygo_side_sets', { 0, 0 }, false);
@@ -5466,6 +5475,7 @@ local function draw_sidebar()
                 end
             end
         end
+        imgui.Dummy({ 1, actions.sc(14) });                   -- (room under the last row: it never sits cut at the edge)
         imgui.EndChild();                                     -- end of the scrolling sets
         imgui.PopStyleColor();
     end
@@ -6808,7 +6818,7 @@ end
 
 -- A section icon from the smooth pictures in images/icons (white, tinted to col), at the exact pixel size closest
 -- to 16 * k * Window scale; falls back to the line-drawn icon if a picture can't load.
-actions.ICON_FILE = { Melee = 'melee', Weaponskills = 'ws', Precast = 'precast', Magic = 'magic', Abilities = 'abilities' };
+actions.ICON_FILE = { Melee = 'melee', Weaponskills = 'ws', Precast = 'precast', Magic = 'magic', Abilities = 'abilities', Subjob = 'magic' };
 actions.ICON_SIZES = { 16, 20, 24, 32, 40, 48 };
 function actions.cat_icon(dl, cat, cx, cy, col, k)
     k = k or 1;
