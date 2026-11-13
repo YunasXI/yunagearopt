@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.80';   -- the release workflow sets this to the release number
+addon.version = '1.1.81';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -4615,7 +4615,15 @@ end
 
 local function item_tooltip(item)
     local w = ui.weights or {};
-    local lines = { item.name, item.where .. (EQUIP_BAGS[item.where] and '' or '   (move to Inventory/Wardrobe to equip)'), '' };
+    local lines = { item.name, item.where .. (EQUIP_BAGS[item.where] and '' or '   (move to Inventory/Wardrobe to equip)') };
+    -- the item's own text, as the game shows it (DMG / Delay, every stat, its level), then what YGO reads from it
+    if (tonumber(item.level) or 0) > 0 then table.insert(lines, 'Lv.' .. item.level); end
+    local d = tostring(item.desc or ''):gsub('\r', '');
+    if d ~= '' then
+        table.insert(lines, '');
+        for ln in (d .. '\n'):gmatch('([^\n]*)\n') do if ln ~= '' then table.insert(lines, '   ' .. ln); end end
+    end
+    table.insert(lines, '');
     local function add_block(title, stats)
         local keys = {};
         for k in pairs(stats) do table.insert(keys, k); end
@@ -4626,7 +4634,7 @@ local function item_tooltip(item)
             table.insert(lines, string.format('   %-14s %s%s', label_of(k), fmt_num(stats[k]), w[k] and '' or '   (unused here)'));
         end
     end
-    add_block('Base stats', item.base);
+    add_block('Stats YGO reads', item.base);
     add_block('Augments', item.aug);
     if #item.unknown > 0 then
         local ids = {};
@@ -6279,6 +6287,14 @@ function actions.calm_tip(def, c, pin, up)
     elseif ui.forced and ui.forced[def.key] and not ui.show_bis then table.insert(tags, 'picked by a rule'); end
     if it.augmented then table.insert(tags, 'augmented'); end
     if #tags > 0 then table.insert(lines, table.concat(tags, '  -  ')); end
+    do                                                               -- (the item's own text, as the game shows it)
+        local d = tostring(it.desc or ''):gsub(string.char(13), '');
+        if (tonumber(it.level) or 0) > 0 then table.insert(lines, 'Lv.' .. it.level); end
+        if d ~= '' then
+            table.insert(lines, '');
+            for ln in (d .. '\n'):gmatch('([^\n]*)\n') do if ln ~= '' then table.insert(lines, '   ' .. ln); end end
+        end
+    end
     local keys = {};
     for k, v in pairs(it.stats or {}) do if w[k] and v ~= 0 then table.insert(keys, k); end end
     table.sort(keys, function(a, b) return math.abs((it.stats[a] or 0) * w[a]) > math.abs((it.stats[b] or 0) * w[b]); end);
