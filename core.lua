@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.81';   -- the release workflow sets this to the release number
+addon.version = '1.1.82';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -2069,6 +2069,61 @@ function actions.avatar_sets(have)
     return out;
 end
 
+-- Exports: every ring / earring stays on ONE side in every set. The side is the one it has in Idle, then TP, then the
+-- first set it is in. A set where a piece sits on the other side gets its two rings (earrings) swapped; when both
+-- pieces want the same side, the one decided first wins. Two of the same piece (Terra's Earring x2) are left as they are.
+actions.PAIRS = { { 'ring1', 'ring2' }, { 'ear1', 'ear2' } };
+function actions.pair_sides(built)
+    local order = {};
+    for _, b in ipairs(built) do if b.desc.id == 'Idle' then table.insert(order, b); end end
+    for _, b in ipairs(built) do if b.desc.kind == 'tp' and b.desc.id ~= 'Idle' then table.insert(order, b); end end
+    for _, b in ipairs(built) do if b.desc.id ~= 'Idle' and b.desc.kind ~= 'tp' then table.insert(order, b); end end
+    local side, rank, n = {}, {}, 0;
+    local function nm(c) return c and c.item and name_key(c.item.name) or nil; end
+    for _, b in ipairs(order) do
+        for _, pr in ipairs(actions.PAIRS) do
+            local x, y = nm(b.assign[pr[1]]), nm(b.assign[pr[2]]);
+            if x and x ~= y and side[x] == nil then n = n + 1; side[x], rank[x] = pr[1], n; end
+            if y and y ~= x and side[y] == nil then n = n + 1; side[y], rank[y] = pr[2], n; end
+        end
+    end
+    local function fix(a)
+        for _, pr in ipairs(actions.PAIRS) do
+            local A, B = pr[1], pr[2];
+            local x, y = nm(a[A]), nm(a[B]);
+            if x ~= y then
+                local wx = x and side[x] == B;                       -- x sits on A but belongs on B
+                local wy = y and side[y] == A;
+                local swap = false;
+                if wx and wy then swap = true;
+                elseif wx and not y then swap = true;
+                elseif wy and not x then swap = true;
+                elseif wx then swap = (rank[x] or 1e9) < (rank[y] or 1e9);
+                elseif wy then swap = (rank[y] or 1e9) < (rank[x] or 1e9); end
+                if swap then a[A], a[B] = a[B], a[A]; end
+            end
+        end
+    end
+    for _, b in ipairs(built) do
+        fix(b.assign);
+        -- the level sync versions: the whole set at that level, sides fixed, then only what differs from the base again
+        for _, e in ipairs((b.lv and b.lv.list) or {}) do
+            local full = {};
+            for k, c in pairs(b.assign) do full[k] = c; end
+            for k, c in pairs(e.assign) do full[k] = c; end
+            fix(full);
+            local diff = {};
+            for k, c in pairs(full) do
+                if k ~= 'main' and k ~= 'sub' and (e.assign[k] ~= nil or nm(b.assign[k]) ~= nm(c)) then diff[k] = c; end
+            end
+            for _, pr in ipairs(actions.PAIRS) do                       -- (a pair touched: both sides go in, so nothing is left behind)
+                if diff[pr[1]] or diff[pr[2]] then diff[pr[1]], diff[pr[2]] = full[pr[1]], full[pr[2]]; end
+            end
+            e.assign = diff;
+        end
+    end
+end
+
 -- data.ja_sets / data.spell_sets entries are { name, set } or just 'Name' when the set has the same name
 local function name_set_pair(p)
     if type(p) == 'table' then return p; end
@@ -2281,6 +2336,7 @@ local function build_full_xml(job_id)
             have[desc.name] = desc;
         end
     end
+    actions.pair_sides(built);                                       -- (rings / earrings on one side in every set)
 
     local R = data.rules or {};
     local obis = owned_obis();
@@ -2911,6 +2967,7 @@ local function build_gearswap(job_id)
             have[desc.name] = true;
         end
     end
+    actions.pair_sides(built);                                       -- (rings / earrings on one side in every set)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;
@@ -3562,6 +3619,7 @@ local function build_lac(job_id)
             have[desc.name] = true;
         end
     end
+    actions.pair_sides(built);                                       -- (rings / earrings on one side in every set)
     local R, obis = data.rules or {}, owned_obis();
     local jugs = (abbr == 'BST') and actions.owned_jugs(job_id) or {};
     have.__jugs = #jugs > 0;

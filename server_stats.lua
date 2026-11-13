@@ -1097,4 +1097,418 @@ return {
     [39212] = { att = 5, def = 22, enmity = 1, hp = 14, int = 3 }, -- Bladedancer Helm
     [39213] = { att = 5, def = 32, hp = 15, stp = 3, vit = 3 }, -- Bladedancer Cuisses
     [39214] = { acc = 5, def = 42, haste = 2, hp = 18, str = 4 }, -- Bladedancer Breastplate
+    -- added 2026-11-13: items whose description names an effect without a number (CatsEyeXI item API)
+    [10383] = { def = 2 }, -- Dream Mittens +1
+    [10498] = { acc = 10, def = 43, haste = 2, int = 10, mnd = 10, mp = 35, refresh = 1 }, -- Sage's Coat
+    [10499] = { acc = 12, def = 44, haste = 3, int = 12, mnd = 12, mp = 40, refresh = 1 }, -- Sage's Coat +1
+    [10577] = { agi = 5, att = 5, def = 31 }, -- Urja Trousers
+    [10578] = { agi = 6, att = 6, def = 32 }, -- Sthira Trousers
+    [10893] = { dw = 3, haste = 2, hp = 15, pdt = -2 }, -- Heroic Hairpin
+    [10973] = { def = 8, macc = 4 }, -- Oneiros Cape
+    [11281] = { acc = 20, att = 20, crit = 5, def = 52, zanshin = 1 }, -- Hachiryu Haramaki
+    [11289] = { chr = 13, def = 43, int = 13, macc = 5, mnd = 13, refresh = 1, regen = 1 }, -- Ixion Cloak
+    [11292] = { acc = 10, def = 45, enmity = -2, mp = 20, refresh = 1 }, -- Mirage Jubbah
+    [11295] = { acc = 8, def = 45, ratt = 8, str = 3 }, -- Commodore Frac
+    [11301] = { def = 3 }, -- Eerie Cloak +1
+    [11356] = { def = 1 }, -- Ryl.Grd. Livery
+    [11357] = { def = 1 }, -- Myth.Msk. Livery
+    [11358] = { def = 1 }, -- Ptr.Prt. Livery
+    [11365] = { def = 18, int = 3, sird = 15 }, -- Karasutengu
+    [11368] = { agi = 4, def = 12, eva = 4, hp = -10 }, -- Hakke Habaki
+    [11370] = { acc = 2, def = 8 }, -- Junkenshi Habaki
+    [11371] = { acc = 3, def = 9 }, -- Seikenshi Habaki
+    [11372] = { att = 3, def = 11, dex = 1 }, -- Junrenshi Habaki
+    [11373] = { att = 4, def = 12, dex = 2 }, -- Seirenshi Habaki
+    [11374] = { def = 12, str = 2 }, -- Junhanshi Habaki
+    [11375] = { def = 13, str = 3 }, -- Seihanshi Habaki
+    [11398] = { def = 13, healing = 7, mp = 20 }, -- Argute Loafers
+    [11399] = { def = 14, healing = 9, mp = 25 }, -- Argute Loafers +1
+    [11405] = { def = 9 }, -- Kyoshu Kyahan
+    [11418] = { def = 13 }, -- Poise Shoes
+    [11468] = { def = 24, hp = 10, ratt = 8 }, -- Comm. Tricorne
+    [11471] = { agi = 3, def = 19, hp = 12, regen = 1, str = 3 }, -- Pantin Taj
+    [11486] = { def = 20, macc = 4 }, -- Diana Corona
+    [11529] = { def = 1, recycle = 5 }, -- Frugal Cape
+    [11588] = { mp = 25 }, -- Mrc.Mjr. Charm
+    [11602] = { acc = 5, ma = 10 }, -- Cirque Necklace
+    [11636] = { hp = 30 }, -- R.K. Sigil Ring
+    [11732] = { dw = 5, eva = 5, sb = 5 }, -- Nusku's Sash
+    [11734] = { att = 8, def = 3, ma = 10 }, -- Shaolin Belt
+    [11735] = { def = 4, racc = 5, ratt = -5, snapshot = 3 }, -- Impulse Belt
+    [11920] = { def = 16, mnd = 3, pdt = -3 }, -- Melaco Mittens
+    [12123] = { agi = 3, def = 25, racc = 2, ratt = 4 }, -- Ebon Visor
+    [12124] = { agi = 3, def = 25, racc = 2, ratt = 4 }, -- Furia Visor
+    [12125] = { agi = 3, def = 25, racc = 2, ratt = 4 }, -- Ebur Visor
+    [12132] = { chr = 2, def = 19, fc = 2, macc = 2 }, -- Ebon Tam
+    [12133] = { chr = 2, def = 19, fc = 2, macc = 2 }, -- Furia Tam
+    [12159] = { agi = 4, def = 45, racc = 5, ratt = 5 }, -- Ebon Jerkin
+    [12160] = { agi = 4, def = 45, racc = 5, ratt = 5 }, -- Furia Jerkin
+    [12161] = { agi = 4, def = 45, racc = 5, ratt = 5 }, -- Ebur Jerkin
+    [12360] = { def = 24, eva = 3, str = 5 }, -- Tatami Shield
+    [12383] = { chr = 3, def = 15, enmity = 2 }, -- General's Shield
+    [12384] = { chr = 4, def = 16, enmity = 3 }, -- Admiral's Shield
+    [12461] = { def = 23 }, -- Scorpion Helm +1
+    [12512] = { def = 21, hp = 16, mnd = 5 }, -- Temple Crown
+    [12513] = { def = 23, elemental = 10, fc = 10, int = 3, mp = 20 }, -- Warlock's Chapeau
+    [12516] = { dark = 5, def = 23, hp = 12, souleater = 2, str = 4 }, -- Chaos Burgeonet
+    [12517] = { charmtime = 4, def = 22, hp = 15, int = 5 }, -- Beast Helm
+    [12518] = { def = 21, hp = 13, int = 3, rapid = 5, ratt = 5 }, -- Hunter's Beret
+    [12573] = { acc = 2, def = 50, hp = 40, regen = 1 }, -- Dusk Jerkin
+    [12589] = { def = 46 }, -- Scp. Brstplate +1
+    [12605] = { cure = 10, def = 40, mp = 17, refresh = 1 }, -- Noble's Tunic
+    [12621] = { def = 45 }, -- Scp. Breastplate
+    [12623] = { def = 39, enmity = 4, mab = 10, mcrit = 5, refresh = 1 }, -- Yhel Jacket +1
+    [12639] = { acc = 5, def = 41, hp = 20, vit = 3 }, -- Temple Cyclas
+    [12646] = { charmtime = 5, def = 44, hp = 20, vit = 3 }, -- Beast Jackcoat
+    [12648] = { def = 41, hp = 20, racc = 10, vit = 3 }, -- Hunter's Jerkin
+    [12649] = { def = 38, hp = 15, vit = 4 }, -- Drachen Mail
+    [12717] = { def = 13 }, -- Scp. Gnt. +1
+    [12751] = { def = 12 }, -- Scp. Gauntlets
+    [13001] = { dark = 3, def = 14, elemental = 3, fc = 2, int = 6 }, -- Augur's Gaiters
+    [13185] = { def = 7, eva = -5 }, -- Muscle Belt
+    [13273] = { def = 4, mnd = 2 }, -- Twinthread Obi
+    [13274] = { def = 5, mnd = 3, sird = 8 }, -- Twinthread Obi +1
+    [13275] = { def = 4, int = 2 }, -- Arachne Obi
+    [13276] = { def = 5, int = 3, sird = 8 }, -- Arachne Obi +1
+    [13279] = { def = 8, eva = -6 }, -- Muscle Belt +1
+    [13660] = { def = 2 }, -- Wrestler's Mantle
+    [13663] = { def = 2 }, -- Warlock's Mantle
+    [13665] = { def = 2 }, -- Esquire's Mantle
+    [13667] = { def = 2 }, -- Trimmer's Mantle
+    [13668] = { def = 2 }, -- Singer's Mantle
+    [13669] = { def = 2 }, -- Beater's Mantle
+    [13670] = { def = 2 }, -- Ashigaru Mantle
+    [13671] = { def = 2 }, -- Genin Mantle
+    [13692] = { def = 4 }, -- Skulker's Cape
+    [13693] = { def = 6 }, -- Aries Mantle
+    [13706] = { def = 16, dex = -3, mp = 12, reward = 10, str = 6 }, -- Ogre Gloves
+    [13748] = { def = 46, eva = -10, mp = 10, refresh = 1 }, -- Vermillion Cloak
+    [13749] = { def = 47, eva = -10, mp = 20, refresh = 1 }, -- Royal Cloak
+    [13770] = { agi = 3, def = 44, regen = 1, str = -1, throwing = 12 }, -- War Shinobi Gi +1
+    [13779] = { def = 60, elemental = 8, int = 4, refresh = 1 }, -- Black Cloak
+    [13780] = { def = 61, elemental = 10, int = 5, refresh = 1 }, -- Demon's Cloak
+    [13782] = { def = 41, dw = 5, hp = 15, vit = 3 }, -- Ninja Chainmail
+    [13787] = { def = 45, mdb = 5, refresh = 1 }, -- Dalmatica
+    [13823] = { chr = 1, def = 49, vit = 5 }, -- Regen Cuirass
+    [13846] = { def = 22 }, -- Scorpion Helm
+    [13868] = { def = 20, hp = 10, meditate = 4, mnd = 5 }, -- Myochin Kabuto
+    [13876] = { def = 30, int = 3, mnd = 3 }, -- Zenith Crown
+    [13880] = { def = 18 }, -- President. Hairpin
+    [13908] = { def = 34, enfeebling = 10, hp = 20, mp = 20, regen = 1 }, -- Crimson Mask
+    [13913] = { def = 18, int = 2, mnd = 2 }, -- Mushroom Helm
+    [13942] = { chr = 5, def = 28, haste = 2 }, -- Panther Mask
+    [13943] = { chr = 6, def = 29, haste = 3 }, -- Panther Mask +1
+    [13948] = { def = 1 }, -- Chef's Hat
+    [13962] = { boost = 55, def = 14, hp = 14, str = 4 }, -- Temple Gloves
+    [13971] = { def = 10, dex = 3, hp = 10 }, -- Hunter's Bracers
+    [14057] = { def = 17, dex = -4, mp = 14, reward = 11, str = 7 }, -- Ogre Gloves +1
+    [14061] = { chr = 11, def = 31, dex = -6, hp = 22, str = -6, vit = 11 }, -- Kaiser Handschuhs
+    [14089] = { agi = 3, da = 1, def = 14, enmity = 1, hp = 12 }, -- Fighter's Calligae
+    [14090] = { def = 12, dex = 3, hp = 12 }, -- Temple Gaiters
+    [14096] = { def = 10, hp = 15, mnd = 5 }, -- Chaos Sollerets
+    [14097] = { agi = 3, charmtime = 2, def = 10, hp = 11, reward = 10 }, -- Beast Gaiters
+    [14099] = { agi = 4, def = 12, eva = 5, hp = 10 }, -- Hunter's Socks
+    [14102] = { agi = 3, def = 10, hp = 12 }, -- Drachen Greaves
+    [14184] = { acc = 4, def = 16, hp = -20 }, -- Shura Sune-Ate
+    [14185] = { acc = 5, def = 17, hp = -25 }, -- Shr. Sune-Ate +1
+    [14222] = { charmtime = 6, chr = 4, def = 30, hp = 15 }, -- Beast Trousers
+    [14224] = { def = 27, hp = 15, mnd = 5 }, -- Hunter's Braccae
+    [14319] = { def = 29, enmity = -2, mp = 15 }, -- Bison Kecks
+    [14320] = { def = 30, enmity = -3, mp = 16 }, -- Brave's Kecks
+    [14364] = { def = 38, enmity = 3, mab = 9, mcrit = 4, refresh = 1 }, -- Yhel Jacket
+    [14383] = { att = 18, def = 41, dt = 15, refresh = 1, str = 9 }, -- Plastron +1
+    [14391] = { acc = 3, def = 51, hp = 42, regen = 1 }, -- Dusk Jerkin +1
+    [14409] = { def = 33, souleater = 2 }, -- Gloom Breastplate
+    [14410] = { def = 26, regen = 1 }, -- Nimbus Doublet
+    [14413] = { chr = 3, def = 27 }, -- Gaudy Harness
+    [14416] = { att = 13, def = 45, enmity = 2, regen = 2 }, -- Barone Corazza
+    [14443] = { def = 65 }, -- Vampire Cloak
+    [14448] = { def = 56, hp = 48, regen = 1 }, -- Unicorn Harness
+    [14449] = { def = 59, hp = 52, regen = 1 }, -- Ucn. Harness +1
+    [14468] = { bpdelay = 5, def = 43, mp = 25, refresh = 1 }, -- Yinyang Robe
+    [14481] = { charmtime = 6, def = 49, hp = 20, vit = 6 }, -- Bst. Jackcoat +1
+    [14500] = { att = 12, def = 51, enmity = 4, hp = 30 }, -- War. Lorica +1
+    [14503] = { def = 42, elemental = 7, enmity = -2, hp = 12, mp = 12, refresh = 1 }, -- Src. Coat +1
+    [14504] = { agi = 4, def = 46, fc = 10, healing = 12, mp = 30 }, -- Dls. Tabard +1
+    [14508] = { charmtime = 7, def = 50, hp = 21, int = 7 }, -- Mst. Jackcoat +1
+    [14517] = { acc = 10, def = 45, enmity = 9, hp = -20, mp = 20 }, -- Hydra Haubert
+    [14525] = { att = 12, def = 44, eva = 12, zanshin = 5 }, -- Amir Korazin
+    [14539] = { def = 42, eva = 7, mdt = -2, racc = 7, ratt = 7 }, -- Kyudogi
+    [14544] = { acc = 6, att = 6, def = 44, mab = 7, macc = 7 }, -- Corselet
+    [14545] = { acc = 8, att = 8, def = 45, mab = 9, macc = 9 }, -- Corselet +1
+    [14573] = { acc = 5, agi = -3, att = 25, chr = -3, def = 55, dex = -3, int = -3, mnd = -3, regen = 2, str = 10, vit = 10 }, -- Shadow Brstplate
+    [14590] = { acc = 11, def = 42, enmity = -8, stp = 6 }, -- Cobra Harness
+    [14659] = { enmity = 3 }, -- Hercules' Ring
+    [14784] = { chr = 1 }, -- Sangha Earring
+    [14815] = { ninjutsu = 5 }, -- Stealth Earring
+    [14821] = { acc = 4, def = 16, hp = -20 }, -- Shura Kote
+    [14822] = { acc = 5, def = 17, hp = -25 }, -- Shura Kote +1
+    [14900] = { agi = 6, def = 14, dex = 6, hp = 10 }, -- Htr. Bracers +1
+    [14917] = { agi = 5, charmtime = 4, def = 16, hp = 20, jugrange = 1 }, -- Mst. Gloves +1
+    [14930] = { agi = 3, def = 12, hp = 13, maneuver = 1, overload = 5 }, -- Pup. Dastanas
+    [14931] = { def = 14 }, -- Carbuncle's Cuffs
+    [14958] = { def = 22 }, -- Beast Bazubands
+    [14959] = { def = 24, racc = 8 }, -- Mrc. Dastanas
+    [14999] = { def = 19, dex = 3, str = 3 }, -- Vampiric Mitts
+    [15000] = { def = 24, hhp = 2, hp = 28 }, -- Caballero Gnt.
+    [15011] = { acc = 4, def = 13, enmity = -3, stp = 3 }, -- Cobra Mittens
+    [15016] = { def = 23, hp = 30, vit = 3 }, -- Orcish Gauntlets
+    [15017] = { def = 16, hp = 20, mab = 3 }, -- Toad Mittens
+    [15028] = { agi = 2, def = 14, hp = 12, racc = 5, snapshot = 5 }, -- Commodore Gants
+    [15034] = { def = 28, hp = 10, mp = 10, stoneskin = 30 }, -- Stone Mufflers
+    [15069] = { def = 32 }, -- Ancile
+    [15072] = { def = 28, dex = 5, enmity = 1, warcry = 10 }, -- Warrior's Mask
+    [15074] = { def = 24, enmity = -4, mp = 25, vit = 4 }, -- Cleric's Cap
+    [15076] = { def = 24, enfeebling = 15, mp = 14, refresh = 1 }, -- Duelist's Chapeau
+    [15079] = { att = 10, def = 27, hp = 30, vit = 7 }, -- Abyss Burgeonet
+    [15088] = { def = 44, hhp = 6, regen = 1, vit = 5 }, -- Melee Cyclas
+    [15089] = { def = 42, enmity = -2, mp = 24, refresh = 1 }, -- Cleric's Bliaut
+    [15090] = { def = 41, elemental = 5, enmity = -2, mp = 12, refresh = 1 }, -- Sorcerer's Coat
+    [15095] = { charmtime = 6, def = 49, hp = 21, int = 6 }, -- Monster Jackcoat
+    [15100] = { def = 49, hp = 24 }, -- Wyrm Mail
+    [15103] = { att = 16, def = 15, sb = 4 }, -- Melee Gloves
+    [15110] = { agi = 4, charmtime = 4, def = 15, hp = 14, jugrange = 1 }, -- Monster Gloves
+    [15113] = { att = 10, def = 21, enmity = 1, hp = 10, meditate = 4 }, -- Saotome Kote
+    [15128] = { agi = 3, def = 40, enmity = 1, hp = 18 }, -- Saotome Haidate
+    [15129] = { def = 31, dw = 5, hp = 40 }, -- Koga Hakama
+    [15130] = { def = 32, dex = 5, hp = 13 }, -- Wyrm Brais
+    [15132] = { agi = 5, def = 19, enmity = 1, hp = 10 }, -- Warrior's Calligae
+    [15133] = { def = 15, dex = 4 }, -- Melee Gaiters
+    [15152] = { agi = 4 }, -- Cactuar Ribbon
+    [15157] = { def = 25, enmity = -1, mp = 8 }, -- Bison Warbonnet
+    [15158] = { def = 26, enmity = -2, mp = 9 }, -- Brv. Warbonnet
+    [15183] = { agi = 3, eva = 5 }, -- Dobson Bandana
+    [15220] = { chr = 2, mnd = 2, mp = 20 }, -- Rain Hat
+    [15232] = { dark = 5, def = 27, hp = 12, mp = 12, souleater = 2, str = 7 }, -- Chs. Burgeonet +1
+    [15233] = { charmtime = 4, def = 26, hp = 15, int = 8, mnd = 8 }, -- Bst. Helm +1
+    [15235] = { agi = 4, def = 24, hp = 13, int = 4, rapid = 5, ratt = 5 }, -- Htr. Beret +1
+    [15244] = { def = 18 }, -- Flawless Ribbon
+    [15247] = { def = 25, enmity = -5, mp = 25, vit = 5 }, -- Clr. Cap +1
+    [15252] = { att = 12, def = 28, hp = 30, vit = 8 }, -- Abs. Burgeonet +1
+    [15264] = { acc = 4, def = 32, enmity = 8, haste = 4 }, -- Bahamut's Mask
+    [15266] = { def = 22, hp = 8, racc = 8, str = 2 }, -- Corsair's Tricorne
+    [15328] = { def = 18, hp = 35 }, -- Root Sabots
+    [15352] = { agi = 3, da = 1, def = 19, enmity = 1, hp = 12, vit = 3 }, -- Ftr. Calligae +1
+    [15353] = { def = 15, dex = 5, eva = 10, hp = 12, mnd = 5 }, -- Tpl. Gaiters +1
+    [15359] = { def = 17, hp = 15, mnd = 5, mp = 15, str = 5 }, -- Chs. Sollerets +1
+    [15360] = { agi = 5, charmtime = 2, chr = 5, def = 14, hp = 11, reward = 11 }, -- Bst. Gaiters +1
+    [15362] = { agi = 6, def = 16, dex = 6, eva = 5, hp = 10 }, -- Htr. Socks +1
+    [15365] = { agi = 5, def = 16, dex = 5, hp = 12 }, -- Drn. Greaves +1
+    [15370] = { att = 1, def = 24, souleater = 2 }, -- Sable Cuisses
+    [15466] = { chr = 9, def = 7, mp = 30 }, -- Birdman Cape
+    [15493] = { def = 7, eva = 1, sb = 1, stp = 1, zanshin = 1 }, -- Bushido Cape
+    [15506] = { def = 5, mp = 10 }, -- Parade Gorget
+    [15518] = { def = 2, mp = 10 }, -- M. No.17's Locket
+    [15519] = { def = 1 }, -- Storm Muffler
+    [15526] = { def = 1 }, -- Regen Collar
+    [15537] = { ratt = 8 }, -- Kappa Necklace
+    [15539] = { att = 6, def = 1, regen = 1 }, -- Orochi Nodowa
+    [15569] = { charmtime = 6, chr = 6, def = 34, hp = 15, str = 6 }, -- Bst. Trousers +1
+    [15592] = { def = 32, dw = 5, hp = 40 }, -- Kog. Hakama +1
+    [15599] = { acc = 6, bdt = -5, def = 31, dex = 6, kick = 6 }, -- Bahamut's Hose
+    [15602] = { chr = 3, def = 25, hp = 11 }, -- Pup. Churidars
+    [15614] = { acc = 3, def = 33, str = 3 }, -- Exorcist Hose
+    [15624] = { def = 39 }, -- Mrc. Subligar
+    [15645] = { def = 30, enmity = -4, hp = 15, mp = 15 }, -- Khimaira Kecks
+    [15646] = { def = 31, enmity = -5, hp = 16, mp = 16 }, -- Stout Kecks
+    [15665] = { agi = 6, def = 20, enmity = 1, hp = 15 }, -- War. Calligae +1
+    [15672] = { acc = 2, def = 18, enfeebling = 5, mp = 12 }, -- Abs. Sollerets +1
+    [15673] = { charmtime = 3, def = 15, hp = 13, reward = 20, vit = 5 }, -- Mst. Gaiters +1
+    [15686] = { def = 11, hp = 9, repaireff = 1, str = 3 }, -- Pup. Babouches
+    [15690] = { def = 11, eva = 5, int = 3, mab = 2, mnd = 3 }, -- Yigit Crackows
+    [15698] = { def = 9 }, -- Sneaking Boots
+    [15700] = { def = 13 }, -- Skanda Boots
+    [15702] = { chr = 4, def = 14 }, -- Spagyric Nails
+    [15753] = { def = 2 }, -- Dream Boots +1
+    [15757] = { acc = 4, def = 10, enmity = -3, stp = 4 }, -- Cobra Leggings
+    [15771] = { agi = 1, chr = 1, dex = 1, int = 1, mnd = 1, str = 1, vit = 1 }, -- Shining Ring
+    [15772] = { agi = 2, chr = 2, dex = 2, int = 2, mnd = 2, str = 2, vit = 2 }, -- Scintillant Ring
+    [15775] = { def = 5, mdb = 2 }, -- Unfettered Ring
+    [15776] = { hp = 15, mp = 15 }, -- Ebullient Ring
+    [15777] = { int = 3, mnd = 3 }, -- Hale Ring
+    [15778] = { def = 7, dex = 3, vit = 3 }, -- Unyielding Ring
+    [15779] = { agi = 3, str = 3 }, -- Garrulous Ring
+    [15797] = { mnd = 5 }, -- Pi Ring
+    [15808] = { acc = 4, att = 4 }, -- Ulthalam's Ring
+    [15809] = { racc = 6, ratt = 6 }, -- Jalzahn's Ring
+    [15818] = { str = 4 }, -- Moliones's Ring
+    [15827] = { macc = 2 }, -- Insect Ring
+    [15828] = { acc = 5 }, -- Blood Ring
+    [15913] = { def = 4, sb = 5 }, -- Peiste Belt
+    [15914] = { def = 5, sb = 10 }, -- Peiste Belt +1
+    [15928] = { acc = 9 }, -- Lycopodium Sash
+    [15970] = { hhp = 1, hp = 20 }, -- Stoic Earring
+    [15972] = { hp = 15, mp = 15 }, -- Insomnia Earring
+    [15973] = { racc = 2 }, -- Vision Earring
+    [15974] = { eva = 4 }, -- Velocity Earring
+    [15979] = { acc = 3, str = 1 }, -- Fowling Earring
+    [15986] = { vit = 3 }, -- Eta Earring
+    [15987] = { chr = 3 }, -- Epsilon Earring
+    [15999] = { repairpot = 20 }, -- Guignol Earring
+    [16055] = { stepacc = 2 }, -- Choreia Earring
+    [16083] = { def = 28, enmity = -4 }, -- Mrc. Turban
+    [16104] = { def = 26, enmity = -3, hp = 8, mp = 8 }, -- Khimaira Bonnet
+    [16105] = { def = 27, enmity = -5, hp = 9, mp = 9 }, -- Stout Bonnet
+    [16123] = { def = 21 }, -- Lamia Garland
+    [16126] = { def = 25, dex = 4, racc = 10 }, -- Bowman's Mask
+    [16127] = { macc = 4, mp = 30 }, -- Carline Ribbon
+    [16144] = { def = 3, hhp = 1, hmp = 1, regen = 1 }, -- Sol Cap
+    [16145] = { def = 3, hhp = 1, hmp = 1 }, -- Lunar Cap
+    [16148] = { acc = 4, def = 22, enmity = -4, stp = 2 }, -- Cobra Cap
+    [16161] = { def = 21, hp = 25 }, -- Januwiyah
+    [16163] = { def = 22, hp = 30 }, -- Januwiyah +1
+    [16173] = { def = 20, reward = 5 }, -- Pallas's Shield
+    [16217] = { def = 2 }, -- Immortal's Cape
+    [16218] = { def = 2 }, -- Pirate's Cape
+    [16222] = { def = 7 }, -- Mrc. Mantle
+    [16233] = { def = 7 }, -- Peiste Mantle
+    [16234] = { def = 8 }, -- Peiste Mantle +1
+    [16238] = { def = 7, mp = 20 }, -- Taster's Cape
+    [16277] = { eva = 5 }, -- Bandolero Scarf
+    [16281] = { hp = 3, overload = 5 }, -- Buffoon's Collar
+    [16282] = { hp = 5, overload = 5 }, -- Bfn. Collar +1
+    [16305] = { def = 3, mp = 10 }, -- Sanctus Rosary
+    [16311] = { def = 27, enmity = -1, mp = 20 }, -- Scholar's Pants
+    [16317] = { acc = 5, def = 26, enmity = -4, stp = 3 }, -- Cobra Subligar
+    [16337] = { att = 5, def = 42, str = 10, zanshin = 1 }, -- Hachiryu Haidate
+    [16339] = { def = 32, ratt = 5, recycle = 5 }, -- Paddock Trousers
+    [16351] = { chr = 5, def = 26, dex = 5, hp = 16 }, -- Pup. Churidars +1
+    [16354] = { def = 31 }, -- Malagigi's Trousers
+    [16380] = { def = 24, rapid = 3, ratt = 6, recycle = 3 }, -- Entois Trousers
+    [17073] = { int = 10, mnd = 10 }, -- Mistilteinn
+    [17113] = { dt = 10, refresh = 1 }, -- Owleyes
+    [17165] = { hp = 10, str = 1 }, -- Arco de Velocidad
+    [17213] = { agi = 4 }, -- Staurobow
+    [17214] = { agi = 4, ratt = 18 }, -- Staurobow +1
+    [17466] = { cure = 1 }, -- Dia Wand
+    [17729] = { mp = 15 }, -- Vermin Slayer
+    [17730] = { mp = 20 }, -- Insect Slayer
+    [17731] = { mp = 15 }, -- Aquan Slayer
+    [17732] = { mp = 20 }, -- Marine Slayer
+    [17734] = { dex = 3, mp = 20, vit = 3 }, -- Wyrm Slayer
+    [17735] = { dex = 2, mp = 15, vit = 2 }, -- Demon Slayer
+    [17736] = { dex = 3, mp = 20, vit = 3 }, -- Devil Slayer
+    [17755] = { dex = 3, mp = 20, vit = 3 }, -- Beast Slayer
+    [17759] = { dex = 4, str = 4 }, -- Koggelmander
+    [17953] = { reward = 10 }, -- Zoraal Ja's Axe
+    [17958] = { att = 10 }, -- Iron Ram Pick
+    [17959] = { hp = 16 }, -- Viperine Pick
+    [17964] = { wsacc = 5 }, -- Barkborer
+    [18023] = { hp = 20 }, -- Jambiya
+    [18024] = { hp = 22 }, -- Jambiya +1
+    [18032] = { eva = 4, hp = 15 }, -- Adder Jambiya
+    [18033] = { eva = 5, hp = 20 }, -- Adder Jambiya +1
+    [18074] = { dt = -10, hp = 10, mp = 10 }, -- Iron Ram Lance
+    [18123] = { dex = 2, hp = 10, vit = 2 }, -- Thalassocrat
+    [18124] = { dex = 3, hp = 12, vit = 3 }, -- Thalassocrat +1
+    [18131] = { att = 8 }, -- Zaide
+    [18257] = { vit = 4 }, -- Bibiki Seashell
+    [18264] = { att = 20, counter = 5 }, -- Spharai
+    [18438] = { crit = 5, zanshin = 1 }, -- Kumokirimaru
+    [18447] = { dex = 7, str = 7, zanshin = 100 }, -- Nanatsusaya
+    [18494] = { att = 10 }, -- Fourth Toporok
+    [18504] = { agi = 4 }, -- Eventreuse
+    [18525] = { acc = 5, att = 12, str = 8, vit = 8 }, -- Hax
+    [18624] = { hmp = 11, mp = 25 }, -- Numen Staff
+    [18708] = { regen = 1 }, -- Snakeeye
+    [18709] = { regen = 1 }, -- Snakeeye +1
+    [18728] = { racc = 5 }, -- Cobra Bow
+    [18756] = { att = 7 }, -- Cobra Baghnakhs
+    [18841] = { cure = 10, mnd = 5 }, -- Templar Mace
+    [18858] = { hhp = 2, regen = 1 }, -- Flanged Mace
+    [18860] = { hhp = 3, regen = 1 }, -- Flanged Mace +1
+    [18865] = { att = 8, str = 3 }, -- Zonure
+    [18867] = { acc = 4, mp = 15 }, -- Daedalus Hammer
+    [18914] = { dex = 2, mp = 30, vit = 2 }, -- Killer's Kilij
+    [18915] = { dex = 3, mp = 35, vit = 3 }, -- Eradicator's Kilij
+    [18946] = { acc = 7 }, -- Fourth Zaghnal
+    [18947] = { str = 3 }, -- Moliones's Sickle
+    [18989] = { stepacc = 20, stepfinish = 1 }, -- Terpsichore
+    [18994] = { acc = 30, mab = 20, macc = 10 }, -- Laevateinn
+    [18995] = { macc = 10 }, -- Murgleis
+    [18998] = { macc = 20 }, -- Liberator
+    [19001] = { snapshot = 10 }, -- Gastraphetes
+    [19003] = { enmity = 20, macc = 20 }, -- Nagi
+    [19008] = { ma = 20 }, -- Kenkonken
+    [19021] = { zanshin = 3 }, -- Katana Strap
+    [19049] = { fc = 1 }, -- Vivid Strap
+    [19051] = { fc = 1, int = 1 }, -- Vivid Strap +1
+    [19100] = { hp = 16, mp = 16 }, -- Cobra Knife
+    [19113] = { eva = 8 }, -- Ermine's Tail
+    [19211] = { att = 10 }, -- Reacton Arm
+    [19273] = { eva = 5 }, -- Onishibari
+    [19298] = { dex = 8, enmity = 5, eva = 10, meva = 5, regen = 1, str = 8 }, -- Carver
+    [19743] = { agi = 2, enmity = -2, mp = 15, racc = 4 }, -- Opprimo
+    [19744] = { agi = 3, enmity = -3, mp = 20, racc = 5 }, -- Opprimo +1
+    [19786] = { racc = 11, ratt = 5, str = 1 }, -- Nurigomeyumi
+    [19787] = { racc = 12, ratt = 6, str = 2 }, -- Nurigomeyumi +1
+    [20619] = { acc = 8, agi = 4, dex = 4, dt = -3, enmity = 4, eva = 5, hp = 20, samba = 20 }, -- Polyhymnia
+    [20760] = { att = 19, enmity = 5, fc = 5, int = 5, mp = 13, refresh = 1, str = 5 }, -- Bitterness +1
+    [20796] = { acc = 12, da = 3, mdt = -4 }, -- Purgation
+    [20829] = { acc = 6, da = 2, str = 2 }, -- Sinister Sickle
+    [20901] = { drain = 15, hmp = 15, int = 10, str = 10, tpb = 1000 }, -- Inanna
+    [21511] = { acc = 10, kick = 3, str = 6, vit = 6 }, -- Hep. Baghnakhs
+    [21512] = { acc = 15, kick = 5, str = 8, vit = 8 }, -- Hep. Baghnakhs +1
+    [21556] = { acc = 8, dex = 6, mp = 25, sk_dagger = 10, str = 6 }, -- Beryllium Kris
+    [21557] = { acc = 12, dex = 8, mp = 30, sk_dagger = 15, str = 8 }, -- Beryllium Kris +1
+    [21610] = { acc = 10, mab = 10, mnd = 3, str = 3 }, -- Hepatizon Rapier
+    [21660] = { acc = 15, int = 12, mp = 30, sk_gsword = 15, str = 12 }, -- Bery. Sword +1
+    [21708] = { acc = 8, att = 8, hp = 25, str = 6, vit = 6 }, -- Beryllium Pick
+    [21709] = { acc = 12, att = 12, hp = 30, str = 8, vit = 8 }, -- Beryllium Pick +1
+    [21816] = { acc = 15, mnd = 12, sk_scythe = 15, stp = 8, str = 12 }, -- Maliya Sickle +1
+    [21869] = { acc = 10, att = 10, hp = 25, mnd = 8, str = 8 }, -- Exalted Spear
+    [21870] = { acc = 15, att = 15, hp = 30, mnd = 12, str = 12 }, -- Exalted Spear +1
+    [21905] = { att = 5, dex = 3, dw = 3 }, -- Yoiyami
+    [22023] = { acc = 8, att = 8, cure = 5, mnd = 6, mp = 25, str = 6 }, -- Beryllium Mace
+    [22024] = { acc = 12, att = 12, cure = 8, mnd = 8, mp = 30, str = 8 }, -- Beryllium Mace +1
+    [22119] = { dw = 5, hp = 12, rapid = 3, ratt = 12, str = 3 }, -- Revenge
+    [22125] = { agi = 3, mnd = 3, mp = 25, racc = 15, ratt = 15 }, -- Exalted Bow
+    [22126] = { agi = 4, mnd = 4, mp = 30, racc = 18, ratt = 18 }, -- Exalted Bow +1
+    [22137] = { agi = 8, hp = 25, int = 8, racc = 15 }, -- Exalted C.bow
+    [22138] = { agi = 12, hp = 30, int = 12, racc = 18 }, -- Exalted C.bow +1
+    [23030] = { chr = 10 }, -- Shaarat'kor
+    [23760] = { curect = 5, def = 27, divine = 10, mnd = 10, mp = 25, refresh = 1 }, -- Bunzi's Hat
+    [23763] = { acc = 15, att = 15, def = 52, dex = 10, hp = 50, refresh = 1, str = 10 }, -- Gleti's Cuirass
+    [23766] = { def = 47, dex = 10, mp = 50, refresh = 1, sk_sword = 10, str = 10 }, -- Agwu's Robe
+    [23769] = { def = 17, hp = 20, mdb = 3, meva = 3, roll = 1, rolldur = 15 }, -- Ikenga's Gloves
+    [23776] = { def = 33, enmity = -5, hp = 30, regen = 1, snapshot = 5 }, -- Ikenga's Trousers
+    [23780] = { att = 15, def = 33, dex = 5, dw = 3, haste = 3, mp = 15, regen = 3 }, -- Agwu's Slops
+    [25567] = { chr = 2, def = 8, hp = 6, mnd = 2 }, -- Garrison Sallet +1
+    [25611] = { agi = 5, def = 28, dex = 5, haste = 5, hp = 25, zanshin = 1 }, -- Ryuo Somen
+    [25615] = { def = 19, geomancy = 8, mnd = 7, mp = 25, refresh = 1, vit = 7 }, -- Amalric Coif
+    [25643] = { cure = 10, def = 19, macc = 5, mp = 25 }, -- Merlinic Hood
+    [25720] = { def = 41, dt = -5, mnd = 5, mp = 50, refresh = 1, vit = 5 }, -- Chironic Doublet
+    [26543] = { chr = 2, def = 18, dex = 2, mp = 10 }, -- Garrison Tunica +1
+    [26666] = { battuta = 10, def = 28, haste = 3, hp = 11, mp = 11, str = 6 }, -- Futhark Bandeau
+    [26667] = { battuta = 10, def = 29, haste = 4, hp = 18, mp = 18, str = 7 }, -- Fu. Bandeau +1
+    [26797] = { def = 26, enhancing = 6, enmity = -5, mnd = 5, mp = 15, stoneskin = 5 }, -- Vanya Hood
+    [27018] = { def = 20, dex = 7, hp = 17, swordplay = 3 }, -- Futhark Mitons
+    [27019] = { def = 21, dex = 8, hp = 24, swordplay = 4 }, -- Futhark Mitons +1
+    [27101] = { def = 21, hp = 15, mdb = 3, meva = 3, mnd = 3, mp = 15, regen = 1, stp = 5, vit = 3 }, -- Pursuer's Cuffs
+    [27115] = { def = 24, hp = 20, mdb = 3, meva = 3, mnd = 3, regen = 1, vit = 3 }, -- Ryuo Tekko
+    [27117] = { acc = 10, att = 10, def = 19, haste = 3, hp = 25, taagi = 3, th = 1 }, -- Adhemar Wristbands
+    [27138] = { def = 20, haste = 5, hp = 15, mnd = 6, mp = 20, regen = 1, vit = 6 }, -- Odyssean Gauntlets
+    [27139] = { def = 18, enmity = -3, hp = 25, jugrange = 1, mnd = 3, regen = 1, vit = 3 }, -- Valorous Mitts
+    [27140] = { def = 17, haste = 3, hp = 20, mdb = 3, mnd = 3, regen = 1, vit = 3 }, -- Herculean Gloves
+    [27141] = { def = 17, enmity = -5, hp = 25, int = 3, sird = 20, sublimation = 1 }, -- Merlinic Dastanas
+    [27142] = { def = 18, mdb = 3, meva = 3, mnd = 3, mp = 25, regen = 1, vit = 3 }, -- Chironic Gloves
+    [27195] = { def = 42, dex = 8, enhdur = 12, fc = 10, hp = 27, mp = 27, vit = 8 }, -- Futhark Trousers +1
+    [27302] = { agi = 4, def = 37, dex = 4, dw = 3, enmity = 5, haste = 4, hp = 30, sk_dagger = 10 }, -- Adhemar Kecks
+    [27471] = { agi = 3, def = 21, dex = 3, haste = 3, hp = 15, zanshin = 1 }, -- Ryuo Sune-Ate
+    [27492] = { chr = 4, da = 2, def = 18, dex = 4, dw = 2, haste = 2, hp = 20 }, -- Siren's Sollerets
+    [27496] = { agi = 3, def = 19, dex = 3, enmity = -3, hp = 15, rapid = 3, snapshot = 3 }, -- Herculean Boots
+    [27784] = { def = 22, dex = 5, haste = 5, hp = 15, sk_h2h = 8 }, -- Thurandaut Chapeau
+    [27786] = { def = 22, elemental = 15, int = 5, mp = 25 }, -- Geomancy Galero
+    [27787] = { def = 27, dex = 5, hp = 21, pdt = -3, regen = 3 }, -- Runeist Bandeau
+    [27926] = { dark = 12, def = 40, hmp = 5, mp = 35 }, -- Geomancy Tunic
+    [28067] = { def = 21, dex = 3, gambit = 10, mp = 22, refresh = 1, vit = 3 }, -- Runeist Mitons
+    [28085] = { def = 21, fc = 1, hp = 8, mnd = 2, mp = 8 }, -- Neit's Slops
+    [28206] = { def = 30, fc = 10, mp = 20, sird = 15 }, -- Geomancy Pants
+    [28344] = { def = 20, hp = 15, regen = 1, str = 3 }, -- Thurandaut Boots
+    [28347] = { def = 18, hp = 18, mdb = 2, pflug = 5, vit = 6 }, -- Runeist Bottes
+    [28386] = { enmity = -2, geomancy = 5, mp = 40 }, -- Radiant Lantern
+    [28513] = { enmity = 2 }, -- Bandit's Earring
+    [28614] = { int = 4, mnd = 4 }, -- Warloq's Locket
+    [28648] = { def = 30, hp = 20, pdt = -3, phalanxrcv = 1, regen = 1 }, -- Priwen
+    [39050] = { mp = 20 }, -- Tidal Earring
 };

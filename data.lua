@@ -818,6 +818,7 @@ return {
     -- The rest of the item's stats still count. Use the stat keys listed at the top.
     stat_remove = {
         ["Ares's Ring"] = { 'da' },    -- Double Attack +2% only in Lumoria
+        ['Inanna']      = { 'tpb' },   -- TP Bonus only on "Pestilence" (the server lists it as TP Bonus +1000)
     },
 
     -- GearSwap export: CatsEyeXI renamed some items in its custom game files, but Windower/GearSwap
@@ -1341,7 +1342,7 @@ return {
         SAM = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Movement', 'Meditate', 'Berserk', 'Warcry', 'SP' },
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
-        SMN = { 'Idle', 'Idle_Avatar', 'Idle_Carbuncle', 'Idle_LightSpirit', 'Idle_Dark', 'Idle_Fire', 'Idle_Ice', 'Idle_Wind', 'Idle_Earth', 'Idle_Thunder', 'Idle_Water', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
+        SMN = { 'Idle', 'Idle_Avatar', 'Idle_Carbuncle', 'Idle_LightSpirit', 'Idle_Dark', 'Idle_Fire', 'Idle_Ice', 'Idle_Wind', 'Idle_Earth', 'Idle_Thunder', 'Idle_Water', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'Stoneskin', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
         BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate', 'Learn' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'Idle_Mage', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments',
