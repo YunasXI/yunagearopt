@@ -701,6 +701,12 @@ return {
 
     -- Stats to SET on specific items (corrects values the description doesn't show or words oddly).
     -- Other stats on the item are still read normally; this value replaces that one stat.
+    -- Gear whose stats depend on the time of day (the server's latent: day 06:00-17:59, night 18:00-05:59, Vana'diel time).
+    -- The Idle set is worked out twice with these - by day and at night - and your file wears the night one at night.
+    time_stats = {
+        ['serpentes cuffs']  = { day = { regen = 1 },   night = { refresh = 1 } },
+        ['serpentes sabots'] = { day = { refresh = 1 }, night = { regen = 1 } },
+    },
     stat_fix = {
         -- SMN: avatar upkeep by element (CatsEyeXI item database, mods 553-560; Carbuncle Mitts mod 356)
         ['Fire Staff'] = { aperp_fire = 2, aperp_ice = -2 }, ["Vulcan's Staff"] = { aperp_fire = 3, aperp_ice = -3 },
@@ -1295,6 +1301,8 @@ return {
         BreathPotency = { label = 'Wyvern breath potency (pet skill)', weights = {}, fixed = { head = 'Wyrm Armet' } },
         -- Worn while running in earth weather
         DesertBoots   = { label = 'Desert Boots (running in earth weather)', weights = {}, fixed = { feet = 'Desert Boots' } },
+        -- BLU: the AF hands while you try to learn a spell - on top of whatever you're in while /learn is on
+        Learn         = { label = 'Blue magic learning (toggle /learn)', weights = {}, fixed = { hands = { 'Mag. Bazubands +1', 'Magus Bazubands' } } },
         -- /dw toggle: the two weapons YOU pick (arrows on the Main / Sub cards). While /dw is ON they're worn and no other
         -- set changes main / sub; nothing is ever auto-picked, so with nothing picked there is no /dw.
         DW = { label = 'Dual wield weapons (/dw toggle)', weights = {}, always_weapons = true, fixed = {} },
@@ -1334,7 +1342,7 @@ return {
         NIN = { 'TP', 'TP_Hybrid', 'WS', 'Ninjutsu', 'Precast', 'Enmity', 'Idle', 'PDT', 'MDT', 'Evasion', 'Movement', 'Berserk', 'Warcry', 'SP', 'Meditate' },
         DRG = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Precast', 'Jump', 'HighJump', 'Angon', 'AncientCircle', 'SpiritLink', 'Breath', 'BreathPotency', 'Berserk', 'Warcry', 'Meditate', 'SP', 'Movement', 'DesertBoots' },
         SMN = { 'Idle', 'Idle_Avatar', 'Idle_Carbuncle', 'Idle_LightSpirit', 'Idle_Dark', 'Idle_Fire', 'Idle_Ice', 'Idle_Wind', 'Idle_Earth', 'Idle_Thunder', 'Idle_Water', 'Resting', 'Precast', 'BP_Delay', 'BloodPact', 'Cure', 'Enhancing', 'PDT', 'MDT', 'SP', 'Movement', 'Berserk', 'Warcry', 'Meditate' },
-        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
+        BLU = { 'TP', 'TP_Hybrid', 'WS', 'BluPhys', 'BluMag', 'BluDebuff', 'BlueMagic', 'BatteryCharge', 'Precast', 'Cure', 'Idle', 'Resting', 'Refresh', 'PDT', 'MDT', 'DW', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate', 'Learn' },
         COR = { 'TP', 'TP_Hybrid', 'WS', 'Preshot', 'Midshot', 'QuickDraw', 'PhantomRoll', 'RandomDeal', 'Cure', 'Stoneskin', 'Idle', 'Idle_NIN', 'Idle_Mage', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'Meditate' },
         PUP = { 'TP', 'TP_Hybrid', 'WS', 'Idle', 'PDT', 'MDT', 'Berserk', 'Warcry', 'SP', 'Movement', 'PetTank', 'PetRanged', 'Attachments',
                 'Maneuver', 'Repair', 'Maintenance', 'Meditate' },

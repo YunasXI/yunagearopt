@@ -872,6 +872,7 @@ function actions.slash_cmds(have)
     if have.TH then table.insert(c, 'th'); end
     if have.Refresh then table.insert(c, 'refresh'); end
     if have.Regain then table.insert(c, 'regain'); table.insert(c, 'reg'); end   -- (/reg = the short /regain)
+    if have.Learn then table.insert(c, 'learn'); end                  -- (BLU: the AF hands while learning)
     if have.DW then table.insert(c, have.__lockcmd or 'dw'); end
     if have.Leveling then table.insert(c, 'leveling'); end
     if have.PetRanged and have.PetTank then table.insert(c, 'petranged'); end
@@ -1009,6 +1010,14 @@ local function build_sets(job_id)
                     if food == nil then entry.no_ammo = true; end
                 end
                 table.insert(list, entry);
+                if id == 'Idle' and actions.tod_owned() then            -- (gear that changes with the time of day: by day here, a night twin
+                    entry.tod = 'day';                                -- after it - your file wears it at night)
+                    local night = {};
+                    for k, v in pairs(entry) do night[k] = v; end
+                    night.id, night.name, night.tod = 'Idle_Night', 'Idle_Night', 'night';
+                    night.label = entry.label .. ' - at night';
+                    table.insert(list, night);
+                end
             end
         end
     end
@@ -1333,7 +1342,7 @@ local function preferred_for(job_id, desc)
 end
 
 -- pins: slot -> {name, where} (force a piece), false (force empty), nil (optimizer decides)
-local function optimize(job_id, desc, pins, pool)
+function actions.opt0(job_id, desc, pins, pool)
     local w, caps = weights_for(job_id, desc), desc.caps or {};
     local pure = pool ~= nil;                -- BiS mode: whole game, base stats, no picks/preferred/fixed
     local lvl, dw = pure and (data.bis_level or 75) or job_level(job_id), dw_active(job_id);
@@ -1613,6 +1622,56 @@ local function optimize(job_id, desc, pins, pool)
         end
     end
     return assign, best, full, w, forced;
+end
+-- data.time_stats: gear whose stats depend on the time of day (Serpentes Cuffs: Regen by day, Refresh at night). A set
+-- marked with a time (desc.tod = 'day' / 'night': the Idle set and its night twin) is worked out with that time's stats
+-- added to those pieces, then they're put back exactly as they were.
+function actions.tod_apply(phase)
+    local T, undo = data and data.time_stats, {};
+    if type(T) ~= 'table' then return undo; end
+    for _, it in ipairs(owned) do
+        local t = T[(it.name or ''):lower()];
+        local add = t and t[phase];
+        if add and it.stats then
+            local old = {};
+            for k, v in pairs(add) do old[k] = it.stats[k] or false; it.stats[k] = (it.stats[k] or 0) + v; end
+            undo[#undo + 1] = { it, old };
+        end
+    end
+    return undo;
+end
+function actions.tod_undo(undo)
+    for _, u in ipairs(undo or {}) do
+        for k, v in pairs(u[2]) do u[1].stats[k] = (v ~= false) and v or nil; end
+    end
+end
+function actions.tod_owned()                                       -- (do you own a piece with time-of-day stats?)
+    local T = data and data.time_stats;
+    if type(T) ~= 'table' then return false; end
+    for _, it in ipairs(owned) do if T[(it.name or ''):lower()] then return true; end end
+    return false;
+end
+function actions.tod_same(desc, assign, built)                     -- (the night Idle the same as the day one: not exported)
+    if not (desc and desc.tod == 'night') then return false; end
+    for _, b in ipairs(built or {}) do
+        if b.desc.id == 'Idle' then
+            for k, c in pairs(assign) do
+                local d = b.assign[k];
+                if (c and c.item and c.item.name) ~= (d and d.item and d.item.name) then return false; end
+            end
+            for k, d in pairs(b.assign) do if assign[k] == nil and d then return false; end end
+            return true;
+        end
+    end
+    return false;
+end
+local function optimize(job_id, desc, pins, pool)
+    if pool ~= nil or not (desc and desc.tod) then return actions.opt0(job_id, desc, pins, pool); end
+    local undo = actions.tod_apply(desc.tod);
+    local r = { pcall(actions.opt0, job_id, desc, pins, pool) };
+    actions.tod_undo(undo);
+    if not r[1] then error(r[2], 0); end
+    return r[2], r[3], r[4], r[5], r[6];
 end
 
 -- Sets you stand or fight in (worn between actions): Idle..., Resting, PDT, MDT, Evasion, Refresh, TP sets
@@ -2206,7 +2265,7 @@ local function build_full_xml(job_id)
     for _, desc in ipairs(descs) do
         local pins = ui.pins[abbr .. '|' .. desc.id] or {};
         local assign = actions.opt_full(job_id, desc, pins);
-        if next(assign) ~= nil then
+        if next(assign) ~= nil and not actions.tod_same(desc, assign, built) then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = desc;
         end
@@ -2300,6 +2359,7 @@ local function build_full_xml(job_id)
     add('        <var name="MB">off</var>');
     add('        <var name="TH">off</var>');
     if have.Refresh then add('        <var name="Refresh">off</var>'); end
+    if have.Learn then add('        <var name="Learn">off</var>'); end
     if have.DW then add('        <var name="DW">off</var>'); end
     if have.Leveling then add('        <var name="Leveling">on</var>'); end
     add('        <var name="Sprout">off</var>');
@@ -2330,6 +2390,7 @@ local function build_full_xml(job_id)
     if have.TH then toggle('/th', 'TH', 'on', 'Treasure Hunter'); end
     if have.Refresh then toggle('/refresh', 'Refresh', 'on', 'Refresh idle'); end
     if have.Regain then toggle('/regain', 'Regain', 'on', 'Regain set'); toggle('/reg', 'Regain', 'on', 'Regain set'); end
+    if have.Learn then toggle('/learn', 'Learn', 'on', 'Blue magic learning (AF hands)'); end
     if have.DW then toggle('/' .. (have.__lockcmd or 'dw'), 'DW', 'on', 'Locked weapons'); end
     if have.Leveling then toggle('/leveling', 'Leveling', 'on', 'Leveling gear (level 30 and below)'); end
     if have.PetRanged and have.PetTank then toggle('/petranged', 'PetRanged', 'on', 'Automaton ranged gear (off = tank gear)'); end
@@ -2450,7 +2511,9 @@ local function build_full_xml(job_id)
     end
     if have.Resting then table.insert(top, { cond = attr('p_status', 'resting'), body = equip_set('Resting') }); end
     emit_chain(out, '        ', top, have.Idle and function(o, i)
-        emit_chain(o, i, idle_branches, equip_set('Idle'));
+        emit_chain(o, i, idle_branches, have.Idle_Night and function(o2, i2)   -- (gear that changes with the time of day: the night version 18:00-05:59)
+            emit_chain(o2, i2, { { cond = attr('e_time', '>17.59|<6.00'), body = equip_set('Idle_Night') } }, equip_set('Idle'));
+        end or equip_set('Idle'));
         if have.Sublimation then
             emit_chain(o, i, { { cond = attr('buffactive', 'Sublimation: Activated'), body = equip_set('Sublimation') } }, nil);
         end
@@ -2473,6 +2536,10 @@ local function build_full_xml(job_id)
     if have.Regain then
         add('        <!-- /regain ON: your Regain set on top of whatever set is active (idle or engaged) -->');
         emit_chain(out, '        ', { { cond = 'advanced="$Regain=on"', body = equip_set('Regain') } }, nil);
+    end
+    if have.Learn then
+        add('        <!-- /learn ON: your AF hands on top of whatever set is active, to learn blue magic -->');
+        emit_chain(out, '        ', { { cond = 'advanced="$Learn=on"', body = equip_set('Learn') } }, nil);
     end
     if have.DW then
         add('        <!-- /dw ON: your dual-wield weapons on top of whatever set is active -->');
@@ -2828,7 +2895,7 @@ local function build_gearswap(job_id)
     local built, have = {}, {};
     for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = actions.opt_full(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
-        if next(assign) ~= nil then
+        if next(assign) ~= nil and not actions.tod_same(desc, assign, built) then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
         end
@@ -3007,6 +3074,7 @@ local function build_gearswap(job_id)
     add('    slash_cmds = ' .. actions.slash_cmds(have));
     add("    Mode, MB, TH, Moving, RefreshOn, DWOn = 'normal', false, false, false, false, false");
     add("    RegainOn = false");
+    add("    LearnOn = false       -- BLU: //gs c learn wears your AF hands on top, to learn blue magic");
     add("    PetRangedOn = false   -- PUP: //gs c petranged switches the automaton gear between tank and ranged");
     add("    LevelingOn = true     -- //gs c leveling: your Leveling set while you are level 30 or below");
     add('    -- BST: your jug pets; /jug picks the one Call Beast / Bestial Loyalty puts in the ammo slot');
@@ -3159,6 +3227,7 @@ function idle_gear()
         elseif pet.isvalid and ((avatar_sets[pet.name] and eq(avatar_sets[pet.name])) or eq('Idle_Avatar')) then
         elseif pet.isvalid and PetRangedOn and eq('PetRanged') then
         elseif pet.isvalid and eq('PetTank') then
+        elseif (world.time >= 1080 or world.time < 360) and eq('Idle_Night') then   -- (night, 18:00-05:59: the night version of your idle gear)
         else eq('Idle')
         end
         if buffactive['Sublimation: Activated'] then eq('Sublimation') end
@@ -3169,6 +3238,7 @@ function idle_gear()
         if Moving and world.weather_element == 'Earth' then eq('DesertBoots') end
     end
     if RegainOn then eq('Regain') end                 -- /regain: the Regain set on top (idle or engaged)
+    if LearnOn then eq('Learn') end                   -- /learn: BLU's AF hands on top (to learn blue magic)
     if DWOn then eq('DW') end
     -- Level 30 and below (natural or level sync): your leveling gear on top
     if LevelingOn and sets.Leveling and (player.main_job_level or 99) <= 30 then eq('Leveling') end
@@ -3423,6 +3493,9 @@ function self_command(command)
     elseif c == 'regain' or c == 'reg' then
         RegainOn = not RegainOn
         add_to_chat(158, 'Regain set: ' .. (RegainOn and 'ON' or 'OFF'))
+    elseif c == 'learn' then
+        LearnOn = not LearnOn
+        add_to_chat(158, 'Blue magic learning (AF hands): ' .. (LearnOn and 'ON' or 'OFF'))
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn
         add_to_chat(158, 'Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'))
@@ -3473,7 +3546,7 @@ local function build_lac(job_id)
     local built, have = {}, {};
     for _, desc in ipairs(actions.export_sets(job_id)) do
         local assign = actions.opt_full(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {});
-        if next(assign) ~= nil then
+        if next(assign) ~= nil and not actions.tod_same(desc, assign, built) then
             table.insert(built, { desc = desc, assign = assign, lv = actions.level_variants(job_id, desc, ui.pins[abbr .. '|' .. desc.id] or {}, assign) });
             have[desc.name] = true;
         end
@@ -3661,6 +3734,7 @@ local function build_lac(job_id)
     add([[
 local Mode, MB, TH, RefreshOn, DWOn = 'normal', false, false, false, false;
 local RegainOn = false;
+local LearnOn = false;                                     -- BLU: /lac fwd learn wears your AF hands on top, to learn blue magic
 local PetRangedOn = false;   -- PUP: /lac fwd petranged switches the automaton gear between tank and ranged
 local LevelingOn = true;     -- /leveling: your Leveling set while you are level 30 or below
 
@@ -3899,6 +3973,9 @@ profile.HandleCommand = function(args)
     elseif c == 'regain' or c == 'reg' then
         RegainOn = not RegainOn;
         gFunc.Message('Regain set: ' .. (RegainOn and 'ON' or 'OFF'));
+    elseif c == 'learn' then
+        LearnOn = not LearnOn;
+        gFunc.Message('Blue magic learning (AF hands): ' .. (LearnOn and 'ON' or 'OFF'));
     elseif c == 'petranged' then
         PetRangedOn = not PetRangedOn;
         gFunc.Message('Automaton gear: ' .. (PetRangedOn and 'RANGED' or 'TANK'));
@@ -3970,6 +4047,7 @@ profile.HandleDefault = function()
         elseif gData.GetPet() ~= nil and ((avatar_sets[gData.GetPet().Name or ''] and eq(avatar_sets[gData.GetPet().Name or ''])) or eq('Idle_Avatar')) then
         elseif gData.GetPet() ~= nil and PetRangedOn and eq('PetRanged') then
         elseif gData.GetPet() ~= nil and eq('PetTank') then
+        elseif (function() local t_ = gData.GetEnvironment().Time or 12; return t_ >= 18 or t_ < 6; end)() and eq('Idle_Night') then   -- (night, 18:00-05:59: the night version of your idle gear)
         else eq('Idle');
         end
         if buff('Sublimation: Activated') then eq('Sublimation'); end
@@ -3980,6 +4058,7 @@ profile.HandleDefault = function()
         if player.IsMoving and sets['DesertBoots'] and gData.GetEnvironment().WeatherElement == 'Earth' then eq('DesertBoots'); end
     end
     if RegainOn then eq('Regain'); end               -- /regain: the Regain set on top (idle or engaged)
+    if LearnOn then eq('Learn'); end                 -- /learn: BLU's AF hands on top (to learn blue magic)
     if DWOn then eq('DW'); end
     -- Level 30 and below (natural or level sync): your leveling gear on top
     if LevelingOn and sets['Leveling'] then
@@ -4438,7 +4517,7 @@ end
 ----------------------------------------------------------------------------------------------------
 local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle', 'Subjob' };
 local CATEGORY_OF = {
-    Idle = 'Defense & Idle', Regain = 'Melee', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
+    Idle = 'Defense & Idle', Idle_Night = 'Defense & Idle', Learn = 'Abilities', Regain = 'Melee', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
     MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
     Swordplay = 'Abilities', Lunge = 'Abilities', RandomDeal = 'Abilities',
     Precast = 'Precast', Precast_Cure = 'Precast', Precast_Song = 'Precast',
@@ -6195,6 +6274,14 @@ function actions.calm_tip(def, c, pin, up)
     if #keys > 0 then
         table.insert(lines, '');
         for i = 1, math.min(8, #keys) do table.insert(lines, string.format('   %-14s %s', label_of(keys[i]), fmt_num(it.stats[keys[i]]))); end
+    end
+    local tod_ = data and data.time_stats and data.time_stats[(it.name or ''):lower()];
+    if tod_ then                                                     -- (stats that depend on the time of day: shown apart - by day / at night)
+        local function part(t) local p_ = {}; for k, v in pairs(t or {}) do p_[#p_ + 1] = label_of(k) .. ' ' .. fmt_num(v); end return table.concat(p_, ', '); end
+        table.insert(lines, '');
+        table.insert(lines, '   By day (06:00-17:59):    ' .. part(tod_.day));
+        table.insert(lines, '   At night (18:00-05:59):  ' .. part(tod_.night));
+        if ui.desc and ui.desc.tod then table.insert(lines, '   (this set counts the ' .. ((ui.desc.tod == 'night') and 'night' or 'day') .. ' ones)'); end
     end
     if up then table.insert(lines, ''); table.insert(lines, 'Upgrade: ' .. up.item.name); end
     if not ui.show_bis then table.insert(lines, ''); table.insert(lines, 'Click to choose a different piece'); end
