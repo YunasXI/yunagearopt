@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.79';   -- the release workflow sets this to the release number
+addon.version = '1.1.80';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -1084,6 +1084,17 @@ local function build_sets(job_id)
             for _, it in ipairs(owned) do
                 if keep == nil and name_key(it.name) == name_key(n) then keep = it.name; end
             end
+        end
+        if keep == nil then                                          -- no Yoru Shuriken: your best shuriken instead (the
+            local lvl, best = job_level(job_id), nil;                --  highest level throwing ammo you can wear now), so a
+            for _, it in ipairs(owned) do                            --  weaponskill's Bomb Core never stays on afterwards
+                if it.skill == 27 and bit.band(it.slots or 0, 0x0008) ~= 0 and bit.band(it.jobs or 0, bit.lshift(1, job_id)) ~= 0
+                        and (s.ignore_level or (tonumber(it.level) or 0) <= lvl)
+                        and (best == nil or (tonumber(it.level) or 0) > (tonumber(best.level) or 0)) then
+                    best = it;
+                end
+            end
+            keep = best and best.name or nil;
         end
         for _, entry in ipairs(list) do
             if entry.kind ~= 'ws' then
