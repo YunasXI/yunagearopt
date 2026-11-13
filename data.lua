@@ -203,7 +203,7 @@ return {
         ["Dnc. Casaque +1"] = { stats = { waltz = 5, waltzdelay = 5 } },   -- DNC
         ["Dnc. Bangles +1"] = { stats = { dw = 3, haste = 3 } },   -- DNC
         ["Dancer's Tights +1"] = { stats = { str = 11, dex = 11 } },   -- DNC
-        ["Dancer's Shoes +1"] = { stats = { da = 3, haste = 3 } },   -- DNC
+        ["Dnc. Toe Shoes +1"] = { stats = { da = 3, haste = 3 } },   -- DNC
         ["Drn. Armet +1"] = { stats = { crit = 3, haste = 5 } },   -- DRG
         ["Drn. Mail +1"] = { stats = { acc = 10, stp = 8 } },   -- DRG
         ["Drn. Fng. Gnt. +1"] = { stats = { da = 3, haste = 3 } },   -- DRG
@@ -315,7 +315,7 @@ return {
         ["Etoile Casaque +1"] = { stats = { haste = 4, sb = 8, stp = 6 } },   -- DNC
         ["Etoile Bangles +1"] = { stats = { counter = 4, dt = -4, eva = 8 } },   -- DNC
         ["Etoile Tights +1"] = { stats = { acc = 8, att = 8, sb = 5, stp = 5 } },   -- DNC
-        ["Etoile Shoes +1"] = { stats = { str = 7, chr = 7, att = 12, ctp = 10 } },   -- DNC
+        ["Etoile Toe Shoes +1"] = { stats = { str = 7, chr = 7, att = 12, ctp = 10 } },   -- DNC
         ["Etoile Cape"] = { stats = { hp = 10, att = 9, scb = 3 } },   -- DNC
         ["Wym. Armet +1"] = { stats = { att = 10, haste = 5 } },   -- DRG
         ["Wym. Mail +1"] = { stats = { str = 8, dex = 8, da = 3 } },   -- DRG

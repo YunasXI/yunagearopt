@@ -386,7 +386,7 @@ return {
             feet  = 'Comm. Bottes +1',
         },
         ['WS'] = { -- from WS
-            main  = 'Hepatizon Rapier +1',
+            main  = 'Hep. Rapier +1',
             ammo  = 'Steel Bullet',
             head  = 'Cor. tricorne +1',
             neck  = 'Loxo scarf',
@@ -2567,7 +2567,7 @@ return {
             back  = 'Etoile Cape',
             waist = 'Enlil\'s Sash',
             legs  = 'Etoile Tights +1',
-            feet  = 'Dancer\'s Shoes +1',
+            feet  = 'Dnc. Toe Shoes +1',
         },
         ['ws:Evisceration'] = { -- DEX 50%, 5 hits, critical
             ammo  = 'Demonry Core',
@@ -2582,7 +2582,7 @@ return {
             back  = 'Etoile Cape',
             waist = 'Warwolf Belt +1',
             legs  = 'Dancer\'s Tights +1',
-            feet  = 'Etoile Shoes +1',
+            feet  = 'Etoile Toe Shoes +1',
         },
         ['ws:Pyrrhic Kleos'] = { -- STR 80% / DEX 80%, 4 hits
             ammo  = 'Demonry Core',
@@ -2597,7 +2597,7 @@ return {
             back  = 'Etoile Cape',
             waist = 'Warwolf Belt +1',
             legs  = 'Dancer\'s Tights +1',
-            feet  = 'Etoile Shoes +1',
+            feet  = 'Etoile Toe Shoes +1',
         },
         ['ws:Exenterator'] = { -- AGI 95%, 4 hits
             head  = 'Maat\'s Cap',
@@ -2611,7 +2611,7 @@ return {
             back  = 'Cerb. Mantle +1',
             waist = 'Fierce Belt',
             legs  = 'Acrobat\'s Breeches',
-            feet  = 'Dancer\'s Shoes +1',
+            feet  = 'Dnc. Toe Shoes +1',
         },
         ['ws:Dancing Edge'] = { -- DEX 40% / CHR 40%
             ammo  = 'Demonry Core',
@@ -2626,7 +2626,7 @@ return {
             back  = 'Etoile Cape',
             waist = 'Warwolf Belt +1',
             legs  = 'Dancer\'s Tights +1',
-            feet  = 'Etoile Shoes +1',
+            feet  = 'Etoile Toe Shoes +1',
         },
         ['Waltz'] = { -- Waltz potency +25%, VIT +39, CHR +21
             ammo  = 'Charitoni Sling',
@@ -2656,14 +2656,14 @@ return {
             back  = 'Somber Shroud',
             waist = 'Virtuoso Belt',
             legs  = 'Etoile Tights +1',
-            feet  = 'Etoile Shoes +1',
+            feet  = 'Etoile Toe Shoes +1',
         },
         ['Samba'] = { -- Samba duration +30
             head  = 'Dancer\'s Tiara +1',
         },
         ['Jig'] = { -- Jig duration +50%
             legs  = 'Etoile Tights',
-            feet  = 'Dancer\'s Shoes +1',
+            feet  = 'Dnc. Toe Shoes +1',
         },
         ['ViolentFlourish'] = { -- Violent Flourish accuracy +20, Magic accuracy +12
             head  = 'Optical Hat',
@@ -2677,7 +2677,7 @@ return {
             back  = 'Somber Shroud',
             waist = 'Virtuoso Belt',
             legs  = 'Etoile Tights +1',
-            feet  = 'Etoile Shoes +1',
+            feet  = 'Etoile Toe Shoes +1',
         },
     },
 };
