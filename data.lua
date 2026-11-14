@@ -174,6 +174,12 @@ return {
     -- Artifact_+1_Augments, CatsEyeXI_Content/Dynamis_Augments), and the Venture Battle upgrades (A3, bg-wiki:
     -- CatsEyeXI_Content/Ventures). Added to those pieces in the Best in Slot list.
     max_augments = {
+        -- Fomor Kings' unique drops, augmented at Indech (bg-wiki CatsEyeXI_Content/Fomor_Kings, A3 = the best)
+        ["Bloodbead Gorget"] = { stats = { vit = 3, acc = 5, pdt = -2 } },
+        ["Bahram Cuisses"] = { stats = { str = 3, att = 5, da = 2 } },
+        ["Setanta's Led."] = { stats = { chr = 3, att = 5, stp = 2 } },
+        ["Bricta's Cuffs"] = { stats = { mp = 15, enhdur = 5 } },   -- (+ Enhancing recast -2: YGO has no stat for it)
+        ["Shrewd Pumps"] = { stats = { mp = 15, macc = 3, haste = 1 } },
         -- Artifact +1
         ["Wzd. Petasos +1"] = { stats = { hmp = 3, refresh = 1 } },   -- BLM
         ["Wzd. Coat +1"] = { stats = { mp = 18, macc = 5 } },   -- BLM

@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.83';   -- the release workflow sets this to the release number
+addon.version = '1.1.84';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -6078,9 +6078,19 @@ end
 
 local function draw_export_confirm()
     local id = 'Before you export###ygo_export';
+    if ui.open_export_popup and s.export_ask == false then          -- "Don't ask again": do what you chose last time
+        ui.open_export_popup = false;
+        local kind = ui.pending_export or 'xml';
+        if s.export_backup then backup_targets(kind); end
+        EXPORTS[kind].run();
+        actions.reload_after_export(kind);
+        ui.pending_export = nil;
+        return;
+    end
     if ui.open_export_popup then
         imgui.OpenPopup(id);
         ui.open_export_popup = false;
+        ui.export_noask = { false };
     end
     if not imgui.BeginPopupModal(id, nil, ImGuiWindowFlags_AlwaysAutoResize) then return; end
     local kind = ui.pending_export or 'xml';
@@ -6103,11 +6113,21 @@ local function draw_export_confirm()
     local lx, ly = imgui.GetCursorScreenPos();
     gold_line(imgui.GetWindowDrawList(), lx, ly, lx + 420, 0.5);
     imgui.Spacing();
+    ui.export_noask = ui.export_noask or { false };
+    imgui.Checkbox("Don't ask again (do the same every time)##ygo_noask", ui.export_noask);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Next exports skip this window and do what you click now (back up or not).\n'
+            .. 'Bring the question back from the Export menu: "Ask before exporting again".');
+    end
+    imgui.Spacing();
     local b1, b2, b3 = 'BACK UP & EXPORT', 'EXPORT WITHOUT BACKUP', 'CANCEL';
     local function finish() ui.pending_export = nil; imgui.CloseCurrentPopup(); end
-    if accent_button(b1 .. '##ygo_bk', { btn_w(b1), 32 }, true) then backup_targets(kind); e.run(); actions.reload_after_export(kind); finish(); end
+    local function remember(backup)
+        if ui.export_noask[1] then s.export_ask, s.export_backup = false, backup; settings.save(); end
+    end
+    if accent_button(b1 .. '##ygo_bk', { btn_w(b1), 32 }, true) then remember(true); backup_targets(kind); e.run(); actions.reload_after_export(kind); finish(); end
     imgui.SameLine(0, 8);
-    if imgui.Button(b2 .. '##ygo_nobk', { btn_w(b2), 32 }) then e.run(); actions.reload_after_export(kind); finish(); end
+    if imgui.Button(b2 .. '##ygo_nobk', { btn_w(b2), 32 }) then remember(false); e.run(); actions.reload_after_export(kind); finish(); end
     imgui.SameLine(0, 8);
     if ghost_button(b3 .. '##ygo_cancel', { btn_w(b3), 32 }) then finish(); end
     imgui.EndPopup();
@@ -6155,6 +6175,13 @@ function actions.export_menu()
     if imgui.IsItemHovered() then imgui.SetTooltip('-> config\\addons\\luashitacast\\Name_ID\\' .. JOBS[ui.job] .. '.lua\n(an existing profile is backed up first)'); end
     if imgui.Selectable('GearSwap  (Windower)') then ask_export('gs'); end
     if imgui.IsItemHovered() then imgui.SetTooltip('-> copy to Windower\\addons\\GearSwap\\data\\Name_' .. JOBS[ui.job] .. '.lua'); end
+    if s.export_ask == false then                                    -- (the backup question was switched off)
+        if imgui.Selectable('Ask before exporting again') then s.export_ask = nil; settings.save(); end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Exports now ' .. (s.export_backup and 'back up your files first' or 'skip the backup')
+                .. ' without asking.\nClick to get the "Before you export" window back.');
+        end
+    end
     local d = ui.desc;
     if d and not d.info and not d.dwpair then
         imgui.Spacing();
@@ -7846,8 +7873,79 @@ local function phalanx_for_legacyac(e)
     end
 end
 
+-- COR: your roll's total in chat next to its lucky / unlucky numbers (Phantom Roll and Double-Up). /ygo rolls on | off.
+-- { name, lucky, unlucky } by ability id (LandSandBoat sql/abilities.sql); Double-Up is 123.
+actions.ROLLS = {
+    [98] = { "Fighter's Roll", 5, 9 },
+    [99] = { "Monk's Roll", 3, 7 },
+    [100] = { "Healer's Roll", 3, 7 },
+    [101] = { "Wizard's Roll", 5, 9 },
+    [102] = { "Warlock's Roll", 4, 8 },
+    [103] = { "Rogue's Roll", 5, 9 },
+    [104] = { "Gallant's Roll", 3, 7 },
+    [105] = { "Chaos Roll", 4, 8 },
+    [106] = { "Beast Roll", 4, 8 },
+    [107] = { "Choral Roll", 2, 6 },
+    [108] = { "Hunter's Roll", 4, 8 },
+    [109] = { "Samurai Roll", 2, 6 },
+    [110] = { "Ninja Roll", 4, 8 },
+    [111] = { "Drachen Roll", 4, 8 },
+    [112] = { "Evoker's Roll", 5, 9 },
+    [113] = { "Magus's Roll", 2, 6 },
+    [114] = { "Corsair's Roll", 5, 9 },
+    [115] = { "Puppet Roll", 3, 7 },
+    [116] = { "Dancer's Roll", 3, 7 },
+    [117] = { "Scholar's Roll", 2, 6 },
+    [118] = { "Bolter's Roll", 3, 9 },
+    [119] = { "Caster's Roll", 2, 7 },
+    [120] = { "Courser's Roll", 3, 9 },
+    [121] = { "Blitzer's Roll", 4, 9 },
+    [122] = { "Tactician's Roll", 5, 8 },
+    [302] = { "Allies' Roll", 3, 10 },
+    [303] = { "Miser's Roll", 5, 7 },
+    [304] = { "Companion's Roll", 2, 10 },
+    [305] = { "Avenger's Roll", 4, 8 },
+    [390] = { "Naturalist's Roll", 3, 7 },
+    [391] = { "Runeist's Roll", 4, 8 },
+};
+function actions.roll_info(e)
+    if s.roll_info == false then return; end
+    local raw, pos, max = e.data_raw, 40, e.size * 8;
+    local function bits(n)
+        if pos + n >= max then max = 0; return 0; end
+        local v = ashita.bits.unpack_be(raw, 0, pos, n);
+        pos = pos + n;
+        return v;
+    end
+    local actor = bits(32);
+    local targets = bits(6);
+    pos = pos + 4;
+    local category = bits(4);
+    local ability = bits(32);
+    bits(32);                                                      -- (recast)
+    if category ~= 6 or targets < 1 then return; end
+    local me = GetPlayerEntity();
+    if not (me and me.ServerId == actor) then return; end          -- (your own rolls only)
+    if ability ~= 123 and actions.ROLLS[ability] == nil then return; end
+    bits(32);                                                      -- (the first target)
+    if bits(4) < 1 then return; end
+    bits(5); bits(12); bits(7); bits(3);
+    local total = bits(17);
+    local message = bits(10);
+    if ability ~= 123 then ui.last_roll = ability; end
+    local r = actions.ROLLS[ability ~= 123 and ability or (ui.last_roll or -1)];
+    if r == nil then return; end
+    local name, lucky, unlucky = r[1], r[2], r[3];
+    if message == 426 then
+        msg(string.format('%s: BUST', name));
+    elseif message == 420 or message == 424 then
+        local tag = (total == lucky and '  (Lucky!)') or (total == unlucky and '  (Unlucky)') or (total == 11 and '  (11!)') or '';
+        msg(string.format('%s: %d%s  -  lucky %d, unlucky %d', name, total, tag, lucky, unlucky));
+    end
+end
+
 ashita.events.register('packet_in', 'ygo_phalanx', function(e)
-    if e.id == 0x28 then pcall(phalanx_for_legacyac, e);
+    if e.id == 0x28 then pcall(phalanx_for_legacyac, e); pcall(actions.roll_info, e);
     elseif e.id == 0x0A then pcall(look.zoned); end           -- 0x0A = you entered a zone
 end);
 
@@ -7919,6 +8017,11 @@ ashita.events.register('command', 'ygo_command', function(e)
         ui.dirty = true;
         msg(actions.preview_level() and ('Previewing your sets at level ' .. actions.preview_level() .. ' (/ygo preview off to go back).')
             or 'Level preview off: your sets at your own level.');
+    elseif sub == 'rolls' then                                       -- /ygo rolls on | off (COR: roll totals in chat)
+        if args[3] == 'off' then s.roll_info = false; elseif args[3] == 'on' then s.roll_info = true;
+        else s.roll_info = (s.roll_info == false); end
+        pcall(settings.save);
+        msg('COR roll numbers in chat: ' .. ((s.roll_info == false) and 'OFF' or 'ON') .. '   (/ygo rolls on | off)');
     elseif sub == 'levelsync' then                                   -- /ygo levelsync on | off (level sync gear in exports)
         if args[3] == 'off' then s.level_sets = false; elseif args[3] == 'on' then s.level_sets = true; end
         pcall(settings.save);
