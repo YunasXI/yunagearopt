@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.84';   -- the release workflow sets this to the release number
+addon.version = '1.1.85';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -7760,6 +7760,129 @@ function actions.draw_mini_logo()
     imgui.PopStyleVar(2);
 end
 
+-- The in-game updater (ygo_update.lua, the same as YunaUI's): a few seconds after loading it asks GitHub for the newest
+-- release; a newer one is said in chat once and shows a card - what's new, UPDATE / LATER / SKIP IT - while the YGO
+-- window is open (or after /ygo update). UPDATE downloads the changed files, swaps them in and reloads YGO.
+-- /ygo update: check now   /ygo update back: the version before   /ygo update off | on: the check by itself.
+function actions.upd_frame()
+    local U = actions.UPD;
+    if U == nil then                                                 -- (loaded once; false when it isn't there or can't run here)
+        actions.UPD = false;
+        local ok_, m_ = pcall(dofile, base_path() .. 'ygo_update.lua');
+        if not ok_ or type(m_) ~= 'table' or not m_.can() then return; end
+        local cfg = setmetatable({}, { __index = function(_, k) return s[k]; end, __newindex = function(_, k, v) s[k] = v; end });
+        m_.init({ cfg = cfg, save = function() settings.save(); end, msg = msg, version = addon.version, root = addon.path,
+            reload = function() pcall(function() AshitaCore:GetChatManager():QueueCommand(1, '/addon reload yunagearopt'); end); end });
+        m_.on_offer = function(tag)
+            if ui.upd_said ~= tag then
+                ui.upd_said = tag;
+                msg('YunaGearOpt ' .. tostring(tag) .. ' is out (you have ' .. tostring(addon.version) .. '). Open /ygo to update.');
+            end
+        end;
+        actions.UPD, ui.upd_t0 = m_, os.clock();
+        return;
+    end
+    if not U then return; end
+    if ui.upd_t0 and os.clock() - ui.upd_t0 > 6 then ui.upd_t0 = nil; pcall(U.check); end   -- (once, when the game has settled)
+    if U.state == 'idle' or U.state == 'checking' then return; end
+    if not (ui.open[1] or ui.upd_show) then return; end
+    local sc = actions.sc;
+    local nc, nv = push_theme();
+    local fp = actions.push_font();
+    local SW = 1920;
+    pcall(function() SW = tonumber(imgui.GetIO().DisplaySize.x) or 1920; end);
+    local PW = math.max(440, sc(480));
+    imgui.SetNextWindowPos({ SW / 2 - PW / 2, sc(90) }, ImGuiCond_Appearing);
+    imgui.SetNextWindowSize({ PW, 0 }, ImGuiCond_Always);
+    imgui.PushStyleColor(ImGuiCol_WindowBg, { C.bg[1], C.bg[2], C.bg[3], 0.97 });
+    imgui.PushStyleColor(ImGuiCol_Border, { C.gold[1], C.gold[2], C.gold[3], 0.7 });
+    imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+    imgui.PushStyleVar(ImGuiStyleVar_WindowRounding, sc(10));
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { sc(16), sc(14) });
+    if imgui.Begin('##ygo_update', { true }, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing)) then
+        local tag = U.offer and U.offer.tag or (s.upd_tag or '');
+        imgui.SetWindowFontScale(1.15);
+        imgui.TextColored(C.gold, (U.state == 'done') and 'YUNAGEAROPT UPDATED' or ('YUNAGEAROPT ' .. tostring(tag) .. ' IS OUT'));
+        imgui.SetWindowFontScale(1.0);
+        imgui.Spacing();
+        imgui.PushTextWrapPos(imgui.GetCursorPosX() + PW - sc(32));
+        local bw = (imgui.GetContentRegionAvail() - sc(16)) / 3;
+        if U.state == 'offer' then
+            imgui.TextColored(C.muted, 'You have ' .. tostring(U.cur) .. '. What is new:');
+            imgui.Spacing();
+            local notes = U.offer.notes or {};
+            for i = 1, math.min(#notes, 8) do
+                local t = notes[i];
+                if #t > 260 then t = t:sub(1, 257) .. '...'; end
+                imgui.TextColored(C.text, '-  ' .. t);
+            end
+            if #notes == 0 then imgui.TextColored(C.text, 'Fixes and improvements.'); end
+            imgui.Dummy({ 4, sc(8) });
+            if U.dev and not U.test then                             -- (a development copy: told, never updated over)
+                imgui.TextColored(C.muted, 'This is a development copy: it is not updated from here.');
+                imgui.Dummy({ 4, sc(4) });
+            else
+                if accent_button('UPDATE##ygo_updgo', { bw, 0 }, true) then pcall(U.start); end
+                if imgui.IsItemHovered() then imgui.SetTooltip('Downloads the files that changed, keeps a copy of the old ones,\nthen reloads YunaGearOpt. Your settings, sets and exports are not touched.'); end
+                imgui.SameLine(0, sc(8));
+            end
+            if imgui.Button('LATER##ygo_updlater', { bw, 0 }) then pcall(U.later); ui.upd_show = false; end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Asked again the next time YunaGearOpt loads.'); end
+            imgui.SameLine(0, sc(8));
+            if imgui.Button('SKIP IT##ygo_updskip', { bw, 0 }) then pcall(U.skip); ui.upd_show = false; end
+            if imgui.IsItemHovered() then imgui.SetTooltip('This version is not offered again.\n/ygo update still finds it.\n/ygo update off: never check by itself.'); end
+        elseif U.state == 'listing' then
+            imgui.TextColored(C.text, 'Looking at what changed...');
+        elseif U.state == 'downloading' then
+            imgui.TextColored(C.text, string.format('Downloading  %d / %d', U.done or 0, U.total or 0));
+            local f_ = (U.total or 0) > 0 and (U.done or 0) / U.total or 0;
+            imgui.PushStyleColor(ImGuiCol_PlotHistogram, C.gold);
+            imgui.ProgressBar(f_, { PW - sc(32), sc(6) }, '');
+            imgui.PopStyleColor();
+            imgui.TextColored(C.muted, 'Keep playing: nothing changes until every file is here and checked.');
+        elseif U.state == 'applying' then
+            imgui.TextColored(C.text, 'Checking the files and swapping them in...');
+        elseif U.state == 'done' then
+            imgui.TextColored(C.text, 'Reloading YunaGearOpt...');
+        else                                                         -- (failed / manual)
+            imgui.TextColored({ 1, 0.62, 0.66, 1 }, tostring(U.why or 'The update did not go through.'));
+            imgui.Dummy({ 4, sc(8) });
+            if U.state == 'failed' and U.offer then
+                if accent_button('TRY AGAIN##ygo_updretry', { bw, 0 }, true) then pcall(U.start); end
+                imgui.SameLine(0, sc(8));
+            end
+            if imgui.Button('COPY LINK##ygo_updlink', { bw, 0 }) then
+                if imgui.SetClipboardText and pcall(imgui.SetClipboardText, U.page()) then msg('Release page link copied: paste it in your browser.'); end
+            end
+            if imgui.IsItemHovered() then imgui.SetTooltip('Copies the release page link, to download it by hand.'); end
+            imgui.SameLine(0, sc(8));
+            if imgui.Button('CLOSE##ygo_updclose', { bw, 0 }) then pcall(U.later); ui.upd_show = false; end
+        end
+        imgui.PopTextWrapPos();
+    end
+    imgui.End();
+    imgui.PopStyleVar(3);
+    imgui.PopStyleColor(2);
+    if fp then imgui.PopFont(); end
+    imgui.PopStyleVar(nv);
+    imgui.PopStyleColor(nc);
+end
+function actions.upd_command(arg)                                    -- /ygo update [back | on | off]
+    local U = actions.UPD;
+    if not U then msg('Updating from inside the game needs VanaCore with downloads (vana.http). Get new versions from ' .. addon.link); return; end
+    if arg == 'off' or arg == 'on' then
+        s.upd_check = (arg == 'on');
+        pcall(settings.save);
+        msg('Check for new versions when YGO loads: ' .. (s.upd_check and 'ON' or 'OFF') .. '   (/ygo update on | off)');
+    elseif arg == 'back' then
+        pcall(U.back);
+    else
+        ui.upd_show = true;
+        if U.dev and not U.test then msg('This is a development copy (it has a .git folder): it can check, but it is never updated from here.'); end
+        msg('Asking GitHub for a newer YunaGearOpt (you have ' .. tostring(addon.version) .. ')...');
+        pcall(U.check, true);
+    end
+end
 local function draw_ui()
     if data == nil then return; end
     if not ui.open[1] then
@@ -7816,6 +7939,7 @@ ashita.events.register('d3d_present', 'ygo_present', function()
     run_timers(); look.watch();
     if ui.late_cure_at then pcall(actions.late_cure_tick); end
     draw_ui();
+    do local oku = pcall(actions.upd_frame); if not oku then actions.UPD = false; end end
 end);
 
 -- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
@@ -8017,6 +8141,8 @@ ashita.events.register('command', 'ygo_command', function(e)
         ui.dirty = true;
         msg(actions.preview_level() and ('Previewing your sets at level ' .. actions.preview_level() .. ' (/ygo preview off to go back).')
             or 'Level preview off: your sets at your own level.');
+    elseif sub == 'update' then                                      -- /ygo update [back | on | off] (the in-game updater)
+        actions.upd_command((args[3] or ''):lower());
     elseif sub == 'rolls' then                                       -- /ygo rolls on | off (COR: roll totals in chat)
         if args[3] == 'off' then s.roll_info = false; elseif args[3] == 'on' then s.roll_info = true;
         else s.roll_info = (s.roll_info == false); end

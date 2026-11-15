@@ -38,6 +38,9 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo compact` | Toggle compact mode |
 | `/ygo notice` | Show the notice again |
 | `/ygo reload` | Reload data files |
+| `/ygo update` | Check for a new version now (a card shows what is new and an UPDATE button) |
+| `/ygo update back` | Go back to the version you had before the last update |
+| `/ygo update off` / `on` | Stop / start checking for new versions when YGO loads |
 | `/ygo debug <item>` | Dump how an owned item was parsed |
 
 **Look**: the window uses YunaUI's style (Yuna Neon): dark violet panels, pink and violet like YunaUI's HP / MP bars, the AvantGarde font and a light running round the edge.
