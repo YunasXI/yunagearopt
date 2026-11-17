@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.86';   -- the release workflow sets this to the release number
+addon.version = '1.1.87';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -6194,6 +6194,7 @@ end
 function actions.draw_import_xml_confirm()
     if not ui.import_xml_open then return; end
     imgui.OpenPopup('ygo_import_xml');
+    pcall(actions.center_next);
     if imgui.BeginPopupModal('ygo_import_xml', nil, bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoTitleBar)) then
         local path, fname = actions.xml_path(ui.job);
         title_text('Import ' .. JOBS[ui.job] .. ' sets from your XML', 1.15, C.gold);
@@ -6225,6 +6226,24 @@ function actions.draw_import_xml_confirm()
     end
 end
 
+function actions.keep_rect()                                         -- (inside the YGO window: where it is)
+    local x, y = imgui.GetWindowPos();
+    if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2]; end
+    local w, h = imgui.GetWindowSize();
+    if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2]; end
+    ui.rect = { tonumber(x) or 0, tonumber(y) or 0, tonumber(w) or 0, tonumber(h) or 0 };
+end
+function actions.center_next()                                       -- (a popup: opens in the middle of the YGO window, on screen)
+    local r = ui.rect;
+    local cx, cy;
+    if r and r[3] > 0 then cx, cy = r[1] + r[3] / 2, r[2] + r[4] / 2; end
+    local SW, SH = 1920, 1080;
+    pcall(function() local d = imgui.GetIO().DisplaySize; SW, SH = tonumber(d.x) or SW, tonumber(d.y) or SH; end);
+    if not cx then cx, cy = SW / 2, SH / 2; end
+    cx = math.max(200, math.min(cx, SW - 200));
+    cy = math.max(120, math.min(cy, SH - 120));
+    imgui.SetNextWindowPos({ cx, cy }, ImGuiCond_Appearing, { 0.5, 0.5 });
+end
 local function draw_export_confirm()
     local id = 'Before you export###ygo_export';
     if ui.open_export_popup and s.export_ask == false then          -- "Don't ask again": do what you chose last time
@@ -6241,6 +6260,7 @@ local function draw_export_confirm()
         ui.open_export_popup = false;
         ui.export_noask = { false };
     end
+    pcall(actions.center_next);
     if not imgui.BeginPopupModal(id, nil, ImGuiWindowFlags_AlwaysAutoResize) then return; end
     local kind = ui.pending_export or 'xml';
     local e = EXPORTS[kind];
@@ -6959,6 +6979,7 @@ local function draw_full()
     imgui.SetNextWindowSizeConstraints({ actions.sc(mw), actions.sc(mh) }, { 4000, 4000 });
     if imgui.Begin('YunaGearOpt##main', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)) then
         pcall(actions.res_note, 'main', true);
+        pcall(actions.keep_rect);
         pcall(actions.scale_wheel);                                  -- (Ctrl + mouse wheel: Window scale)
         pcall(actions.fx_frame);                                     -- the Look's frame (YunaUI looks: a glowing edge)
         actions.calm_full();
@@ -6975,6 +6996,7 @@ local function draw_lazy()
     if imgui.Begin('YunaGearOpt##lazy', ui.open, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse,
             ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoScrollbar)) then
         pcall(actions.res_note, 'lazy', false);
+        pcall(actions.keep_rect);
         title_text('YUNA', 1.15, C.text);
         imgui.SameLine(0, 4);
         title_text('GEAROPT', 1.15, C.gold);
