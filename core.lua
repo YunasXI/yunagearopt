@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.85';   -- the release workflow sets this to the release number
+addon.version = '1.1.86';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -576,6 +576,7 @@ end
 
 local function scan()
     owned, ui.augmented = {}, 0;
+    actions.craft_owned = {};
     local ok, err = pcall(function()
         local inv = AshitaCore:GetMemoryManager():GetInventory();
         local res = AshitaCore:GetResourceManager();
@@ -602,6 +603,12 @@ local function scan()
                             slots = r.Slots, jobs = r.Jobs or 0, level = r.Level or 0,
                             skill = r.Skill or 0, shield = r.ShieldSize or 0,
                             base = base, aug = aug, unknown = unknown, augmented = augmented, stats = stats,
+                        });
+                      else                                       -- (crafting gear: only the Crafting set uses it)
+                        table.insert(actions.craft_owned, {
+                            id = it.Id, name = name, where = cname, desc = desc, slots = r.Slots, jobs = r.Jobs or 0,
+                            level = r.Level or 0, skill = r.Skill or 0, shield = r.ShieldSize or 0,
+                            base = {}, aug = {}, unknown = {}, augmented = false, stats = {}, craft = true,
                         });
                       end
                     end
@@ -1127,6 +1134,9 @@ local function build_sets(job_id)
     -- automatically and it never swaps gear; the addon locks it on when you log in or change job.
     table.insert(list, { id = 'Lockstyle', name = 'Lockstyle', label = 'Lockstyle (your look)', kind = 'lockstyle',
                          base_weights = {}, caps = {}, weapons = true, range = 'any', fixed = {}, lockstyle = true });
+    -- Crafting: your crafting gear for the craft you pick (/crafter puts it on). The same set for every job; never exported.
+    table.insert(list, { id = 'Crafting', name = 'Crafting', label = 'Crafting gear (/crafter)', kind = 'crafting',
+                         base_weights = {}, caps = {}, weapons = true, crafting = true });
     for _, e in ipairs(list) do e.abbr = abbr; end
     return list;
 end
@@ -1135,7 +1145,7 @@ end
 function actions.export_sets(job_id)
     local out = {};
     for _, desc in ipairs(build_sets(job_id)) do
-        if not desc.disabled then table.insert(out, desc); end
+        if not desc.disabled and not desc.crafting then table.insert(out, desc); end
     end
     return out;
 end
@@ -1264,6 +1274,13 @@ end
 local function active_slots(desc, bis_only)
     local list = {};
     if desc.info or desc.dwpair then return list; end      -- an info panel / the weapon pair: no gear cards
+    if desc.crafting then                                  -- (crafting gear: no Best in Slot, no range / ammo)
+        if bis_only then return list; end
+        for _, def in ipairs(SLOTS) do
+            if not def.ranged and def.key ~= 'ammo' then table.insert(list, def); end
+        end
+        return list;
+    end
     if desc.lockstyle then                                 -- only the slots you can see: weapons + armor, no BiS
         if bis_only then return list; end
         for _, def in ipairs(SLOTS) do
@@ -1367,7 +1384,8 @@ function actions.opt0(job_id, desc, pins, pool)
         p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
         pins = p2;
     end
-    if not pure and not desc.lockstyle and not desc.dwpair and desc.id ~= 'DW' and not actions.weapon_swap(JOBS[job_id]) then
+    if not pure and desc.crafting then pool = actions.craft_owned or {}; end
+    if not pure and not desc.lockstyle and not desc.crafting and not desc.dwpair and desc.id ~= 'DW' and not actions.weapon_swap(JOBS[job_id]) then
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
         p2.main, p2.sub = false, false;                  -- "Swap weapons" off: this job's sets leave Main / Sub alone
@@ -1396,6 +1414,7 @@ function actions.opt0(job_id, desc, pins, pool)
             -- Lockstyle: any piece you own that fits the slot, whatever its job or level
             if bit.band(item.slots, def.mask) ~= 0 and (desc.lockstyle or can_wear(item, job_id, lvl, pure or actions.lvl_cap ~= nil)) then
                 local c = { idx = idx, item = item, score = score_of(item.stats, w) };
+                if desc.crafting then c.score = actions.craft_score(actions.craft_now(), item.name, item.desc or '') or 0; end
                 if lv_tie and c.score > 0 then c.score = c.score + (tonumber(item.level) or 0) * 0.004; end
                 table.insert(all, c);
                 if c.score > 0 and not is_excluded(item.name) and not set_excluded(job_id, desc, item.name)
@@ -1972,10 +1991,11 @@ local function recompute()
     ui.desc = ui.sets[ui.set_idx];
     if ui.desc == nil then ui.result, ui.full = {}, {}; ui.dirty = false; return; end
     ui.ctx = JOBS[ui.job] .. '|' .. ui.desc.id;
+    if ui.desc.crafting then ui.ctx = 'ALL|Crafting'; end
     ui.pins[ui.ctx] = ui.pins[ui.ctx] or {};
     local pv = actions.preview_level();
     local d0 = ui.desc;
-    if pv and not (d0.lockstyle or d0.leveling or d0.dwpair or d0.info or d0.id == 'Leveling') then
+    if pv and not (d0.crafting or d0.lockstyle or d0.leveling or d0.dwpair or d0.info or d0.id == 'Leveling') then
         -- LEVEL preview: the set at that level (weapons stay as they are); picks you make now are saved for this level
         local base_ctx = ui.ctx;
         ui.ctx = base_ctx .. '@' .. pv;
@@ -4441,6 +4461,132 @@ local EQUIP_SLOT = { main = 'main', sub = 'sub', range = 'range', ammo = 'ammo',
     ear1 = 'ear1', ear2 = 'ear2', body = 'body', hands = 'hands', ring1 = 'ring1', ring2 = 'ring2',
     back = 'back', waist = 'waist', legs = 'legs', feet = 'feet' };
 
+-- Gear managers paused / back (LegacyAC and LuAshitacast; a command for one that isn't loaded does nothing)
+function actions.swaps_pause(on)
+    local cm = AshitaCore:GetChatManager();
+    if on then cm:QueueCommand(1, '/la disable'); cm:QueueCommand(1, '/lac disable');
+    else cm:QueueCommand(1, '/la enable'); cm:QueueCommand(1, '/lac enable'); end
+end
+
+-- /nexus: equip the Nexus Cape, wait for it to settle, use it (teleport to your party leader), then your sets come back
+function actions.use_nexus()
+    if not bag_has('Nexus Cape', { 0, 8, 10, 11, 12, 13, 14, 15, 16 }) then
+        msg('No Nexus Cape in Inventory/Wardrobes.');
+        return;
+    end
+    local nl_ = tonumber(player_call(function(p) return p:GetMainJobLevel(); end, 0)) or 0;
+    if nl_ > 0 and nl_ < 30 then msg('The Nexus Cape needs level 30.'); return; end
+    local cm = AshitaCore:GetChatManager();
+    if not ui.crafter then actions.swaps_pause(true); end
+    cm:QueueCommand(1, '/equip back "Nexus Cape"');
+    ui.nexus_n = (ui.nexus_n or 0) + 1;
+    local n = ui.nexus_n;
+    msg('Nexus Cape equipped - using it in 32 seconds (the cape needs to settle first). It takes you to your party leader.');
+    after(32, function() if ui.nexus_n == n then cm:QueueCommand(1, '/item "Nexus Cape" <me>'); end end);
+    after(50, function() if ui.nexus_n == n and not ui.crafter then actions.swaps_pause(false); end end);
+end
+
+-- /crafter [craft | off]: the best crafting gear you have for one craft (picked by itself: the craft you have the most
+-- gear for, or the one you name once - it is remembered), locked on until /crafter again.
+actions.CRAFTS = {
+    { key = 'woodworking',  words = { 'woodworking', '%(ww only%)' }, names = { "^carpenter's", "^carver's", "^joiner's", '^jo%. ' } },
+    { key = 'goldsmithing', words = { 'goldsmithing', '%(gs only%)' }, names = { "^goldsmith's", '^goldsm%. ', '^toreutic', '^tr%. ', '^shaded' } },
+    { key = 'smithing',     words = { '%f[%a]smithing', '%(bs only%)' }, names = { '^blksmith', '^blacksmith', "^smithy's", "^smith's", "^smythe's", '^sm%. ' } },
+    { key = 'clothcraft',   words = { 'clothcraft', '%(cc only%)' }, names = { "^weaver's", "^tailor's", "^plaiter's", '^pl%. ', '^magnifying' } },
+    { key = 'leathercraft', words = { 'leathercraft', '%(lc only%)' }, names = { "^tanner's", "^beveler's", '^bv%. ' } },
+    { key = 'bonecraft',    words = { 'bonecraft', '%(bc only%)' }, names = { '^bonewrk', "^boneworker's", '^bone%. ', "^bonecrafter's", "^ossifier's", '^os%. ', '^protective' } },
+    { key = 'alchemy',      words = { 'alchemy', '%(al only%)' }, names = { "^alchemist's", '^alchemst', "^brewer's", '^br%. ' } },
+    { key = 'cooking',      words = { 'cooking', '%(co only%)' }, names = { "^culinarian's", '^culin%. ', "^chef's" } },
+    { key = 'fishing',      words = { 'fishing', 'fish stamina' }, names = { "^fisher", '^fsh%. ', "^angler's", '^waders', "^mariner's", '^tlahtlamah', '^kachina' } },
+};
+function actions.craft_of(name, desc)                                -- which craft a piece is for ('' = every craft, nil = none)
+    local n, d = name:lower(), desc:lower();
+    for _, c in ipairs(actions.CRAFTS) do
+        for _, w in ipairs(c.words) do if d:find(w) then return c.key; end end
+        for _, w in ipairs(c.names) do if n:find(w) then return c.key; end end
+    end
+    if d:find('synthesis') or d:find('synth%.') then return ''; end
+    return nil;
+end
+function actions.craft_score(craft, name, desc)
+    local d = desc:lower();
+    if name == 'Chocobo Shirt' or name == 'Portafurnace' then return nil; end
+    if d:find('cannot synthesize high') then return nil; end         -- (success rings that stop HQ: left to you)
+    local of = actions.craft_of(name, desc);
+    if of == nil or (of ~= '' and of ~= craft) or (of == '' and craft == 'fishing') then return nil; end
+    local sc = 1;
+    for v in d:gmatch('skill%s*%+(%d+)') do sc = sc + 100 * tonumber(v); end
+    if d:find('high.quality') then sc = sc + 30; end
+    if d:find('success') then sc = sc + 20; end
+    if d:find('material loss') then sc = sc + 10; end
+    if d:find('skill gain') or d:find('skill is gained') then sc = sc + 5; end
+    if d:find('synergy') or d:find('stamina') or d:find('large prey') then sc = sc + 2; end
+    return sc;
+end
+function actions.craft_now()                                         -- the craft the set is for (picked, or the most gear)
+    if s.craft then return s.craft; end
+    local best, best_n = nil, 0;
+    for _, c in ipairs(actions.CRAFTS) do
+        local n = 0;
+        for _, g in ipairs(actions.craft_owned or {}) do if actions.craft_of(g.name, g.desc or '') == c.key then n = n + 1; end end
+        if n > best_n then best, best_n = c.key, n; end
+    end
+    return best or 'woodworking';
+end
+function actions.crafter(arg)
+    arg = (arg or ''):lower();
+    if arg == 'off' or (arg == '' and ui.crafter) then
+        if not ui.crafter then msg('Crafting gear is not on.'); return; end
+        ui.crafter = nil;
+        actions.swaps_pause(false);
+        msg('Crafting gear OFF: your sets are back (they go on with your next action, or /ygo equip).');
+        return;
+    end
+    if arg ~= '' then
+        local craft = nil;
+        for _, c in ipairs(actions.CRAFTS) do if c.key:sub(1, #arg) == arg then craft = c.key; break; end end
+        if craft == nil then
+            local names = {};
+            for _, c in ipairs(actions.CRAFTS) do names[#names + 1] = c.key; end
+            msg('Usage: /crafter [' .. table.concat(names, ' | ') .. ' | off]');
+            return;
+        end
+        s.craft, ui.dirty = craft, true;
+        pcall(settings.save);
+    end
+    scan();
+    local job = main_job();
+    local desc = nil;
+    for _, d in ipairs(build_sets(job)) do if d.crafting then desc = d; end end
+    if desc == nil then return; end
+    ui.pins['ALL|Crafting'] = ui.pins['ALL|Crafting'] or {};
+    local ok, res = pcall(optimize, job, desc, ui.pins['ALL|Crafting']);
+    if not ok or type(res) ~= 'table' then msg('Crafting gear: ' .. tostring(res)); return; end
+    local cm, names, skipped = AshitaCore:GetChatManager(), {}, {};
+    local cmds = {};
+    for _, def in ipairs(SLOTS) do
+        local c = res[def.key];
+        if c and c.item then
+            if EQUIP_BAGS[c.item.where] then
+                cmds[#cmds + 1] = string.format('/equip %s "%s"', EQUIP_SLOT[def.key], c.item.name);
+                names[#names + 1] = c.item.name;
+            else
+                skipped[#skipped + 1] = c.item.name .. ' (' .. tostring(c.item.where) .. ')';
+            end
+        end
+    end
+    if #cmds == 0 then
+        msg('No ' .. actions.craft_now() .. ' gear in Inventory/Wardrobes. Pick a craft: /crafter <craft>, or open /ygo > CRAFTING.');
+        return;
+    end
+    actions.swaps_pause(true);
+    ui.crafter = actions.craft_now();
+    for _, c in ipairs(cmds) do cm:QueueCommand(1, c); end
+    msg('Crafting gear ON (' .. ui.crafter .. '): ' .. table.concat(names, ', ') .. '.');
+    if #skipped > 0 then msg('  Not equipped (move to Inventory/Wardrobe first): ' .. table.concat(skipped, ', ')); end
+    msg('  Gear swaps are paused until /crafter again. Change pieces in /ygo > CRAFTING.');
+end
+
 local function equip_current_set()
     if ui.result == nil or ui.desc == nil then return; end
     local cm = AshitaCore:GetChatManager();
@@ -4584,7 +4730,7 @@ end
 ----------------------------------------------------------------------------------------------------
 -- UI: theme & helpers
 ----------------------------------------------------------------------------------------------------
-local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle', 'Subjob' };
+local CATEGORY_ORDER = { 'Melee', 'Weaponskills', 'Precast', 'Magic', 'Abilities', 'Defense & Idle', 'Subjob', 'Crafting' };
 local CATEGORY_OF = {
     Idle = 'Defense & Idle', Idle_Night = 'Defense & Idle', Learn = 'Abilities', Regain = 'Melee', Idle_Avatar = 'Defense & Idle', Idle_Carbuncle = 'Defense & Idle', Idle_LightSpirit = 'Defense & Idle', Idle_Dark = 'Defense & Idle', Idle_Fire = 'Defense & Idle', Idle_Ice = 'Defense & Idle', Idle_Wind = 'Defense & Idle', Idle_Earth = 'Defense & Idle', Idle_Thunder = 'Defense & Idle', Idle_Water = 'Defense & Idle', Resting = 'Defense & Idle', PDT = 'Defense & Idle',
     MDT = 'Defense & Idle', Movement = 'Defense & Idle', Enmity = 'Defense & Idle', Idle_NIN = 'Defense & Idle', Idle_Mage = 'Defense & Idle', Tomahawk = 'Abilities', WeaponBash = 'Abilities', Souleater = 'Abilities', UnlimitedShot = 'Abilities', Vallation = 'Abilities', Gambit = 'Abilities', Pflug = 'Abilities', Battuta = 'Abilities',
@@ -4606,6 +4752,7 @@ local CATEGORY_OF = {
     Steps = 'Abilities', Samba = 'Abilities', Jig = 'Abilities', ViolentFlourish = 'Abilities',
     TrickAttack = 'Abilities', Flee = 'Abilities', Steal = 'Abilities', Scavenge = 'Abilities', Sharpshot = 'Abilities', Shadowbind = 'Abilities', Barrage = 'Abilities', NaSpells = 'Magic', RefreshSpell = 'Magic',
     Lockstyle = 'Lockstyle', Leveling = 'Leveling',   -- (not sidebar categories: opened from the header)
+    Crafting = 'Crafting',
 };
 local function category(desc)
     if desc.extra then return 'Subjob'; end                         -- (sets for your subjob: their own section)
@@ -5540,7 +5687,7 @@ local function draw_sidebar()
 
         imgui.Spacing();
         -- (Lockstyle isn't a gear set: its button is in the header, next to the scan info)
-        caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 1));
+        caption(string.format('%s SETS  (%d)', JOBS[ui.job], #ui.sets - 2));
         -- Section names fold (click), right-click folds / opens them all
         ui.cat_folded = ui.cat_folded or {};
         if ui.cat_folded.Subjob == nil then ui.cat_folded.Subjob = true; end   -- (subjob sets: folded until you open it)
@@ -5611,6 +5758,7 @@ local function draw_sidebar()
                     if rhov and text_w(label) + 14 > rw then imgui.SetTooltip(label); end   -- a name cut off at the edge
                     if sbf then imgui.PopFont(); end
                     -- On / off switch at the end of the row: off = left out of every export (still listed, greyed)
+                    if not d.crafting then                          -- (the Crafting set is never exported: no switch)
                     imgui.SameLine(swX);
                     imgui.SetCursorPosY(imgui.GetCursorPosY() + math.floor((rh - swH) / 2));
                     if actions.switch('##seton' .. i, not d.disabled, swW, swH, true) then
@@ -5626,6 +5774,7 @@ local function draw_sidebar()
                     if imgui.IsItemHovered() then
                         imgui.SetTooltip(d.disabled and 'Off: left out of your exported files. Click to turn it on.'
                             or 'On: this set is exported. Click to leave it out of your files.');
+                    end
                     end
                     end                                             -- folded category
                 end
@@ -6290,7 +6439,33 @@ end
 
 -- The gear icon's menu: the job's settings, Window scale, thanks / support / layout
 -- The job's options in one quiet row under the set card: small switches (the name is clickable too), Macros on the right
+function actions.craft_opts()                                       -- Crafting set: which craft (Auto + the 9)
+    local x0 = imgui.GetCursorPosX();
+    local W = actions.avail_w();
+    local list = { { key = nil, label = 'Auto' } };
+    for _, c in ipairs(actions.CRAFTS) do list[#list + 1] = { key = c.key, label = c.key:sub(1, 1):upper() .. c.key:sub(2) }; end
+    local x = 0;
+    for i, c in ipairs(list) do
+        local on = (s.craft == c.key);
+        local bw = text_w(c.label) + actions.sc(20);
+        if i > 1 then
+            if x + bw + 6 > W then x = 0; else imgui.SameLine(0, 6); end
+        end
+        if x == 0 then imgui.SetCursorPosX(x0 + actions.sc(8)); end
+        if accent_button(c.label .. '##craft_' .. i, { bw, actions.sc(26) }, on) then
+            s.craft, ui.dirty = c.key, true;
+            pcall(settings.save);
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(c.key and ('Fill the set with your best ' .. c.key .. ' gear.\n/crafter ' .. c.key .. ' picks it too.')
+                or ('The craft you have the most gear for' .. (s.craft == nil and (' (now: ' .. tostring(actions.craft_now()) .. ')') or '') .. '.'));
+        end
+        x = x + bw + 6;
+    end
+    imgui.TextColored(C.muted, 'Click a slot to change a piece. /crafter puts this set on (swaps pause) until /crafter again.');
+end
 function actions.calm_opts()
+    if ui.desc and ui.desc.crafting then return actions.craft_opts(); end
     local abbr = JOBS[ui.job];
     local x0, y0 = imgui.GetCursorScreenPos();
     local W = actions.avail_w();
@@ -8082,6 +8257,8 @@ ashita.events.register('command', 'ygo_command', function(e)
     if #args == 0 then return; end
     -- Accepts /ygo, //ygo, /yunagearopt and //yunagearopt
     local cmd = args[1]:lower():gsub('^/+', '');
+    if cmd == 'nexus' then e.blocked = true; actions.use_nexus(); return; end            -- /nexus, /crafter: typed straight
+    if cmd == 'crafter' then e.blocked = true; actions.crafter(args[2]); return; end
     if cmd ~= 'yunagearopt' and cmd ~= 'ygo' then return; end
     e.blocked = true;
     local sub = (args[2] or ''):lower();
@@ -8105,6 +8282,10 @@ ashita.events.register('command', 'ygo_command', function(e)
         ask_export('xml');            -- same confirmation window as the buttons
     elseif sub == 'warp' then
         do_warp();
+    elseif sub == 'nexus' then
+        actions.use_nexus();
+    elseif sub == 'crafter' or sub == 'craft' then
+        actions.crafter(args[3]);
     elseif sub == 'exp' then
         actions.use_exp_ring(args[3]);
     elseif sub == 'lockstyle' or sub == 'ls' then
