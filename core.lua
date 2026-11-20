@@ -8130,6 +8130,58 @@ settings.register('settings', 'ygo_settings_update', function(e)
     end
 end);
 
+-- A thank-you card, shown ONCE - the first time the YGO window is opened after this update (or a new install) - and
+-- never again: YGO is free; support on Ko-fi means more time for fixes, help and updates. /ygo thanks shows it again.
+-- The SUPPORT link in the window's header stays for later.
+function actions.ty_frame()
+    if s.thanks_v1 == true and not ui.ty_force then return; end
+    if not (ui.open[1] or ui.ty_force) then return; end
+    local U = actions.UPD;
+    if U and U.state and U.state ~= 'idle' and U.state ~= 'checking' then return; end   -- (the update card first)
+    local url = (data and data.support_url) or 'https://ko-fi.com/yunasxi';
+    local function done_() s.thanks_v1, ui.ty_force = true, nil; settings.save(); end
+    local sc = actions.sc;
+    local nc, nv = push_theme();
+    local fp = actions.push_font();
+    local SW = 1920;
+    pcall(function() SW = tonumber(imgui.GetIO().DisplaySize.x) or 1920; end);
+    local PW = math.max(420, sc(460));
+    imgui.SetNextWindowPos({ SW / 2 - PW / 2, sc(110) }, ImGuiCond_Appearing);
+    imgui.SetNextWindowSize({ PW, 0 }, ImGuiCond_Always);
+    imgui.SetNextWindowFocus();
+    imgui.PushStyleColor(ImGuiCol_WindowBg, { C.bg[1], C.bg[2], C.bg[3], 0.97 });
+    imgui.PushStyleColor(ImGuiCol_Border, { C.gold[1], C.gold[2], C.gold[3], 0.55 });
+    imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+    imgui.PushStyleVar(ImGuiStyleVar_WindowRounding, sc(10));
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { sc(18), sc(16) });
+    if imgui.Begin('##ygo_thanks', { true }, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse, ImGuiWindowFlags_NoSavedSettings)) then
+        imgui.SetWindowFontScale(1.15);
+        imgui.TextColored(C.gold, 'THANK YOU FOR USING YUNAGEAROPT');
+        imgui.SetWindowFontScale(1.0);
+        imgui.Spacing();
+        imgui.PushTextWrapPos(imgui.GetCursorPosX() + PW - sc(36));
+        imgui.TextColored(C.text, 'YunaGearOpt is free, and it stays free - every part of it, for everyone.');
+        imgui.Dummy({ 4, sc(6) });
+        imgui.TextColored(C.text, 'It is made and looked after by one person. Support on Ko-fi turns into more time for it: quicker fixes, help when something breaks, and new updates.');
+        imgui.Dummy({ 4, sc(6) });
+        imgui.TextColored(C.muted, 'Completely optional - nothing changes either way. This card only shows once.');
+        imgui.Dummy({ 4, sc(12) });
+        local bw = (imgui.GetContentRegionAvail() - sc(8)) / 2;
+        if accent_button('SUPPORT ON KO-FI##ygo_tyk', { bw, 0 }, true) then pcall(actions.open_url, url); done_(); end
+        if imgui.IsItemHovered() then imgui.SetTooltip('Opens ko-fi.com/yunasxi in your browser.'); end
+        imgui.SameLine(0, sc(8));
+        if imgui.Button('CLOSE##ygo_tyc', { bw, 0 }) then done_(); end
+        imgui.Dummy({ 4, sc(6) });
+        imgui.TextColored(C.muted, 'The SUPPORT link at the top of the YGO window is there if you ever want it later.');
+        imgui.PopTextWrapPos();
+    end
+    imgui.End();
+    imgui.PopStyleVar(3);
+    imgui.PopStyleColor(2);
+    if fp then imgui.PopFont(); end
+    imgui.PopStyleVar(nv);
+    imgui.PopStyleColor(nc);
+end
 ashita.events.register('load', 'ygo_load', function() load_data(); actions.load_font(); end);
 ashita.events.register('unload', 'ygo_unload', function() settings.save(); end);
 ashita.events.register('d3d_present', 'ygo_present', function()
@@ -8137,6 +8189,7 @@ ashita.events.register('d3d_present', 'ygo_present', function()
     if ui.late_cure_at then pcall(actions.late_cure_tick); end
     draw_ui();
     do local oku = pcall(actions.upd_frame); if not oku then actions.UPD = false; end end
+    pcall(actions.ty_frame);                                         -- (the one-time thank-you card)
 end);
 
 -- Phalanx received for LegacyAC (logic from phalanx.lua): XML rules can't see an incoming Phalanx, so when one
@@ -8344,6 +8397,7 @@ ashita.events.register('command', 'ygo_command', function(e)
         ui.dirty = true;
         msg(actions.preview_level() and ('Previewing your sets at level ' .. actions.preview_level() .. ' (/ygo preview off to go back).')
             or 'Level preview off: your sets at your own level.');
+    elseif sub == 'thanks' then ui.ty_force = true;                  -- /ygo thanks: the thank-you card again
     elseif sub == 'update' then                                      -- /ygo update [back | on | off] (the in-game updater)
         actions.upd_command((args[3] or ''):lower());
     elseif sub == 'rolls' then                                       -- /ygo rolls on | off (COR: roll totals in chat)
