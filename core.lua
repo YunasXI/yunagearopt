@@ -1,6 +1,6 @@
 addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
-addon.version = '1.1.88';   -- the release workflow sets this to the release number
+addon.version = '1.1.89';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
 addon.link    = '';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
@@ -1384,7 +1384,7 @@ function actions.opt0(job_id, desc, pins, pool)
         p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
         pins = p2;
     end
-    if not pure and desc.crafting then pool = actions.craft_owned or {}; end
+    if not pure and desc.crafting then pool = actions.craft_pool(); end
     if not pure and not desc.lockstyle and not desc.crafting and not desc.dwpair and desc.id ~= 'DW' and not actions.weapon_swap(JOBS[job_id]) then
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
@@ -4498,7 +4498,41 @@ actions.CRAFTS = {
     { key = 'alchemy',      words = { 'alchemy', '%(al only%)' }, names = { "^alchemist's", '^alchemst', "^brewer's", '^br%. ' } },
     { key = 'cooking',      words = { 'cooking', '%(co only%)' }, names = { "^culinarian's", '^culin%. ', "^chef's" } },
     { key = 'fishing',      words = { 'fishing', 'fish stamina' }, names = { "^fisher", '^fsh%. ', "^angler's", '^waders', "^mariner's", '^tlahtlamah', '^kachina' } },
+    -- gathering: a piece can be for several (Field / Worker / Plain gear), so each is matched on its own
+    { key = 'mining',     gather = true, words = { 'mining' }, names = { "^miner's", '^dredger' } },
+    { key = 'logging',    gather = true, words = { 'logging' }, names = { "^lumberjack's", '^treefeller' } },
+    { key = 'harvesting', gather = true, words = { 'harvesting' }, names = { '^harv%. ', '^agrarian' } },
+    { key = 'excavation', gather = true, words = { 'excavation' }, names = { "^excavator's" } },
+    { key = 'clamming',   gather = true, words = { 'clamming' }, names = {} },
+    { key = 'digging',    gather = true, label = 'Chocobo digging', words = { 'chocobo digging', 'digging bonus' }, names = { '^egg helm' } },
 };
+function actions.gather_score(c, name, desc)                         -- a gathering piece for activity c (nil = not for it)
+    local n, d = name:lower(), desc:lower():gsub('%s+', ' ');
+    local hit = false;
+    for _, w in ipairs(c.words) do if d:find(w) then hit = true; end end
+    for _, w in ipairs(c.names) do if n:find(w) then hit = true; end end
+    if not hit then return nil; end
+    local sc = 1;
+    for v in d:gmatch('surveyor"?%s*%+(%d+)') do sc = sc + 20 * tonumber(v); end
+    for v in d:gmatch(c.key .. '%s*%+(%d+)') do sc = sc + 20 * tonumber(v); end
+    if d:find('improves') or d:find('reduces') or d:find('enhances') then sc = sc + 10; end
+    if d:find('occasionally') then sc = sc + 8; end
+    if d:find('increases') then sc = sc + 5; end
+    if d:find('slightly') then sc = sc - 4; end
+    if d:find('ulbuka') then sc = sc - 3; end                            -- (only in one area)
+    return sc;
+end
+function actions.craft_pool()                                        -- the Crafting set's pieces: craft gear + gathering pieces you own
+    local out = {};
+    for _, g in ipairs(actions.craft_owned or {}) do out[#out + 1] = g; end
+    for _, g in ipairs(owned or {}) do
+        local d = (g.desc or ''):lower();
+        if d:find('mining') or d:find('logging') or d:find('harvesting') or d:find('excavation') or d:find('clamming') or d:find('digging') then
+            out[#out + 1] = g;
+        end
+    end
+    return out;
+end
 function actions.craft_of(name, desc)                                -- which craft a piece is for ('' = every craft, nil = none)
     local n, d = name:lower(), desc:lower();
     for _, c in ipairs(actions.CRAFTS) do
@@ -4509,6 +4543,9 @@ function actions.craft_of(name, desc)                                -- which cr
     return nil;
 end
 function actions.craft_score(craft, name, desc)
+    for _, c in ipairs(actions.CRAFTS) do
+        if c.key == craft and c.gather then return actions.gather_score(c, name, desc); end
+    end
     local d = desc:lower();
     if name == 'Chocobo Shirt' or name == 'Portafurnace' then return nil; end
     if d:find('cannot synthesize high') then return nil; end         -- (success rings that stop HQ: left to you)
@@ -4528,7 +4565,7 @@ function actions.craft_now()                                         -- the craf
     local best, best_n = nil, 0;
     for _, c in ipairs(actions.CRAFTS) do
         local n = 0;
-        for _, g in ipairs(actions.craft_owned or {}) do if actions.craft_of(g.name, g.desc or '') == c.key then n = n + 1; end end
+        for _, g in ipairs(actions.craft_pool()) do if actions.craft_score(c.key, g.name, g.desc or '') then n = n + 1; end end
         if n > best_n then best, best_n = c.key, n; end
     end
     return best or 'woodworking';
@@ -6259,8 +6296,8 @@ local function draw_export_confirm()
         imgui.OpenPopup(id);
         ui.open_export_popup = false;
         ui.export_noask = { false };
+        pcall(actions.center_next);                                  -- (only the frame it opens: never left for another window)
     end
-    pcall(actions.center_next);
     if not imgui.BeginPopupModal(id, nil, ImGuiWindowFlags_AlwaysAutoResize) then return; end
     local kind = ui.pending_export or 'xml';
     local e = EXPORTS[kind];
@@ -6463,13 +6500,16 @@ function actions.craft_opts()                                       -- Crafting 
     local x0 = imgui.GetCursorPosX();
     local W = actions.avail_w();
     local list = { { key = nil, label = 'Auto' } };
-    for _, c in ipairs(actions.CRAFTS) do list[#list + 1] = { key = c.key, label = c.key:sub(1, 1):upper() .. c.key:sub(2) }; end
+    for _, c in ipairs(actions.CRAFTS) do
+        list[#list + 1] = { key = c.key, gather = c.gather, label = c.label or (c.key:sub(1, 1):upper() .. c.key:sub(2)) };
+    end
     local x = 0;
     for i, c in ipairs(list) do
         local on = (s.craft == c.key);
         local bw = text_w(c.label) + actions.sc(20);
         if i > 1 then
-            if x + bw + 6 > W then x = 0; else imgui.SameLine(0, 6); end
+            local row = c.gather and not list[i - 1].gather;             -- (gathering starts its own row)
+            if row or x + bw + 6 > W then x = 0; else imgui.SameLine(0, 6); end
         end
         if x == 0 then imgui.SetCursorPosX(x0 + actions.sc(8)); end
         if accent_button(c.label .. '##craft_' .. i, { bw, actions.sc(26) }, on) then
@@ -6477,7 +6517,7 @@ function actions.craft_opts()                                       -- Crafting 
             pcall(settings.save);
         end
         if imgui.IsItemHovered() then
-            imgui.SetTooltip(c.key and ('Fill the set with your best ' .. c.key .. ' gear.\n/crafter ' .. c.key .. ' picks it too.')
+            imgui.SetTooltip(c.key and ('Fill the set with your best ' .. c.label:lower() .. ' gear.\n/crafter ' .. c.key .. ' picks it too.')
                 or ('The craft you have the most gear for' .. (s.craft == nil and (' (now: ' .. tostring(actions.craft_now()) .. ')') or '') .. '.'));
         end
         x = x + bw + 6;

@@ -31,7 +31,7 @@ Commands (`/ygo` or `/yunagearopt`):
 | `/ygo export` (or `xml`) | Export the LegacyAC XML for your main job |
 | `/ygo warp` | Warp: uses a Scroll of Instant Warp if you have one, otherwise equips and uses your Warp Ring |
 | `/nexus` | Equips your Nexus Cape and uses it when it is ready (teleport to your party leader); your sets come back after |
-| `/crafter [craft]` | Puts on your **Crafting** set (window sidebar, CRAFTING: pick the craft, change any piece). Without a craft it uses the one picked there (Auto = the craft you have the most gear for); with one (woodworking, smithing, goldsmithing, clothcraft, leathercraft, bonecraft, alchemy, cooking, fishing) it switches to it. Gear swaps pause until `/crafter` again |
+| `/crafter [craft]` | Puts on your **Crafting** set (window sidebar, CRAFTING: pick the craft, change any piece). Without a craft it uses the one picked there (Auto = the craft you have the most gear for); with one (woodworking, smithing, goldsmithing, clothcraft, leathercraft, bonecraft, alchemy, cooking, fishing, or gathering: mining, logging, harvesting, excavation, clamming, digging) it switches to it. Gear swaps pause until `/crafter` again |
 | `/ygo lac` | Export the LuAshitacast profile for your main job |
 | `/ygo gs` (or `gearswap`) | Export the GearSwap Lua for your main job |
 | `/ygo equip [set]` | Equip the current (or named) set |
