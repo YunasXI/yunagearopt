@@ -7156,14 +7156,14 @@ local NOTICE_TEXT = 'YunaGearOpt builds your sets by reading item descriptions a
 local NOTICE_TEXT_2 = 'Always double-check the results, and use the pieces you know are most valuable for your sets.';
 
 local function draw_notice()
-    if not ui.notice then return; end
+    if not ui.notice then ui.notice_f = nil; return; end
     local cx, cy = 640, 360;
     pcall(function()
         local io = imgui.GetIO();
         cx, cy = io.DisplaySize.x / 2, io.DisplaySize.y / 2;
     end);
     imgui.SetNextWindowPos({ cx, cy }, ImGuiCond_Appearing, { 0.5, 0.5 });
-    imgui.SetNextWindowFocus();
+    if not ui.notice_f then imgui.SetNextWindowFocus(); ui.notice_f = true; end   -- (only when it opens: every frame broke clicks)
     imgui.PushStyleColor(ImGuiCol_Border, C.gold);
     if imgui.Begin('YunaGearOpt##notice', { true }, bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoCollapse,
             ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoScrollbar)) then
@@ -8174,12 +8174,13 @@ end);
 -- never again: YGO is free; support on Ko-fi means more time for fixes, help and updates. /ygo thanks shows it again.
 -- The SUPPORT link in the window's header stays for later.
 function actions.ty_frame()
-    if s.thanks_v1 == true and not ui.ty_force then return; end
+    if s.thanks_v1 == true and not ui.ty_force then ui.ty_f = nil; return; end
     if not (ui.open[1] or ui.ty_force) then return; end
     local U = actions.UPD;
     if U and U.state and U.state ~= 'idle' and U.state ~= 'checking' then return; end   -- (the update card first)
+    if s.thanks_v1 ~= true then s.thanks_v1, ui.ty_force = true, true; settings.save(); end   -- (seen once: never again)
     local url = (data and data.support_url) or 'https://ko-fi.com/yunasxi';
-    local function done_() s.thanks_v1, ui.ty_force = true, nil; settings.save(); end
+    local function done_() s.thanks_v1, ui.ty_force, ui.ty_f = true, nil, nil; settings.save(); end
     local sc = actions.sc;
     local nc, nv = push_theme();
     local fp = actions.push_font();
@@ -8188,7 +8189,7 @@ function actions.ty_frame()
     local PW = math.max(420, sc(460));
     imgui.SetNextWindowPos({ SW / 2 - PW / 2, sc(110) }, ImGuiCond_Appearing);
     imgui.SetNextWindowSize({ PW, 0 }, ImGuiCond_Always);
-    imgui.SetNextWindowFocus();
+    if not ui.ty_f then imgui.SetNextWindowFocus(); ui.ty_f = true; end   -- (only when it opens: every frame broke clicks)
     imgui.PushStyleColor(ImGuiCol_WindowBg, { C.bg[1], C.bg[2], C.bg[3], 0.97 });
     imgui.PushStyleColor(ImGuiCol_Border, { C.gold[1], C.gold[2], C.gold[3], 0.55 });
     imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
