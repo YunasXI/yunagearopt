@@ -723,7 +723,9 @@ return {
         ['Water Staff'] = { aperp_water = 2, aperp_fire = -2 }, ["Neptune's Staff"] = { aperp_water = 3, aperp_fire = -3 },
         ['Light Staff'] = { aperp_light = 2, aperp_dark = -2 }, ["Apollo's Staff"] = { aperp_light = 3, aperp_dark = -3 },
         ['Dark Staff'] = { aperp_dark = 2, aperp_light = -2 }, ["Pluto's Staff"] = { aperp_dark = 3, aperp_light = -3 },
-        ['Chatoyant Staff'] = { aperp_fire = 3, aperp_ice = 3, aperp_wind = 3, aperp_earth = 3, aperp_thunder = 3, aperp_water = 3, aperp_light = 3, aperp_dark = 3 },
+        ['Chatoyant Staff'] = { aperp_fire = 3, aperp_ice = 3, aperp_wind = 3, aperp_earth = 3, aperp_thunder = 3, aperp_water = 3, aperp_light = 3, aperp_dark = 3, irid = 1 },
+        -- "Iridescence": the staff's elemental affinity counts for every element (an elemental staff for every nuke)
+        ['Kaladanda'] = { irid = 1 },
         ['Carbuncle Mitts'] = { perp_carby = 1 },
         ['Brutal Earring +1'] = { da = 6 },
         -- RUN ability gear (CatsEyeXI item database, mods 1010 / 1018 / 1011 / 1004 / 1008)
@@ -1101,9 +1103,9 @@ return {
         Enfeebling_MND = { label = 'Enfeebling - MND', weapons = true, weights = { mnd = 3, enfeebling = 3, macc = 3, enfdur = 1 } },
         Enfeebling_INT = { label = 'Enfeebling - INT', weapons = true, weights = { int = 3, enfeebling = 3, macc = 3, enfdur = 1 } },
         Divine        = { label = 'Divine magic', weapons = true, weights = { divine = 3, mnd = 2.5, mab = 5, macc = 2 } },
-        Nuke          = { label = 'Elemental - Nuke', weapons = true, weights = { int = 2.5, mab = 10, macc = 1.5, elemental = 1.2, mbb = 5, mcrit = 3, mcritdmg = 2, mdmg = 1 } },
+        Nuke          = { label = 'Elemental - Nuke', weapons = true, weights = { int = 2.5, mab = 10, macc = 1.5, elemental = 1.2, mbb = 5, mcrit = 3, mcritdmg = 2, mdmg = 1, irid = 100 } },
         Nuke_MB       = { label = 'Elemental - Magic Burst', caps = { mbb = 40 }, weapons = true,
-                          weights = { mbb = 12, int = 2.5, mab = 9, macc = 1.5, elemental = 1, mcrit = 2, mcritdmg = 2, mdmg = 1 } },
+                          weights = { mbb = 12, int = 2.5, mab = 9, macc = 1.5, elemental = 1, mcrit = 2, mcritdmg = 2, mdmg = 1, irid = 90 } },
         MagicAcc      = { label = 'Elemental - Accuracy', weapons = true, weights = { macc = 4, elemental = 3, int = 1.5 } },
         Dark          = { label = 'Dark - Stun/Bio/Absorb', weapons = true, weights = { dark = 3, macc = 4, int = 1 } },
         DrainAspir    = { label = 'Dark - Drain/Aspir', weapons = true, weights = { dark = 4, drain = 6, macc = 2, int = 0.5 } },
