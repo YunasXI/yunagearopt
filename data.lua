@@ -767,7 +767,6 @@ return {
         ['Eminence Robe']     = { def = 14, mp = 15, acc30 = 50, int30 = 1, mnd30 = 1, chr30 = 1 },
         ['Yetshila +1']       = { dex = 2, crit = 2, critdmg = 3 },
         ['Ultion Mantle']     = { counter = 2 },
-        ['Bloodbead Gorget']  = { hp = 60, vit = 3, acc = 5, pdt = -2 },
         ['Inmicus Cuisses']   = { hp = 25, eva = -10, dt = -2, enmity = 3 },
         ['Oneiros Cluster']   = { haste = 1, att = -3 },
         -- Soil Earring = the NQ Terra's Earring
