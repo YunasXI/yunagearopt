@@ -2,13 +2,13 @@ addon.name    = 'yunagearopt';
 addon.author  = 'Yunas';
 addon.version = '1.1.90';   -- the release workflow sets this to the release number
 addon.desc    = 'Builds every set for a job from the gear you own (augments included) and exports LegacyAC XML, LuAshitacast and GearSwap.';
-addon.link    = '';
+addon.link    = 'https://github.com/YunasXI/yunagearopt';
 -- YunaGearOpt - Copyright (C) 2026 Yunas (https://github.com/YunasXI) - GPL-3.0 with an author-credit term: see LICENSE and NOTICE
 
--- VanaCore only: this file (core.lua) runs under the VanaCore entry, yunagearopt.lua, which sets YGO_NATIVE.
--- Loaded any other way (plain Ashita, or as an Ashita addon inside VanaCore) it says so and does nothing.
+-- This file (core.lua) runs under the entry, yunagearopt.lua, which sets YGO_NATIVE: on VanaCore (a VanaCore addon) and
+-- on plain Ashita v4 (YGO_ASHITA too). Loaded any other way (as an Ashita addon inside VanaCore) it does nothing.
 if not rawget(_G, 'YGO_NATIVE') then
-    print('[YunaGearOpt] YunaGearOpt now runs only on VanaCore, as a VanaCore addon: /addon load yunagearopt');
+    print('[YunaGearOpt] Load YunaGearOpt with /addon load yunagearopt (on VanaCore it goes in VanaCore\\addons\\vanacore\\yunagearopt)');
     return;
 end
 
@@ -7537,6 +7537,9 @@ function actions.res_k()
     R.t = os.clock();
     local w, h = 0, 0;
     pcall(function() local a, b = vana.ui.screen(); w, h = tonumber(a) or 0, tonumber(b) or 0; end);
+    if w < 320 or h < 240 then                                       -- (plain Ashita: the game's screen size from ImGui)
+        pcall(function() local d = imgui.GetIO().DisplaySize; w, h = tonumber(d.x) or 0, tonumber(d.y) or 0; end);
+    end
     if w < 320 or h < 240 then return R.k; end
     R.w, R.h = w, h;
     if (tonumber(s.res_h) or 0) < 240 then s.res_w, s.res_h = math.floor(w), math.floor(h); pcall(settings.save); end
@@ -8106,7 +8109,11 @@ function actions.upd_frame()
 end
 function actions.upd_command(arg)                                    -- /ygo update [back | on | off]
     local U = actions.UPD;
-    if not U then msg('Updating from inside the game needs VanaCore with downloads (vana.http). Get new versions from ' .. addon.link); return; end
+    if not U then
+        if rawget(_G, 'YGO_ASHITA') then msg('On Ashita, get new versions from ' .. addon.link .. '/releases/latest (unzip over Ashita\\addons\\yunagearopt)');
+        else msg('Updating from inside the game needs VanaCore with downloads (vana.http). Get new versions from ' .. addon.link); end
+        return;
+    end
     if arg == 'off' or arg == 'on' then
         s.upd_check = (arg == 'on');
         pcall(settings.save);

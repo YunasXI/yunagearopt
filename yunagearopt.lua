@@ -15,7 +15,23 @@ vana.game, vana.chat, vana.packets, vana.fs and vana.imgui. Then it loads core.l
 In game:   /addon load yunagearopt
 --]]
 
--- VanaCore addons only: not plain Ashita (no `vana`), not as an Ashita addon inside VanaCore (AshitaCore already there)
+-- Plain Ashita v4 (other servers, the Ashita launcher): core.lua is written against the Ashita API, so it just runs
+-- (Ashita\addons\yunagearopt). Only the in-game updater is VanaCore's: there a chat line gives the download link.
+if rawget(_G, 'vana') == nil and rawget(_G, 'AshitaCore') ~= nil then
+    YGO_NATIVE, YGO_ASHITA = true, true
+    if type(addon.path) ~= 'string' or addon.path == '' then
+        addon.path = ((debug.getinfo(1, 'S').source or ''):gsub('^@', ''):match('^(.*[\\/])') or '')
+    end
+    local chunk, err = loadfile(addon.path .. 'core.lua')
+    if chunk == nil then
+        print('[YunaGearOpt] core.lua could not be read: ' .. tostring(err))
+        return
+    end
+    chunk()
+    return
+end
+
+-- VanaCore: as a VanaCore addon (VanaCore\addons\vanacore\yunagearopt), not as an Ashita addon inside VanaCore
 if rawget(_G, 'vana') == nil or rawget(_G, 'AshitaCore') ~= nil then
     print('[YunaGearOpt] YunaGearOpt runs only on VanaCore, as a VanaCore addon (VanaCore\\addons\\vanacore\\yunagearopt): /addon load yunagearopt');
     return;

@@ -10,15 +10,22 @@ YunaGearOpt is free for everyone. If it helps you, you can support it on **[Ko-f
 
 ## Installation
 
-YunaGearOpt runs on **VanaCore** (as a VanaCore addon).
+YunaGearOpt runs on **VanaCore** (as a VanaCore addon) and on **plain Ashita v4** (any server). The same zip works for both.
 
 1. Download the latest `yunagearopt-x.y.z.zip` from [Releases](../../releases).
-2. Extract it so you have `VanaCore\addons\vanacore\yunagearopt\`.
-3. In game: `/addon load yunagearopt` (or add `//addon load yunagearopt` to VanaCore's `scripts\boot.txt`).
+2. Extract it so you have:
+   - VanaCore: `VanaCore\addons\vanacore\yunagearopt\`
+   - Ashita: `Ashita\addons\yunagearopt\`
+3. In game: `/addon load yunagearopt` (or add it to your boot script: VanaCore's `scripts\boot.txt`, Ashita's `scripts\default.txt`).
 
-The repo is the addon exactly as installed: `yunagearopt.lua` is the VanaCore entry (the addon's metadata and a small
-layer over VanaCore's API), which loads `core.lua`, the main code. Releases up to 1.1.47 also ran on Ashita; from
-1.1.48 on it's VanaCore only.
+On VanaCore, YunaGearOpt updates itself from inside the game (`/ygo update`). On Ashita, download new versions from
+[Releases](../../releases) and extract them over the old folder.
+
+YunaGearOpt is made on CatsEyeXI (level 75): its Best in Slot lists and some item stats come from that server. On other
+level-75 servers it still builds every set from the gear you own.
+
+The repo is the addon exactly as installed: `yunagearopt.lua` is the entry (the addon's metadata and, on VanaCore, a
+small layer over VanaCore's API), which loads `core.lua`, the main code (written against the Ashita addon API).
 
 ## Usage
 
@@ -121,7 +128,7 @@ Exports are git-ignored. Only gear in bags LegacyAC can equip from (Inventory an
 
 | File | Purpose |
 | --- | --- |
-| `yunagearopt.lua` | VanaCore entry: the addon's metadata and a small layer over VanaCore's API |
+| `yunagearopt.lua` | Entry: the addon's metadata; on VanaCore a small layer over VanaCore's API, on Ashita it just loads `core.lua` |
 | `core.lua` | UI, set builder and exporters |
 | `data.lua` | Item/stat data |
 | `stats.lua` | Stat parsing |
