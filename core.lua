@@ -750,6 +750,7 @@ end
 
 -- BST: the jug pets you own for this job (ammo-slot items only BST can use), highest level first
 function actions.owned_jugs(job_id)
+    if s.jug_pick == false then return {}; end                      -- ("Pick my jug" off: your macros pick the jug)
     local list, seen, lvl = {}, {}, job_level(job_id);
     for _, it in ipairs(owned) do
         if bit.band(it.slots, 0x0008) ~= 0 and it.jobs == bit.lshift(1, job_id) and not seen[it.name]
@@ -1382,6 +1383,12 @@ function actions.opt0(job_id, desc, pins, pool)
         local p2 = {};                                   -- (a copy: the saved picks stay as they are)
         for k, v in pairs(pins) do p2[k] = v; end
         p2.ammo = false;                                 -- "Swap ammo" off: this job's sets leave the ammo slot alone
+        pins = p2;
+    end
+    if not pure and desc.id == 'CallBeast' and s.jug_pick == false then
+        local p2 = {};                                   -- ("Pick my jug" off: Call Beast leaves the jug your macro put on)
+        for k, v in pairs(pins) do p2[k] = v; end
+        p2.ammo = false;
         pins = p2;
     end
     if not pure and desc.crafting then pool = actions.craft_pool(); end
@@ -6561,6 +6568,14 @@ function actions.calm_opts()
             'On: ' .. abbr .. ' sets can change your weapons.\nOff: they never touch Main / Sub, so your TP is kept.'
             .. ((data.keep_range_songs or {})[abbr] and '\nBRD: off also keeps your instrument (songs too).' or '') .. '\nRe-export after changing it.') then
         s.weapon_swap[abbr] = not wp; settings.save(); ui.dirty = true;
+    end
+    if abbr == 'BST' then
+        local jp = s.jug_pick ~= false;
+        if item('##c_jug', 'Pick my jug', jp,
+                'On: your exported file puts a jug on for Call Beast / Bestial Loyalty\n(the one you pick with /jug, from the jugs in your bags).'
+                .. '\nOff: it never touches the jug, so your own macro picks it.\nRe-export after changing it.') then
+            s.jug_pick = not jp; settings.save(); ui.dirty = true;
+        end
     end
     local ls = s.level_sets ~= false;
     if item('##c_lvs', 'Level sync gear', ls,

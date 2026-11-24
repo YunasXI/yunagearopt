@@ -1262,7 +1262,7 @@ return {
                                     feet = { 'Mst. Gaiters +1', 'Bst. Gaiters +1' }, neck = "Aife's Medal", waist = 'Salire Belt',
                                     ring1 = 'Levia. Ring', ring2 = 'Tamas Ring', ear1 = 'Aqua Earring', ear2 = 'Aqua Earring',
                                     back = 'Ryl. Army Mantle' } },
-        CallBeast     = { label = 'Call Beast / Bestial Loyalty', weights = { jugrange = 10 },
+        CallBeast     = { label = 'Call Beast / Bestial Loyalty', weights = { jugrange = 10, chr = 3 },
                           fixed = { head = { "Maat's Cap", 'Monster Helm', 'Bst. Helm +1' }, body = 'Reiki Osode', hands = 'Mst. Gloves +1',
                                           legs = 'Bst. Trousers +1', feet = 'Mst. Gaiters +1', neck = "Combatant's Torque",
                                           waist = 'Monster Belt', ring1 = 'Veela Ring', ring2 = 'Light Ring',
