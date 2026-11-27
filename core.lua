@@ -6595,9 +6595,20 @@ end
 -- A slot's upgrade (the Best in Slot piece when yours is clearly behind it), or nil
 function actions.calm_up(key, c)
     if ui.show_bis or not c then return nil; end
-    local b = ui.bis and ui.bis.assign and ui.bis.assign[key];
+    local ba = ui.bis and ui.bis.assign;
+    local b = ba and ba[key];
+    if b == nil then return nil; end
+    local o = ({ ear1 = 'ear2', ear2 = 'ear1', ring1 = 'ring2', ring2 = 'ring1' })[key];
+    local ob = o and ba[o];
+    if ob then                                     -- rings / earrings: the pair counts, whichever side each piece is on
+        local k, oc = name_key(c.item.name), ui.result and ui.result[o];
+        if k == name_key(b.item.name) or k == name_key(ob.item.name) then return nil; end
+        if oc and name_key(oc.item.name) == name_key(b.item.name) then b = ob; end   -- (the other side already wears this one)
+        if b.score > 0 and c.score / b.score < 0.95 then return b; end
+        return nil;
+    end
     local r = slot_ratio(key, c.score);
-    if r ~= nil and r < 0.95 and b ~= nil and name_key(b.item.name) ~= name_key(c.item.name) then return b; end
+    if r ~= nil and r < 0.95 and name_key(b.item.name) ~= name_key(c.item.name) then return b; end
     return nil;
 end
 

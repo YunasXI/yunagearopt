@@ -726,6 +726,8 @@ return {
         ['Chatoyant Staff'] = { aperp_fire = 3, aperp_ice = 3, aperp_wind = 3, aperp_earth = 3, aperp_thunder = 3, aperp_water = 3, aperp_light = 3, aperp_dark = 3, irid = 1 },
         -- "Iridescence": the staff's elemental affinity counts for every element (an elemental staff for every nuke)
         ['Kaladanda'] = { irid = 1 },
+        -- COR: Enhances "Quick Draw" effect = Quick Draw damage +5 (CatsEyeXI item database, mod 411)
+        ["Corsair's Tricorne"] = { qdraw = 5 }, ['Cor. Tricorne +1'] = { qdraw = 5 },
         ['Carbuncle Mitts'] = { perp_carby = 1 },
         ['Brutal Earring +1'] = { da = 6 },
         -- RUN ability gear (CatsEyeXI item database, mods 1010 / 1018 / 1011 / 1004 / 1008)
@@ -1141,7 +1143,7 @@ return {
         Preshot_Gun = { label = 'Ranged - Preshot (gun)', ranged = 'Marksmanship', weights = { snapshot = 8, rapid = 6 } },
         Midshot     = { label = 'Ranged - Midshot', ranged = 'job', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
         Midshot_Gun = { label = 'Ranged - Midshot (gun)', ranged = 'Marksmanship', weights = { racc = 1.5, ratt = 1, agi = 1, stp = 3, crit = 2, recycle = 0.5 } },
-        QuickDraw   = { label = 'Quick Draw', ranged = 'job', weights = { mab = 8, macc = 3, agi = 2, racc = 0.5 } },
+        QuickDraw   = { label = 'Quick Draw', ranged = 'job', weights = { mab = 8, macc = 3, agi = 2, racc = 0.5, qdraw = 4 } },
         -- Fixed set: your exact pieces. Used ONLY for the weaponskills in ws_only, while the Mighty Strikes
         -- buff is active. Any piece you don't own is filled by the optimizer using the weights below.
         MightyStrikes = { label = 'Mighty Strikes (Upheaval / King\'s Justice)', buff = 'Mighty Strikes',

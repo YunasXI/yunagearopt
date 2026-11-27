@@ -137,7 +137,7 @@ M.LABELS = {
     acc = 'Accuracy', att = 'Attack', racc = 'R.Acc', ratt = 'R.Atk', stp = 'Store TP', da = 'Dbl.Atk%', ta = 'Trpl.Atk%',
     qa = 'Quad.Atk%', crit = 'Crit%', critdmg = 'Crit.Dmg%', wsd = 'WS Dmg%', wsacc = 'WS Acc', haste = 'Haste%',
     dw = 'Dual Wield', sb = 'Subtle Blow', tpb = 'TP Bonus', scb = 'SC Dmg%', ctp = 'Conserve TP', zanshin = 'Zanshin',
-    counter = 'Counter', kick = 'Kick Atk', ma = 'Martial Arts', occult = 'Occult Acumen', irid = 'Iridescence',
+    counter = 'Counter', kick = 'Kick Atk', ma = 'Martial Arts', occult = 'Occult Acumen', irid = 'Iridescence', qdraw = 'Quick Draw Dmg',
     eva = 'Evasion', dt = 'DT%', pdt = 'PDT%', mdt = 'MDT%', bdt = 'BDT%', mdb = 'MDB', meva = 'M.Eva',
     curercv = 'Cure Rcvd%', move = 'Move%', enmity = 'Enmity',
     macc = 'M.Acc', mab = 'MAB', mdmg = 'M.Dmg', mbb = 'MB Dmg%', mcrit = 'M.Crit%', mcritdmg = 'M.Crit Dmg%',
